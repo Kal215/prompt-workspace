@@ -12,6 +12,8 @@
     "build": "npm run build --workspaces --if-present",
     "test:adapter": "npx tsx packages/prompt-engine/scripts/test-adapter.ts",
     "test:harness": "npx tsx packages/prompt-engine/scripts/test-harness.ts",
+    "db:backup": "npx tsx packages/database/scripts/backup-db.ts",
+    "db:restore": "npx tsx packages/database/scripts/restore-db.ts",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
   },
   "engines": {
