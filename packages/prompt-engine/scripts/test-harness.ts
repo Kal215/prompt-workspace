@@ -6,6 +6,7 @@ import { GroqAdapter } from "@prompt-workspace/provider-adapters";
 import { PromptOptimizationRequest } from "@prompt-workspace/prompt-contracts";
 import {
   runOptimizationPipeline,
+  evaluateOptimization,
   safeLogger,
   redactPrompt,
   ProviderUnavailableError,
@@ -38,8 +39,8 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function run() {
   console.log("═══════════════════════════════════════════════════════════════════");
-  console.log("🛡️  PROMPT INTELLIGENCE ENGINE — HARDENED PIPELINE TEST HARNESS");
-  console.log("    (Data Minimization, Redaction & Telemetry Verification)");
+  console.log("🛡️  PROMPT INTELLIGENCE ENGINE — HARDENED QA AUDIT TEST HARNESS");
+  console.log("    (Gate 3: LLM-as-a-Judge Quality & Anti-Hallucination Audit)");
   console.log("═══════════════════════════════════════════════════════════════════\n");
 
   const fixturesPath = resolve(rootDir, "test-fixtures/baseline-prompts.json");
@@ -56,7 +57,7 @@ async function run() {
   const raw = readFileSync(fixturesPath, "utf-8");
   const fixtures: BaselineFixture[] = JSON.parse(raw);
 
-  safeLogger.info(`Loaded ${fixtures.length} baseline fixtures for hardened testing`);
+  safeLogger.info(`Loaded ${fixtures.length} baseline fixtures for QA audit testing`);
 
   let adapter: GroqAdapter;
   try {
@@ -72,14 +73,14 @@ async function run() {
   for (let i = 0; i < fixtures.length; i++) {
     const item = fixtures[i];
     console.log("\n───────────────────────────────────────────────────────────────────");
-    console.log(`[${i + 1}/${fixtures.length}] PIPELINE RUN: ${item.id} | Domain: ${item.domain}`);
+    console.log(`[${i + 1}/${fixtures.length}] PIPELINE & AUDIT: ${item.id} | Domain: ${item.domain}`);
     // PRIVACY COMPLIANCE: Redact raw prompt in console output
     console.log(`User Bad Prompt (REDACTED): ${redactPrompt(item.badPrompt, 15)}`);
     console.log(`Original Intent: "${item.originalIntent}"`);
     console.log("───────────────────────────────────────────────────────────────────");
 
     try {
-      safeLogger.info(`Menjalankan runOptimizationPipeline untuk ${item.id}...`);
+      safeLogger.info(`Menjalankan runOptimizationPipeline dengan QA Auditor untuk ${item.id}...`);
 
       const request: PromptOptimizationRequest = {
         requestId: `req-${item.id}`,
@@ -89,7 +90,10 @@ async function run() {
         constraints: [],
       };
 
-      const result = await runOptimizationPipeline(request, adapter);
+      // Jalankan pipeline lengkap (Analyzer -> Optimizer -> Auditor QA)
+      const result = await runOptimizationPipeline(request, adapter, {
+        expectedBehavior: item.expectedBehavior,
+      });
 
       // Simpan hasil utuh (un-redacted) ke file test-fixtures/results/{id}.json untuk evaluasi
       const outputPath = resolve(resultsDir, `${item.id}.json`);
@@ -119,6 +123,20 @@ async function run() {
           console.log(`   ! ${warning}`);
         }
       }
+
+      if (result.evaluation) {
+        const statusTag = result.evaluation.passed ? "✅ [PASS]" : "❌ [FAIL]";
+        console.log(`\n⚖️  AUDITOR QA (LLM-as-a-Judge):`);
+        console.log(`   ${statusTag} Score: ${result.evaluation.score}/100`);
+        console.log(`   Auditor Notes: ${result.evaluation.auditorNotes}`);
+        if (result.evaluation.intentPreserved !== undefined) {
+          console.log(`   - Intent Preserved: ${result.evaluation.intentPreserved ? "YES" : "NO"}`);
+        }
+        if (result.evaluation.deceptiveCertaintyAvoided !== undefined) {
+          console.log(`   - Deceptive Certainty Avoided (Anti-Hallucination): ${result.evaluation.deceptiveCertaintyAvoided ? "YES" : "NO"}`);
+        }
+      }
+
       console.log(`💾 Saved full JSON (un-redacted for evaluation) to: ${outputPath}`);
 
       successCount++;
@@ -131,6 +149,40 @@ async function run() {
       console.log("\n⏸ Menunggu jeda 2 detik untuk rate-limit compliance...");
       await sleep(2000);
     }
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // Auditor Negative Test (Pendeteksian Deceptive Certainty / Halusinasi)
+  // ───────────────────────────────────────────────────────────────────
+  console.log("\n═══════════════════════════════════════════════════════════════════");
+  console.log("🕵️  AUDITOR NEGATIVE TEST (Pendeteksian Deceptive Certainty / Halusinasi)");
+  console.log("═══════════════════════════════════════════════════════════════════");
+
+  try {
+    safeLogger.info("Menguji Auditor terhadap prompt halusinasi (mengarang URL/fakta palsu)...");
+    const fakeHallucinatedPrompt =
+      "Scrape data dari situs https://tokopedia-ecommerce-fake.com/products/all menggunakan BeautifulSoup. Ambil selector .price-val dan .product-sku lalu simpan ke database PostgreSQL di postgresql://admin:secret@localhost:5432/scrape_db.";
+
+    const negativeAudit = await evaluateOptimization(
+      fixtures[0].badPrompt,
+      fakeHallucinatedPrompt,
+      fixtures[0].expectedBehavior,
+      adapter
+    );
+
+    console.log(`Hasil Audit Prompt Palsu/Halusinasi:`);
+    console.log(`- Passed: ${negativeAudit.passed} (Expected: false)`);
+    console.log(`- Score: ${negativeAudit.score}/100 (Expected: < 50)`);
+    console.log(`- Auditor Notes: ${negativeAudit.auditorNotes}`);
+    console.log(`- Deceptive Certainty Avoided: ${negativeAudit.deceptiveCertaintyAvoided ? "YES" : "NO"}`);
+
+    if (!negativeAudit.passed && negativeAudit.score < 60) {
+      console.log(`\n✅ NEGATIVE TEST LULUS: Auditor berhasil mendeteksi deceptive certainty dan menggagalkannya (passed: false)!`);
+    } else {
+      console.warn(`\n⚠️ NEGATIVE TEST PERLU DITINJAU: Auditor meloloskan atau memberi skor tinggi pada halusinasi.`);
+    }
+  } catch (err: any) {
+    safeLogger.error("Negative test error", err);
   }
 
   // ───────────────────────────────────────────────────────────────────
@@ -168,7 +220,7 @@ async function run() {
   }
 
   console.log("\n═══════════════════════════════════════════════════════════════════");
-  console.log(`🏁 SELESAI: ${successCount}/${fixtures.length} fixtures berhasil diproses secara aman.`);
+  console.log(`🏁 SELESAI: ${successCount}/${fixtures.length} fixtures berhasil diproses dan diaudit.`);
   console.log("═══════════════════════════════════════════════════════════════════");
 
   if (successCount === 0) {

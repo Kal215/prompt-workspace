@@ -7,6 +7,7 @@ import {
 import { GroqAdapter } from "@prompt-workspace/provider-adapters";
 import { analyzePrompt, AnalyzePromptResult } from "./analyzer.js";
 import { optimizePrompt, OptimizePromptResult } from "./optimizer.js";
+import { evaluateOptimization, EvaluateOptimizationResult } from "./evaluator.js";
 import { safeLogger } from "./logger.js";
 import {
   EngineError,
@@ -20,6 +21,7 @@ export const ENGINE_VERSION = "0.1.0";
 
 export * from "./analyzer.js";
 export * from "./optimizer.js";
+export * from "./evaluator.js";
 export * from "./logger.js";
 export * from "./errors.js";
 
@@ -38,7 +40,8 @@ export * from "./errors.js";
  */
 export async function runOptimizationPipeline(
   request: PromptOptimizationRequest,
-  adapter?: GroqAdapter
+  adapter?: GroqAdapter,
+  options?: { expectedBehavior?: string }
 ): Promise<PromptOptimizationResult> {
   const startTime = Date.now();
 
@@ -80,19 +83,33 @@ export async function runOptimizationPipeline(
     groq
   );
 
+  // 4. Tahap Evaluasi LLM-as-a-Judge (Opsional jika expectedBehavior diberikan)
+  let evaluationResult: EvaluateOptimizationResult | undefined;
+  if (options?.expectedBehavior) {
+    evaluationResult = await evaluateOptimization(
+      validatedRequest.prompt,
+      optimizationResult.optimizedPrompt,
+      options.expectedBehavior,
+      groq
+    );
+  }
+
   const processingTimeMs = Date.now() - startTime;
 
-  // 4. Kalkulasi Telemetry Akurat
+  // 5. Kalkulasi Telemetry Akurat
   const analyzerLatency = analysisResult.telemetry?.latencyMs || 0;
   const optimizerLatency = optimizationResult.telemetry?.latencyMs || 0;
-  const totalLatencyMs = analyzerLatency + optimizerLatency;
+  const evaluatorLatency = evaluationResult?.telemetry?.latencyMs || 0;
+  const totalLatencyMs = analyzerLatency + optimizerLatency + evaluatorLatency;
 
   const promptTokens =
     (analysisResult.telemetry?.usage?.promptTokens || 0) +
-    (optimizationResult.telemetry?.usage?.promptTokens || 0);
+    (optimizationResult.telemetry?.usage?.promptTokens || 0) +
+    (evaluationResult?.telemetry?.usage?.promptTokens || 0);
   const completionTokens =
     (analysisResult.telemetry?.usage?.completionTokens || 0) +
-    (optimizationResult.telemetry?.usage?.completionTokens || 0);
+    (optimizationResult.telemetry?.usage?.completionTokens || 0) +
+    (evaluationResult?.telemetry?.usage?.completionTokens || 0);
   const totalTokens = promptTokens + completionTokens;
 
   const modelTarget =
@@ -114,6 +131,7 @@ export async function runOptimizationPipeline(
     optimizedPrompt: optimizationResult.optimizedPrompt,
     changes: optimizationResult.changes,
     warnings: optimizationResult.warnings,
+    evaluation: evaluationResult,
     metadata: {
       modelTarget,
       processingTimeMs,

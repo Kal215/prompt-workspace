@@ -1,73 +1,90 @@
 {
   "requestId": "req-PIW-BL-005",
   "originalPrompt": "Buatkan roadmap aplikasi AI dari awal sampai jadi produk besar yang canggih.",
-  "detectedIntent": "User wants a detailed roadmap for developing an AI application from inception to a large, sophisticated product, with emphasis on validation, MVP, assumptions, and avoiding over‑engineered architecture.",
+  "detectedIntent": "User wants a detailed roadmap for developing an AI application from inception to a large, sophisticated product, with emphasis on validation, MVP, assumptions, and avoiding over‑engineered solutions.",
   "analysis": {
     "findings": [
       {
+        "category": "Tujuan",
+        "severity": "major",
+        "evidence": "\"Buatkan roadmap aplikasi AI dari awal sampai jadi produk besar yang canggih.\"",
+        "recommendation": "Jelaskan secara spesifik apa yang dimaksud dengan \"produk besar\" (misalnya target pengguna, skala, pendapatan) dan apa yang dianggap \"canggih\" (fitur AI apa, performa, keamanan).",
+        "type": "tujuan",
+        "message": "Jelaskan secara spesifik apa yang dimaksud dengan \"produk besar\" (misalnya target pengguna, skala, pendapatan) dan apa yang dianggap \"canggih\" (fitur AI apa, performa, keamanan)."
+      },
+      {
         "category": "Ambiguitas",
-        "severity": "minor",
-        "evidence": "\"produk besar yang canggih\" – terms like \"canggih\" are subjective and not measurable.",
-        "recommendation": "Specify concrete quality attributes (e.g., performance targets, scalability level, user count) instead of vague adjectives.",
+        "severity": "major",
+        "evidence": "\"canggih\", \"produk besar\"",
+        "recommendation": "Ganti kata sifat subjektif dengan metrik terukur (contoh: \"menggunakan model NLP dengan akurasi >90%\", \"menjangkau 100.000 pengguna aktif per bulan\").",
         "type": "ambiguitas",
-        "message": "Specify concrete quality attributes (e.g., performance targets, scalability level, user count) instead of vague adjectives."
+        "message": "Ganti kata sifat subjektif dengan metrik terukur (contoh: \"menggunakan model NLP dengan akurasi >90%\", \"menjangkau 100.000 pengguna aktif per bulan\")."
       },
       {
         "category": "Batasan",
-        "severity": "critical",
-        "evidence": "Prompt does not define technical constraints such as preferred programming language, AI frameworks, budget, team size, timeline, or regulatory considerations.",
-        "recommendation": "Provide explicit constraints (e.g., budget ceiling, timeline phases, technology stack, compliance requirements) to guide the roadmap.",
+        "severity": "major",
+        "evidence": "Tidak ada batasan teknis, sumber daya, atau timeline yang disebutkan.",
+        "recommendation": "Sertakan batasan seperti bahasa pemrograman, platform cloud, anggaran, tim (jumlah anggota), atau jangka waktu fase-fase roadmap.",
         "type": "batasan",
-        "message": "Provide explicit constraints (e.g., budget ceiling, timeline phases, technology stack, compliance requirements) to guide the roadmap."
+        "message": "Sertakan batasan seperti bahasa pemrograman, platform cloud, anggaran, tim (jumlah anggota), atau jangka waktu fase-fase roadmap."
       },
       {
         "category": "Keluaran",
         "severity": "major",
-        "evidence": "No format for the roadmap is requested (e.g., markdown table, Gantt chart, JSON).",
-        "recommendation": "State the desired output format and structure (e.g., phases with deliverables, milestones, responsible roles) to ensure usable results.",
+        "evidence": "Tidak ada format output yang diminta.",
+        "recommendation": "Tentukan format yang diinginkan, misalnya tabel markdown, diagram Gantt, atau JSON yang berisi fase, deliverable, dan estimasi waktu.",
         "type": "keluaran",
-        "message": "State the desired output format and structure (e.g., phases with deliverables, milestones, responsible roles) to ensure usable results."
+        "message": "Tentukan format yang diinginkan, misalnya tabel markdown, diagram Gantt, atau JSON yang berisi fase, deliverable, dan estimasi waktu."
       },
       {
         "category": "Keberhasilan",
         "severity": "major",
-        "evidence": "The prompt lacks criteria for evaluating whether the roadmap is successful or complete.",
-        "recommendation": "Define success metrics (e.g., validation milestones, MVP launch date, adoption targets) that the roadmap should satisfy.",
+        "evidence": "Tidak ada kriteria keberhasilan atau metrik evaluasi.",
+        "recommendation": "Definisikan indikator keberhasilan untuk tiap fase (misalnya: validasi konsep selesai, MVP diluncurkan dengan X fitur, akurasi model >= Y%).",
         "type": "keberhasilan",
-        "message": "Define success metrics (e.g., validation milestones, MVP launch date, adoption targets) that the roadmap should satisfy."
+        "message": "Definisikan indikator keberhasilan untuk tiap fase (misalnya: validasi konsep selesai, MVP diluncurkan dengan X fitur, akurasi model >= Y%)."
       },
       {
-        "category": "Konteks",
+        "category": "Bukti",
         "severity": "minor",
-        "evidence": "While domain and high‑level expectations are given, details about the target market, user personas, and existing resources are missing.",
-        "recommendation": "Add information about the intended audience, market size, and current capabilities to tailor the roadmap appropriately.",
-        "type": "konteks",
-        "message": "Add information about the intended audience, market size, and current capabilities to tailor the roadmap appropriately."
+        "evidence": "Tidak ada contoh roadmap sebelumnya atau referensi yang dapat dijadikan acuan.",
+        "recommendation": "Jika ada contoh atau sumber inspirasi (mis. roadmap produk serupa), lampirkan URL atau deskripsi singkat.",
+        "type": "bukti",
+        "message": "Jika ada contoh atau sumber inspirasi (mis. roadmap produk serupa), lampirkan URL atau deskripsi singkat."
       }
     ],
     "score": 32,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Role: AI Product Strategist\nObjective: Create a detailed, phase‑by‑phase roadmap for developing an AI‑driven application, starting from initial concept through to a large‑scale, high‑performance product.\n\nInputs & Parameters:\n- Product concept description (brief overview of the AI application idea).\n- Target market: [TARGET_MARKET]\n- Primary user personas: [USER_PERSONAS]\n- Budget ceiling: [BUDGET]\n- Overall timeline (e.g., months or years): [TIMELINE]\n- Preferred technology stack (programming language, AI frameworks, cloud services, etc.): [TECH_STACK]\n- Team size and key roles: [TEAM_SIZE]\n- Regulatory or compliance requirements: [REGULATORY_REQUIREMENTS]\n- Desired performance targets (accuracy, latency, throughput, etc.): [PERFORMANCE_TARGETS]\n- Scalability level (number of concurrent users, data volume, geographic coverage): [SCALABILITY_LEVEL]\n- Success metrics for each phase (MVP launch date, user adoption rate, revenue targets, etc.): [SUCCESS_METRICS]\n- Desired output format for the roadmap (e.g., markdown table, Gantt chart, JSON): [OUTPUT_FORMAT]\n\nOperational Steps:\n1. Define high‑level phases (e.g., Discovery, MVP Development, Pilot Testing, Scaling, Full Product Launch).\n2. For each phase, list specific deliverables, milestones, and responsible roles.\n3. Map each deliverable to the provided timeline, budget, and resource constraints.\n4. Incorporate performance, scalability, and regulatory checkpoints into the milestones.\n5. Attach success criteria (from SUCCESS_METRICS) to validate completion of each phase.\n6. Present the roadmap in the specified OUTPUT_FORMAT, ensuring clear headings, dates, owners, and evaluation criteria.\n\nOutput Format:\n- Structured representation (as defined by [OUTPUT_FORMAT]) containing:\n  • Phase name\n  • Timeframe (start‑end dates)\n  • Key deliverables\n  • Milestones & success criteria\n  • Assigned team/role\n  • Budget allocation per phase\n  • Technical and regulatory notes\n\nConstraints & Rules:\n- Use only the information supplied or the placeholders provided; do not fabricate data.\n- Maintain a professional tone and clear, measurable language.\n- Ensure all placeholders are clearly marked for later replacement before execution.\n- Adhere to any ethical, legal, or compliance considerations indicated in REGULATORY_REQUIREMENTS.",
+  "optimizedPrompt": "Role: AI Product Strategist\nObjective: Buatkan roadmap terperinci untuk mengembangkan aplikasi AI dari tahap konsepsi hingga menjadi produk besar yang canggih, dengan metrik yang dapat diukur.\nInput & Parameters:\n- Target pengguna: [TARGET_PENGGUNA]\n- Skala pengguna (misalnya jumlah pengguna aktif per bulan): [SKALA_PENGGUNA]\n- Target pendapatan tahunan: [TARGET_PENDAPATAN]\n- Fitur AI yang diinginkan (misalnya NLP, computer vision, recommendation): [FITUR_AI]\n- Metrik performa AI (misalnya akurasi > [AKURASI_TARGET]%, latency < [LATENCY_TARGET] ms): [METRIK_PERFORMA]\n- Bahasa pemrograman utama: [BAHASA_PEMROGRAMAN]\n- Platform cloud (AWS, GCP, Azure, dll.): [PLATFORM_CLOUD]\n- Anggaran total proyek: [ANGGARAN]\n- Ukuran tim (jumlah anggota per peran): [UKURAN_TIM]\n- Jangka waktu total (bulan): [JANGKA_WAKTU_TOTAL]\nWork Steps:\n1. Ideasi & Validasi Konsep: definisi visi, riset pasar, proof‑of‑concept.\n2. Desain Arsitektur & Pemilihan Teknologi: keputusan bahasa, cloud, infrastruktur.\n3. Pengembangan MVP: implementasi fitur inti, pelatihan model AI, pengujian awal.\n4. Peluncuran Beta & Pengujian Pengguna: feedback, iterasi, peningkatan akurasi.\n5. Skalasi & Penambahan Fitur Canggih: optimasi performa, keamanan, compliance, integrasi lanjutan.\n6. Produksi & Pemeliharaan: monitoring, pembaruan model, dukungan operasional.\nFor each phase, cantumkan:\n- Deliverable utama\n- Estimasi durasi (minggu/bulan)\n- Sumber daya yang dibutuhkan (tim, teknologi, anggaran)\n- Kriteria keberhasilan (misalnya MVP selesai, akurasi model >= [AKURASI_TARGET]%, 100.000 pengguna aktif)\nOutput Format: JSON array dengan objek per fase, masing‑masing berisi fields \"phase\", \"deliverables\", \"duration\", \"resources\", \"successCriteria\". Contoh struktur:\n[\n  {\n    \"phase\": \"Ideasi & Validasi Konsep\",\n    \"deliverables\": [\"Dokumen visi\", \"Proof‑of‑concept\"],\n    \"duration\": \"4 minggu\",\n    \"resources\": {\"team\": \"2 product manager, 1 data scientist\", \"budget\": \"[ANGGARAN]\"},\n    \"successCriteria\": \"Validasi pasar selesai, konsep disetujui\"\n  },\n  ...\n]\nConstraints:\n- Ganti semua placeholder dengan nilai konkret sebelum menjalankan prompt.\n- Hindari penggunaan data atau URL yang tidak tersedia; gunakan placeholder bila diperlukan.\n- Patuhi pedoman etika AI dan regulasi data yang relevan.\n- Output harus dalam format JSON yang valid.",
   "changes": [
-    "Added explicit role (AI Product Strategist) and clear objective.",
-    "Introduced structured placeholders for all missing critical information (market, personas, budget, timeline, tech stack, team size, regulations, performance, scalability, success metrics, output format).",
-    "Defined detailed operational steps to guide roadmap creation.",
-    "Specified a comprehensive output format with required fields.",
-    "Listed constraints to prevent hallucination and ensure placeholder replacement."
+    "Menambahkan peran (Role) dan tujuan spesifik (Objective) untuk memperjelas konteks",
+    "Menyediakan placeholder terstruktur untuk semua informasi yang belum lengkap",
+    "Mendefinisikan metrik terukur menggantikan istilah subjektif seperti \"canggih\" dan \"produk besar\"",
+    "Menetapkan batasan teknis (bahasa, platform, anggaran, tim, timeline)",
+    "Menentukan format keluaran JSON yang terstruktur serta contoh struktur",
+    "Menambahkan kriteria keberhasilan untuk tiap fase roadmap"
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (e.g., [TARGET_MARKET], [BUDGET], [OUTPUT_FORMAT]) dengan data yang sebenarnya sebelum menjalankan prompt.",
-    "Pastikan bahwa semua persyaratan regulasi dan kepatuhan telah dipenuhi sesuai dengan [REGULATORY_REQUIREMENTS]."
+    "Pengguna wajib mengganti semua placeholder (misalnya [TARGET_PENGGUNA], [AKURASI_TARGET]) dengan nilai konkret sebelum menjalankan prompt",
+    "Pastikan batasan anggaran, tim, dan timeline realistis serta sesuai dengan regulasi dan kebijakan perusahaan"
   ],
+  "evaluation": {
+    "score": 95,
+    "passed": true,
+    "auditorNotes": "Optimized Prompt tetap fokus pada pembuatan roadmap AI seperti permintaan asli, menambahkan struktur yang jelas tanpa menyisipkan tujuan baru. Semua data spesifik disajikan sebagai placeholder, tidak ada fakta atau URL yang dipalsukan. Prompt sangat terorganisir dengan peran, langkah, dan format output JSON yang rapi.",
+    "intentPreserved": true,
+    "deceptiveCertaintyAvoided": true,
+    "clarityAndStructureScore": 92
+  },
   "metadata": {
     "modelTarget": "openai/gpt-oss-120b",
-    "processingTimeMs": 4838,
-    "latencyMs": 4836,
+    "processingTimeMs": 7401,
+    "latencyMs": 7401,
     "tokensUsed": {
-      "promptTokens": 1831,
-      "completionTokens": 1643,
-      "totalTokens": 3474
+      "promptTokens": 3290,
+      "completionTokens": 2936,
+      "totalTokens": 6226
     },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"

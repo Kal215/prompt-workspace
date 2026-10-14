@@ -1,91 +1,99 @@
 {
   "requestId": "req-PIW-BL-003",
   "originalPrompt": "Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.",
-  "detectedIntent": "Pengguna ingin meminta bantuan melakukan riset pasar dan mendapatkan kesimpulan tentang kemungkinan keberhasilan sebuah bisnis, dengan memisahkan fakta, asumsi, hipotesis, dan hal yang belum diketahui.",
+  "detectedIntent": "User wants assistance conducting market research and a conclusion on the potential success of a specific business, with separation of facts, assumptions, hypotheses, and unknowns.",
   "analysis": {
     "findings": [
       {
         "category": "Tujuan",
         "severity": "major",
         "evidence": "\"Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.\"",
-        "recommendation": "Jelaskan tujuan spesifik riset (misalnya: mengidentifikasi ukuran pasar, tren pertumbuhan, kompetitor utama) dan apa yang dimaksud dengan \"kesimpulan\" (misalnya: rekomendasi investasi, analisis kelayakan).",
+        "recommendation": "Jelaskan tujuan spesifik riset (misalnya: mengukur ukuran pasar, mengidentifikasi kompetitor, menilai permintaan) dan apa yang diharapkan dari kesimpulan (misalnya: rekomendasi go/no‑go).",
         "type": "tujuan",
-        "message": "Jelaskan tujuan spesifik riset (misalnya: mengidentifikasi ukuran pasar, tren pertumbuhan, kompetitor utama) dan apa yang dimaksud dengan \"kesimpulan\" (misalnya: rekomendasi investasi, analisis kelayakan)."
+        "message": "Jelaskan tujuan spesifik riset (misalnya: mengukur ukuran pasar, mengidentifikasi kompetitor, menilai permintaan) dan apa yang diharapkan dari kesimpulan (misalnya: rekomendasi go/no‑go)."
       },
       {
         "category": "Konteks",
         "severity": "critical",
         "evidence": "Tidak ada informasi tentang jenis bisnis, produk/layanan, target pasar, lokasi geografis, atau periode waktu.",
-        "recommendation": "Sertakan detail bisnis yang akan diteliti: nama/jenis produk, segmen pelanggan, wilayah operasional, serta data historis atau asumsi awal yang tersedia.",
+        "recommendation": "Sertakan detail bisnis: nama/jenis produk, segmen pelanggan, wilayah operasional, data historis yang tersedia, serta sumber data yang dapat diakses.",
         "type": "konteks",
-        "message": "Sertakan detail bisnis yang akan diteliti: nama/jenis produk, segmen pelanggan, wilayah operasional, serta data historis atau asumsi awal yang tersedia."
+        "message": "Sertakan detail bisnis: nama/jenis produk, segmen pelanggan, wilayah operasional, data historis yang tersedia, serta sumber data yang dapat diakses."
       },
       {
         "category": "Ambiguitas",
         "severity": "major",
         "evidence": "Kata \"sukses\" bersifat subjektif dan tidak terukur.",
-        "recommendation": "Definisikan metrik keberhasilan yang jelas (misalnya: revenue > X dalam Y tahun, pangsa pasar > Z%, ROI > 20%).",
+        "recommendation": "Definisikan metrik keberhasilan (misalnya: revenue > X dalam Y tahun, pangsa pasar > Z%, ROI > 20%).",
         "type": "ambiguitas",
-        "message": "Definisikan metrik keberhasilan yang jelas (misalnya: revenue > X dalam Y tahun, pangsa pasar > Z%, ROI > 20%)."
+        "message": "Definisikan metrik keberhasilan (misalnya: revenue > X dalam Y tahun, pangsa pasar > Z%, ROI > 20%)."
       },
       {
         "category": "Batasan",
         "severity": "major",
-        "evidence": "Tidak ada batasan teknis, sumber data, atau metodologi yang diharapkan.",
-        "recommendation": "Tentukan batasan seperti sumber data yang boleh dipakai (misalnya: laporan industri, survei pelanggan), alat analisis (Excel, Python, dll.), serta ruang lingkup waktu riset.",
+        "evidence": "Prompt tidak menyebutkan batasan teknis, sumber data, atau alat yang boleh dipakai.",
+        "recommendation": "Tentukan batasan seperti: hanya gunakan data publik, tidak boleh mengakses basis data berbayar, atau gunakan bahasa pemrograman/alat tertentu.",
         "type": "batasan",
-        "message": "Tentukan batasan seperti sumber data yang boleh dipakai (misalnya: laporan industri, survei pelanggan), alat analisis (Excel, Python, dll.), serta ruang lingkup waktu riset."
+        "message": "Tentukan batasan seperti: hanya gunakan data publik, tidak boleh mengakses basis data berbayar, atau gunakan bahasa pemrograman/alat tertentu."
       },
       {
         "category": "Keluaran",
         "severity": "major",
-        "evidence": "Tidak disebutkan format atau struktur hasil yang diinginkan.",
-        "recommendation": "Spesifikasikan format output (misalnya: laporan markdown dengan bagian fakta, asumsi, hipotesis, dan pertanyaan terbuka; atau tabel CSV untuk data kuantitatif).",
+        "evidence": "Tidak ada format output yang diminta (misalnya laporan markdown, tabel CSV, atau presentasi slide).",
+        "recommendation": "Spesifikasikan format yang diinginkan, misalnya: \"Berikan hasil dalam markdown dengan bagian: Ringkasan Eksekutif, Data Pasar, Analisis Kompetitor, Asumsi, Hipotesis, dan Rekomendasi.\"",
         "type": "keluaran",
-        "message": "Spesifikasikan format output (misalnya: laporan markdown dengan bagian fakta, asumsi, hipotesis, dan pertanyaan terbuka; atau tabel CSV untuk data kuantitatif)."
+        "message": "Spesifikasikan format yang diinginkan, misalnya: \"Berikan hasil dalam markdown dengan bagian: Ringkasan Eksekutif, Data Pasar, Analisis Kompetitor, Asumsi, Hipotesis, dan Rekomendasi.\""
       },
       {
         "category": "Keberhasilan",
         "severity": "major",
-        "evidence": "Tidak ada kriteria untuk menilai apakah kesimpulan sudah memadai.",
-        "recommendation": "Berikan kriteria evaluasi, seperti: semua asumsi terdokumentasi, semua sumber data dicantumkan, dan rekomendasi didukung oleh analisis kuantitatif.",
+        "evidence": "Tidak ada kriteria untuk menilai apakah jawaban sudah memuaskan.",
+        "recommendation": "Tuliskan kriteria evaluasi, contohnya: semua fakta harus didukung oleh sumber yang dapat diverifikasi, asumsi harus jelas, dan rekomendasi harus berlandaskan analisis data.",
         "type": "keberhasilan",
-        "message": "Berikan kriteria evaluasi, seperti: semua asumsi terdokumentasi, semua sumber data dicantumkan, dan rekomendasi didukung oleh analisis kuantitatif."
+        "message": "Tuliskan kriteria evaluasi, contohnya: semua fakta harus didukung oleh sumber yang dapat diverifikasi, asumsi harus jelas, dan rekomendasi harus berlandaskan analisis data."
       },
       {
         "category": "Bukti",
-        "severity": "critical",
-        "evidence": "Prompt tidak menyertakan data mentah, URL, atau contoh pertanyaan riset yang harus dijawab.",
-        "recommendation": "Lampirkan data yang tersedia (misalnya: survei pelanggan, laporan keuangan, link ke riset industri) atau setidaknya contoh pertanyaan yang harus dijawab dalam riset.",
+        "severity": "minor",
+        "evidence": "Prompt tidak menyediakan data mentah, URL, atau contoh laporan yang dapat dijadikan referensi.",
+        "recommendation": "Jika ada data atau sumber tertentu (misalnya survei pelanggan, laporan industri), lampirkan atau cantumkan linknya.",
         "type": "bukti",
-        "message": "Lampirkan data yang tersedia (misalnya: survei pelanggan, laporan keuangan, link ke riset industri) atau setidaknya contoh pertanyaan yang harus dijawab dalam riset."
+        "message": "Jika ada data atau sumber tertentu (misalnya survei pelanggan, laporan industri), lampirkan atau cantumkan linknya."
       }
     ],
     "score": 32,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Peran: Anda adalah analis riset pasar profesional.\n\nTujuan: Melakukan riset pasar komprehensif untuk [MASUKKAN_JENIS_BISNIS] yang menawarkan [MASUKKAN_PRODUK_LAYANAN], dengan target pasar [MASUKKAN_TARGET_PASAR] di wilayah [MASUKKAN_LOKASI_GEOGRAFIS] selama periode [MASUKKAN_PERIODE_WAKTU]. Tujuan akhir adalah memberikan kesimpulan apakah bisnis ini dapat mencapai metrik keberhasilan yang didefinisikan sebagai [MASUKKAN_METRIK_KEBERHASILAN].\n\nInformasi & Parameter Masukan:\n- Deskripsi singkat bisnis, produk/layanan, segmen pelanggan, lokasi, dan periode waktu.\n- Data mentah yang tersedia atau tautan ke sumber data: [LAMPIRKAN_DATA_RAW] atau [MASUKKAN_URL_DATA].\n- Daftar pertanyaan riset yang harus dijawab: [PERTANYAAN_RISSET].\n- Sumber data yang diizinkan: [MASUKKAN_SUMBER_DATA] (misalnya laporan industri, survei pelanggan, data publik).\n\nInstruksi Kerja / Langkah Operasional:\n1. Identifikasi ukuran pasar, pertumbuhan tahunan, dan tren utama.\n2. Analisis kompetitor utama serta pangsa pasar mereka.\n3. Evaluasi faktor-faktor eksternal (PESTEL) yang memengaruhi pasar.\n4. Hitung proyeksi pendapatan dan ROI berdasarkan asumsi yang diberikan.\n5. Bandingkan hasil dengan metrik keberhasilan yang ditetapkan.\n6. Dokumentasikan semua asumsi, sumber, dan metodologi yang digunakan.\n\nFormat Keluaran yang Diharapkan:\nLaporan dalam format markdown yang mencakup:\n- Ringkasan eksekutif\n- Fakta dan data kuantitatif (tabel CSV terlampir)\n- Asumsi & sumber data\n- Analisis (ukuran pasar, tren, kompetitor, proyeksi keuangan)\n- Kesimpulan dan rekomendasi investasi\n- Kriteria evaluasi keberhasilan\nSertakan tabel dan bullet points yang jelas.\n\nBatasan & Aturan Khusus:\n- Hanya gunakan sumber data yang disebutkan.\n- Tidak mengungkap data pribadi atau rahasia tanpa izin.\n- Analisis harus bersifat objektif dan tidak mempromosikan produk.\n- Semua metrik harus diukur secara kuantitatif sesuai definisi [MASUKKAN_METRIK_KEBERHASILAN].",
+  "optimizedPrompt": "Role: Anda berperan sebagai Market Research Analyst yang bertanggung jawab melakukan riset pasar komprehensif dan memberikan kesimpulan kelayakan bisnis.\n\nObjective: Lakukan riset pasar untuk [JENIS_BISNIS] yang menawarkan [PRODUK_LAYANAN] kepada [SEGMENT_PASAR] di wilayah [LOKASI_GEOGRAFIS] selama periode [PERIODE_WAKTU]. Berikan rekomendasi go/no‑go berdasarkan metrik keberhasilan yang telah didefinisikan ([METRIK_KEBERHASANAN]).\n\nInputs & Parameters:\n- Jenis bisnis / industri: [JENIS_BISNIS]\n- Produk atau layanan: [PRODUK_LAYANAN]\n- Segmen pelanggan target: [SEGMENT_PASAR]\n- Lokasi geografis operasi: [LOKASI_GEOGRAFIS]\n- Periode waktu analisis (misalnya 2024‑2029): [PERIODE_WAKTU]\n- Metrik keberhasilan (misalnya revenue > X, pangsa pasar > Y%, ROI > Z%): [METRIK_KEBERHASANAN]\n- Sumber data yang dapat diakses (misalnya laporan industri publik, statistik pemerintah, survei online): [SUMBER_DATA]\n\nOperational Steps:\n1. Definisikan ruang lingkup riset sesuai tujuan di atas.\n2. Kumpulkan data pasar dari sumber publik yang disebutkan dalam [SUMBER_DATA]; hindari basis data berbayar atau informasi rahasia.\n3. Analisis ukuran pasar, pertumbuhan tahunan, tren konsumen, dan faktor makro‑ekonomi.\n4. Identifikasi kompetitor utama, pangsa pasar mereka, dan keunggulan kompetitif.\n5. Evaluasi permintaan potensial untuk [PRODUK_LAYANAN] di [SEGMENT_PASAR] serta hambatan masuk.\n6. Bandingkan temuan dengan [METRIK_KEBERHASANAN] untuk menilai kelayakan.\n7. Susun kesimpulan berupa rekomendasi go atau no‑go beserta justifikasi.\n\nOutput Format: Berikan hasil dalam format Markdown dengan bagian‑bagian berikut:\n- **Ringkasan Eksekutif**\n- **Ukuran & Pertumbuhan Pasar**\n- **Analisis Kompetitor**\n- **Penilaian Permintaan & Segmen**\n- **Asumsi & Batasan**\n- **Evaluasi terhadap Metrik Keberhasilan**\n- **Rekomendasi (Go/No‑Go)**\n- **Daftar Sumber (dengan tautan publik)**\n\nConstraints:\n- Hanya gunakan data yang tersedia secara publik; jangan mengakses atau menyertakan data berbayar atau rahasia.\n- Semua pernyataan harus dapat diverifikasi melalui sumber yang dicantumkan.\n- Hindari spekulasi yang tidak didukung data; semua asumsi harus jelas ditandai.\n- Ikuti pedoman etika penggunaan data dan hak cipta.\n- Ganti semua placeholder dengan informasi yang relevan sebelum menjalankan prompt.",
   "changes": [
-    "Menambahkan peran dan tanggung jawab yang jelas untuk analis riset pasar",
-    "Mendefinisikan tujuan spesifik dengan placeholder terstruktur untuk jenis bisnis, produk, target pasar, lokasi, periode, dan metrik keberhasilan",
-    "Menyediakan bagian Input & Parameter dengan placeholder untuk data mentah, URL, pertanyaan riset, dan sumber data",
-    "Merinci langkah operasional yang sistematis untuk melakukan riset pasar",
-    "Menentukan format output laporan markdown lengkap dengan tabel CSV dan struktur bagian",
-    "Menetapkan batasan penggunaan sumber data, etika, dan definisi metrik keberhasilan"
+    "Menambahkan peran (Market Research Analyst) dan tanggung jawab yang jelas",
+    "Mendefinisikan tujuan spesifik dengan ruang lingkup riset yang terperinci",
+    "Menyediakan placeholder terstruktur untuk semua informasi yang belum lengkap",
+    "Menetapkan langkah operasional yang sistematis untuk pengumpulan dan analisis data",
+    "Menentukan format keluaran markdown dengan bagian‑bagian yang terstruktur",
+    "Menetapkan batasan penggunaan data publik dan kriteria evaluasi hasil"
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (misalnya [MASUKKAN_JENIS_BISNIS], [MASUKKAN_PRODUK_LAYANAN], dll.) dengan informasi yang relevan sebelum menjalankan prompt",
-    "Pastikan semua sumber data yang digunakan memiliki izin dan tidak melanggar hak cipta atau privasi",
-    "Verifikasi bahwa metrik keberhasilan yang didefinisikan dapat diukur secara kuantitatif"
+    "Pengguna wajib mengganti semua placeholder (misalnya [JENIS_BISNIS], [PRODUK_LAYANAN], dll.) dengan informasi yang akurat sebelum menjalankan prompt",
+    "Pastikan sumber data yang dipilih memang bersifat publik dan tidak melanggar hak cipta atau perizinan",
+    "Verifikasi bahwa metrik keberhasilan yang ditetapkan realistis dan dapat diukur"
   ],
+  "evaluation": {
+    "score": 94,
+    "passed": true,
+    "auditorNotes": "Optimized prompt menjaga maksud asli (riset pasar dan kesimpulan) dengan menambahkan permintaan konteks melalui placeholder, memisahkan asumsi, fakta, dan batasan, serta tidak mengarang fakta atau URL. Struktur jelas, peran, langkah operasional, dan format output terdefinisi dengan baik.",
+    "intentPreserved": true,
+    "deceptiveCertaintyAvoided": true,
+    "clarityAndStructureScore": 90
+  },
   "metadata": {
     "modelTarget": "openai/gpt-oss-120b",
-    "processingTimeMs": 6851,
-    "latencyMs": 6850,
+    "processingTimeMs": 7364,
+    "latencyMs": 7363,
     "tokensUsed": {
-      "promptTokens": 2061,
-      "completionTokens": 2648,
-      "totalTokens": 4709
+      "promptTokens": 3449,
+      "completionTokens": 2632,
+      "totalTokens": 6081
     },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"
