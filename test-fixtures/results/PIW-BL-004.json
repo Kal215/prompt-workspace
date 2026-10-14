@@ -1,98 +1,99 @@
 {
   "requestId": "req-PIW-BL-004",
   "originalPrompt": "Kode saya error. Tolong perbaiki sampai jalan.",
-  "detectedIntent": "Pengguna meminta bantuan memperbaiki kode yang mengalami error tanpa menyediakan detail kode atau informasi error yang diperlukan.",
+  "detectedIntent": "Pengguna meminta bantuan memperbaiki kode yang mengalami error, namun tidak menyediakan kode, pesan error, atau detail lingkungan pengembangan.",
   "analysis": {
     "findings": [
       {
-        "category": "Konteks",
+        "category": "Tujuan",
         "severity": "critical",
         "evidence": "\"Kode saya error. Tolong perbaiki sampai jalan.\"",
-        "recommendation": "Sertakan informasi konteks lengkap: bahasa pemrograman, versi, platform, dependensi, dan deskripsi singkat tentang apa yang kode lakukan.",
+        "recommendation": "Jelaskan secara spesifik apa yang ingin dicapai (misalnya: memperbaiki fungsi X agar mengembalikan nilai Y) dan apa yang dianggap \"jalan\" (kompilasi berhasil, semua unit test lulus, dll.).",
+        "type": "tujuan",
+        "message": "Jelaskan secara spesifik apa yang ingin dicapai (misalnya: memperbaiki fungsi X agar mengembalikan nilai Y) dan apa yang dianggap \"jalan\" (kompilasi berhasil, semua unit test lulus, dll.)."
+      },
+      {
+        "category": "Konteks",
+        "severity": "critical",
+        "evidence": "Tidak ada informasi tentang bahasa pemrograman, framework, versi, sistem operasi, atau lingkungan eksekusi.",
+        "recommendation": "Sertakan detail konteks: bahasa pemrograman, versi compiler/interpreter, framework/library yang digunakan, serta platform (Windows, Linux, dll.).",
         "type": "konteks",
-        "message": "Sertakan informasi konteks lengkap: bahasa pemrograman, versi, platform, dependensi, dan deskripsi singkat tentang apa yang kode lakukan."
+        "message": "Sertakan detail konteks: bahasa pemrograman, versi compiler/interpreter, framework/library yang digunakan, serta platform (Windows, Linux, dll.)."
       },
       {
         "category": "Bukti",
         "severity": "critical",
-        "evidence": "\"Kode saya error.\"",
-        "recommendation": "Lampirkan cuplikan kode yang bermasalah serta pesan error/stack trace yang muncul saat dijalankan.",
+        "evidence": "Prompt tidak menyertakan kode sumber, pesan error, atau log yang relevan.",
+        "recommendation": "Lampirkan potongan kode yang bermasalah, lengkap dengan baris yang menghasilkan error, serta pesan error atau stack trace yang muncul.",
         "type": "bukti",
-        "message": "Lampirkan cuplikan kode yang bermasalah serta pesan error/stack trace yang muncul saat dijalankan."
-      },
-      {
-        "category": "Tujuan",
-        "severity": "major",
-        "evidence": "\"Tolong perbaiki sampai jalan.\"",
-        "recommendation": "Jelaskan tujuan spesifik perbaikan: fungsi apa yang diharapkan, contoh output yang diinginkan, atau skenario uji yang harus lolos.",
-        "type": "tujuan",
-        "message": "Jelaskan tujuan spesifik perbaikan: fungsi apa yang diharapkan, contoh output yang diinginkan, atau skenario uji yang harus lolos."
-      },
-      {
-        "category": "Ambiguitas",
-        "severity": "major",
-        "evidence": "\"sampai jalan\"",
-        "recommendation": "Gunakan istilah yang terukur, misalnya \"kode harus dapat dijalankan tanpa error dan menghasilkan output X\".",
-        "type": "ambiguitas",
-        "message": "Gunakan istilah yang terukur, misalnya \"kode harus dapat dijalankan tanpa error dan menghasilkan output X\"."
-      },
-      {
-        "category": "Batasan",
-        "severity": "major",
-        "evidence": "Tidak ada batasan yang disebutkan dalam prompt.",
-        "recommendation": "Tentukan batasan teknis seperti library yang boleh dipakai, batasan performa, atau kebijakan lisensi.",
-        "type": "batasan",
-        "message": "Tentukan batasan teknis seperti library yang boleh dipakai, batasan performa, atau kebijakan lisensi."
+        "message": "Lampirkan potongan kode yang bermasalah, lengkap dengan baris yang menghasilkan error, serta pesan error atau stack trace yang muncul."
       },
       {
         "category": "Keluaran",
-        "severity": "minor",
-        "evidence": "Prompt tidak menyebutkan format hasil yang diinginkan.",
-        "recommendation": "Nyatakan format output yang diharapkan, misalnya \"berikan kode yang diperbaiki dalam blok markdown\" atau \"kembalikan diff dalam format patch\".",
+        "severity": "major",
+        "evidence": "Tidak ada format output yang diminta (misalnya: patch kode, diff, penjelasan langkah‑demi‑langkah).",
+        "recommendation": "Tentukan format yang diinginkan, misalnya \"berikan diff Git\", \"tuliskan perbaikan dalam blok kode markdown\", atau \"jelaskan solusi secara terstruktur\".",
         "type": "keluaran",
-        "message": "Nyatakan format output yang diharapkan, misalnya \"berikan kode yang diperbaiki dalam blok markdown\" atau \"kembalikan diff dalam format patch\"."
+        "message": "Tentukan format yang diinginkan, misalnya \"berikan diff Git\", \"tuliskan perbaikan dalam blok kode markdown\", atau \"jelaskan solusi secara terstruktur\"."
       },
       {
         "category": "Keberhasilan",
-        "severity": "minor",
-        "evidence": "Tidak ada kriteria keberhasilan yang didefinisikan.",
-        "recommendation": "Definisikan metrik atau tes yang menunjukkan perbaikan berhasil, seperti \"kode harus lulus semua unit test\" atau \"tidak ada lagi pesan error pada console\".",
+        "severity": "major",
+        "evidence": "Tidak ada kriteria untuk menilai apakah perbaikan sudah berhasil (misalnya: semua tes unit lulus, aplikasi dapat dijalankan tanpa error).",
+        "recommendation": "Definisikan metrik keberhasilan, seperti \"kode harus dapat dikompilasi tanpa error\" atau \"semua unit test harus lulus\".",
         "type": "keberhasilan",
-        "message": "Definisikan metrik atau tes yang menunjukkan perbaikan berhasil, seperti \"kode harus lulus semua unit test\" atau \"tidak ada lagi pesan error pada console\"."
+        "message": "Definisikan metrik keberhasilan, seperti \"kode harus dapat dikompilasi tanpa error\" atau \"semua unit test harus lulus\"."
+      },
+      {
+        "category": "Batasan",
+        "severity": "minor",
+        "evidence": "Tidak ada batasan teknis atau kebijakan (misalnya: tidak boleh menambah dependensi baru, harus tetap menggunakan library X).",
+        "recommendation": "Jika ada batasan khusus, cantumkan secara eksplisit.",
+        "type": "batasan",
+        "message": "Jika ada batasan khusus, cantumkan secara eksplisit."
+      },
+      {
+        "category": "Ambiguitas",
+        "severity": "minor",
+        "evidence": "Kata \"jalan\" bersifat subjektif dan tidak terukur.",
+        "recommendation": "Gunakan istilah yang lebih terukur, seperti \"kompilasi berhasil\" atau \"semua tes lulus\".",
+        "type": "ambiguitas",
+        "message": "Gunakan istilah yang lebih terukur, seperti \"kompilasi berhasil\" atau \"semua tes lulus\"."
       }
     ],
     "score": 22,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Role: Anda adalah seorang pengembang perangkat lunak yang berpengalaman dalam memperbaiki kode yang mengalami error.\nObjective: Memperbaiki kode yang error sehingga dapat dijalankan tanpa error dan menghasilkan output yang sesuai dengan tujuan yang diharapkan.\nInput & Parameters:\n- Bahasa pemrograman: [MASUKKAN_BAHASA_PEMROGRAMAN]\n- Versi bahasa / runtime: [MASUKKAN_VERSI]\n- Platform / lingkungan eksekusi: [MASUKKAN_PLATFORM]\n- Dependensi / library yang digunakan: [MASUKKAN_DEPENDENSI]\n- Deskripsi singkat tentang apa yang kode lakukan: [MASUKKAN_DESKRIPSI_KODE]\n- Cuplikan kode yang bermasalah: [MASUKKAN_CUPLIKAN_KODE]\n- Pesan error atau stack trace yang muncul: [MASUKKAN_PESAN_ERROR]\n- Tujuan perbaikan (misalnya fungsi yang diharapkan, contoh output, skenario uji): [TUJUAN_PERBAIKAN]\n- Batasan teknis (misalnya library yang boleh dipakai, batasan performa, kebijakan lisensi): [BATASAN_TEKNIS]\n- Format keluaran yang diinginkan (misalnya kode lengkap dalam blok markdown, diff/patch, atau penjelasan langkah per langkah): [FORMAT_KELUARAN]\n- Kriteria keberhasilan (misalnya kode harus lulus semua unit test, tidak ada lagi pesan error, output sesuai ekspektasi): [KRITERIA_KEBERHASILAN]\nOperational Steps:\n1. Analisis cuplikan kode dan pesan error yang diberikan.\n2. Identifikasi penyebab error berdasarkan bahasa, versi, dan dependensi.\n3. Modifikasi kode sesuai tujuan perbaikan dan batasan teknis.\n4. Verifikasi bahwa kode dapat dijalankan tanpa error dan memenuhi kriteria keberhasilan.\n5. Sajikan hasil perbaikan dalam format yang telah ditentukan.\nOutput Format: Sesuai dengan placeholder [FORMAT_KELUARAN] (contoh: ```<bahasa>...``` untuk kode lengkap atau patch diff).\nConstraints: Hanya gunakan library atau teknik yang diperbolehkan dalam [BATASAN_TEKNIS]; jangan menambahkan fitur di luar tujuan perbaikan; patuhi lisensi dan kebijakan etika pemrograman.",
+  "optimizedPrompt": "Role: Anda adalah seorang pengembang perangkat lunak berpengalaman yang membantu memperbaiki kode yang mengalami error.\n\nObjective: Memperbaiki kode yang diberikan sehingga dapat dijalankan/kompilasi tanpa error dan memenuhi kriteria keberhasilan yang ditentukan.\n\nInput & Parameters:\n- Bahasa pemrograman dan versi: [MASUKKAN_BAHASA_PEMROGRAMAN]\n- Framework / library (jika ada): [MASUKKAN_FRAMEWORK_DAN_VERSI]\n- Sistem operasi / lingkungan eksekusi: [MASUKKAN_LINGKUNGAN_EKSEKUSI]\n- Potongan kode yang bermasalah (sertakan baris yang error): [MASUKKAN_KODE]\n- Pesan error lengkap atau stack trace: [MASUKKAN_PESAN_ERROR]\n- Tujuan perbaikan yang spesifik (misalnya: fungsi X harus mengembalikan nilai Y, aplikasi harus dapat memuat halaman utama, dll.): [JELASKAN_TUJUAN_PERBAIKAN]\n- Kriteria keberhasilan (misalnya: kode dapat dikompilasi tanpa error, semua unit test lulus, aplikasi berjalan sesuai harapan): [JELASKAN_KRITERIA_KEBERHASILAN]\n- Batasan khusus (misalnya: tidak menambah dependensi baru, tetap menggunakan library X, ukuran file tidak boleh melebihi Y KB): [MASUKKAN_BATASAN]\n\nOperational Steps:\n1. Analisis kode dan pesan error yang diberikan.\n2. Identifikasi penyebab utama error berdasarkan konteks bahasa, versi, dan lingkungan.\n3. Buat perbaikan kode yang diperlukan tanpa menambah dependensi baru kecuali diizinkan.\n4. Jika diperlukan, berikan penjelasan singkat tentang perubahan yang dilakukan.\n5. Sajikan hasil perbaikan dalam format yang diminta.\n\nOutput Format:\n- **Patch kode** dalam blok markdown dengan sintaks yang sesuai (misalnya ```python``` atau ```java```).\n- **Diff Git** (opsional) jika pengguna menginginkannya, ditandai dengan ```diff```.\n- **Penjelasan singkat** (maksimal 3 kalimat) tentang apa yang diperbaiki dan mengapa.\n- **Instruksi verifikasi** untuk memastikan kriteria keberhasilan terpenuhi.\n\nConstraints:\n- Tidak menambah dependensi baru kecuali secara eksplisit diizinkan.\n- Mematuhi batasan ukuran atau performa yang disebutkan.\n- Menjaga kode tetap kompatibel dengan versi bahasa dan framework yang diberikan.\n- Menghindari penggunaan kode atau referensi eksternal yang tidak disediakan.\n",
   "changes": [
-    "Menambahkan peran (Role) dan tujuan spesifik (Objective) untuk memperjelas konteks permintaan",
-    "Menyediakan serangkaian placeholder terstruktur untuk semua informasi yang belum lengkap (bahasa, versi, platform, dependensi, deskripsi, cuplikan kode, pesan error, tujuan, batasan, format keluaran, kriteria keberhasilan)",
-    "Mendefinisikan langkah operasional yang harus diikuti untuk memperbaiki kode",
-    "Menentukan format keluaran yang diharapkan serta batasan teknis",
-    "Menambahkan kriteria keberhasilan untuk mengukur keberhasilan perbaikan"
+    "Menambahkan peran (Role) dan tanggung jawab yang jelas",
+    "Mendefinisikan tujuan spesifik (Objective) dengan kriteria keberhasilan terukur",
+    "Menyertakan placeholder terstruktur untuk semua informasi yang belum tersedia (bahasa, kode, error, tujuan, batasan, dll.)",
+    "Menyusun langkah operasional yang terperinci",
+    "Menentukan format keluaran yang diharapkan (patch kode, diff, penjelasan, instruksi verifikasi)",
+    "Menetapkan batasan teknis dan kebijakan yang dapat diisi pengguna"
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (misalnya [MASUKKAN_BAHASA_PEMROGRAMAN], [MASUKKAN_CUPLIKAN_KODE], dll.) dengan informasi yang sebenarnya sebelum menjalankan prompt",
-    "Pastikan bahwa batasan teknis dan lisensi yang disebutkan sesuai dengan proyek Anda",
-    "Verifikasi kembali bahwa output yang dihasilkan memenuhi kriteria keberhasilan yang ditetapkan"
+    "Pengguna wajib mengganti semua placeholder (misalnya [MASUKKAN_BAHASA_PEMROGRAMAN], [MASUKKAN_KODE], [MASUKKAN_PESAN_ERROR], dll.) sebelum menjalankan prompt",
+    "Pastikan kode yang dibagikan tidak melanggar hak cipta atau kebijakan privasi",
+    "Verifikasi bahwa lingkungan eksekusi sesuai dengan detail yang diberikan untuk menghindari hasil yang tidak akurat"
   ],
   "evaluation": {
-    "score": 93,
+    "score": 96,
     "passed": true,
-    "auditorNotes": "Optimized prompt meminta semua bukti yang diperlukan melalui placeholder, tidak mengarang fakta atau URL, dan tetap fokus pada perbaikan kode tanpa menambah tujuan baru. Struktur jelas dan terorganisir. Langkah verifikasi tidak mengklaim pengujian aktual, melainkan instruksi logis, sehingga tidak melanggar expected behavior.",
+    "auditorNotes": "Optimized prompt preserves original intent to fix the erroneous code, requests necessary evidence via clear placeholders, and does not fabricate any facts or URLs. Structure is well‑organized with role, objectives, inputs, steps, and output format.",
     "intentPreserved": true,
     "deceptiveCertaintyAvoided": true,
-    "clarityAndStructureScore": 85
+    "clarityAndStructureScore": 90
   },
   "metadata": {
     "modelTarget": "openai/gpt-oss-120b",
-    "processingTimeMs": 6700,
-    "latencyMs": 6698,
+    "processingTimeMs": 6244,
+    "latencyMs": 6242,
     "tokensUsed": {
-      "promptTokens": 3136,
-      "completionTokens": 2493,
-      "totalTokens": 5629
+      "promptTokens": 3346,
+      "completionTokens": 2184,
+      "totalTokens": 5530
     },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"

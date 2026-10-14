@@ -1,99 +1,91 @@
 {
   "requestId": "req-PIW-BL-003",
   "originalPrompt": "Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.",
-  "detectedIntent": "User wants assistance conducting market research and a conclusion on the potential success of a specific business, with separation of facts, assumptions, hypotheses, and unknowns.",
+  "detectedIntent": "User wants assistance conducting market research and a conclusion on the potential success of a specific business.",
   "analysis": {
     "findings": [
       {
-        "category": "Tujuan",
-        "severity": "major",
-        "evidence": "\"Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.\"",
-        "recommendation": "Jelaskan tujuan spesifik riset (misalnya: mengukur ukuran pasar, mengidentifikasi kompetitor, menilai permintaan) dan apa yang diharapkan dari kesimpulan (misalnya: rekomendasi go/no‑go).",
-        "type": "tujuan",
-        "message": "Jelaskan tujuan spesifik riset (misalnya: mengukur ukuran pasar, mengidentifikasi kompetitor, menilai permintaan) dan apa yang diharapkan dari kesimpulan (misalnya: rekomendasi go/no‑go)."
-      },
-      {
         "category": "Konteks",
         "severity": "critical",
-        "evidence": "Tidak ada informasi tentang jenis bisnis, produk/layanan, target pasar, lokasi geografis, atau periode waktu.",
-        "recommendation": "Sertakan detail bisnis: nama/jenis produk, segmen pelanggan, wilayah operasional, data historis yang tersedia, serta sumber data yang dapat diakses.",
+        "evidence": "\"Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.\"",
+        "recommendation": "Specify the business type, product/service, target market, geographic region, and any existing data or assumptions to provide a concrete research scope.",
         "type": "konteks",
-        "message": "Sertakan detail bisnis: nama/jenis produk, segmen pelanggan, wilayah operasional, data historis yang tersedia, serta sumber data yang dapat diakses."
+        "message": "Specify the business type, product/service, target market, geographic region, and any existing data or assumptions to provide a concrete research scope."
       },
       {
         "category": "Ambiguitas",
         "severity": "major",
-        "evidence": "Kata \"sukses\" bersifat subjektif dan tidak terukur.",
-        "recommendation": "Definisikan metrik keberhasilan (misalnya: revenue > X dalam Y tahun, pangsa pasar > Z%, ROI > 20%).",
+        "evidence": "Kata \"sukses\" tidak terdefinisi secara kuantitatif.",
+        "recommendation": "Define success metrics (e.g., revenue target, market share, profit margin) and time horizon for evaluation.",
         "type": "ambiguitas",
-        "message": "Definisikan metrik keberhasilan (misalnya: revenue > X dalam Y tahun, pangsa pasar > Z%, ROI > 20%)."
+        "message": "Define success metrics (e.g., revenue target, market share, profit margin) and time horizon for evaluation."
       },
       {
         "category": "Batasan",
         "severity": "major",
-        "evidence": "Prompt tidak menyebutkan batasan teknis, sumber data, atau alat yang boleh dipakai.",
-        "recommendation": "Tentukan batasan seperti: hanya gunakan data publik, tidak boleh mengakses basis data berbayar, atau gunakan bahasa pemrograman/alat tertentu.",
+        "evidence": "Tidak ada batasan tentang sumber data, metodologi, atau alat yang boleh dipakai.",
+        "recommendation": "State any constraints such as preferred data sources, analytical frameworks, budget limits, or tools/libraries to be used.",
         "type": "batasan",
-        "message": "Tentukan batasan seperti: hanya gunakan data publik, tidak boleh mengakses basis data berbayar, atau gunakan bahasa pemrograman/alat tertentu."
+        "message": "State any constraints such as preferred data sources, analytical frameworks, budget limits, or tools/libraries to be used."
       },
       {
         "category": "Keluaran",
         "severity": "major",
-        "evidence": "Tidak ada format output yang diminta (misalnya laporan markdown, tabel CSV, atau presentasi slide).",
-        "recommendation": "Spesifikasikan format yang diinginkan, misalnya: \"Berikan hasil dalam markdown dengan bagian: Ringkasan Eksekutif, Data Pasar, Analisis Kompetitor, Asumsi, Hipotesis, dan Rekomendasi.\"",
+        "evidence": "Tidak ada format output yang diminta.",
+        "recommendation": "Specify the desired output format (e.g., markdown report, JSON summary, bullet points) and structure (sections for facts, assumptions, hypotheses, unknowns).",
         "type": "keluaran",
-        "message": "Spesifikasikan format yang diinginkan, misalnya: \"Berikan hasil dalam markdown dengan bagian: Ringkasan Eksekutif, Data Pasar, Analisis Kompetitor, Asumsi, Hipotesis, dan Rekomendasi.\""
+        "message": "Specify the desired output format (e.g., markdown report, JSON summary, bullet points) and structure (sections for facts, assumptions, hypotheses, unknowns)."
       },
       {
         "category": "Keberhasilan",
         "severity": "major",
-        "evidence": "Tidak ada kriteria untuk menilai apakah jawaban sudah memuaskan.",
-        "recommendation": "Tuliskan kriteria evaluasi, contohnya: semua fakta harus didukung oleh sumber yang dapat diverifikasi, asumsi harus jelas, dan rekomendasi harus berlandaskan analisis data.",
+        "evidence": "Tidak ada kriteria untuk menilai apakah kesimpulan sudah memadai.",
+        "recommendation": "Provide criteria for a satisfactory answer, such as inclusion of data sources, citation of references, and clear separation of fact vs. assumption.",
         "type": "keberhasilan",
-        "message": "Tuliskan kriteria evaluasi, contohnya: semua fakta harus didukung oleh sumber yang dapat diverifikasi, asumsi harus jelas, dan rekomendasi harus berlandaskan analisis data."
+        "message": "Provide criteria for a satisfactory answer, such as inclusion of data sources, citation of references, and clear separation of fact vs. assumption."
       },
       {
-        "category": "Bukti",
+        "category": "Tujuan",
         "severity": "minor",
-        "evidence": "Prompt tidak menyediakan data mentah, URL, atau contoh laporan yang dapat dijadikan referensi.",
-        "recommendation": "Jika ada data atau sumber tertentu (misalnya survei pelanggan, laporan industri), lampirkan atau cantumkan linknya.",
-        "type": "bukti",
-        "message": "Jika ada data atau sumber tertentu (misalnya survei pelanggan, laporan industri), lampirkan atau cantumkan linknya."
+        "evidence": "Tujuan umum \"riset pasar\" tidak terperinci.",
+        "recommendation": "Clarify the specific research objectives (e.g., market size estimation, competitor analysis, customer segmentation).",
+        "type": "tujuan",
+        "message": "Clarify the specific research objectives (e.g., market size estimation, competitor analysis, customer segmentation)."
       }
     ],
     "score": 32,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Role: Anda berperan sebagai Market Research Analyst yang bertanggung jawab melakukan riset pasar komprehensif dan memberikan kesimpulan kelayakan bisnis.\n\nObjective: Lakukan riset pasar untuk [JENIS_BISNIS] yang menawarkan [PRODUK_LAYANAN] kepada [SEGMENT_PASAR] di wilayah [LOKASI_GEOGRAFIS] selama periode [PERIODE_WAKTU]. Berikan rekomendasi go/no‑go berdasarkan metrik keberhasilan yang telah didefinisikan ([METRIK_KEBERHASANAN]).\n\nInputs & Parameters:\n- Jenis bisnis / industri: [JENIS_BISNIS]\n- Produk atau layanan: [PRODUK_LAYANAN]\n- Segmen pelanggan target: [SEGMENT_PASAR]\n- Lokasi geografis operasi: [LOKASI_GEOGRAFIS]\n- Periode waktu analisis (misalnya 2024‑2029): [PERIODE_WAKTU]\n- Metrik keberhasilan (misalnya revenue > X, pangsa pasar > Y%, ROI > Z%): [METRIK_KEBERHASANAN]\n- Sumber data yang dapat diakses (misalnya laporan industri publik, statistik pemerintah, survei online): [SUMBER_DATA]\n\nOperational Steps:\n1. Definisikan ruang lingkup riset sesuai tujuan di atas.\n2. Kumpulkan data pasar dari sumber publik yang disebutkan dalam [SUMBER_DATA]; hindari basis data berbayar atau informasi rahasia.\n3. Analisis ukuran pasar, pertumbuhan tahunan, tren konsumen, dan faktor makro‑ekonomi.\n4. Identifikasi kompetitor utama, pangsa pasar mereka, dan keunggulan kompetitif.\n5. Evaluasi permintaan potensial untuk [PRODUK_LAYANAN] di [SEGMENT_PASAR] serta hambatan masuk.\n6. Bandingkan temuan dengan [METRIK_KEBERHASANAN] untuk menilai kelayakan.\n7. Susun kesimpulan berupa rekomendasi go atau no‑go beserta justifikasi.\n\nOutput Format: Berikan hasil dalam format Markdown dengan bagian‑bagian berikut:\n- **Ringkasan Eksekutif**\n- **Ukuran & Pertumbuhan Pasar**\n- **Analisis Kompetitor**\n- **Penilaian Permintaan & Segmen**\n- **Asumsi & Batasan**\n- **Evaluasi terhadap Metrik Keberhasilan**\n- **Rekomendasi (Go/No‑Go)**\n- **Daftar Sumber (dengan tautan publik)**\n\nConstraints:\n- Hanya gunakan data yang tersedia secara publik; jangan mengakses atau menyertakan data berbayar atau rahasia.\n- Semua pernyataan harus dapat diverifikasi melalui sumber yang dicantumkan.\n- Hindari spekulasi yang tidak didukung data; semua asumsi harus jelas ditandai.\n- Ikuti pedoman etika penggunaan data dan hak cipta.\n- Ganti semua placeholder dengan informasi yang relevan sebelum menjalankan prompt.",
+  "optimizedPrompt": "Role: Market Research Analyst\nObjective: Conduct a comprehensive market research study for the specified business and provide a concise conclusion on its likelihood of success based on defined success metrics.\nInput & Parameters:\n- Business Type: [JENIS_BISNIS]\n- Product/Service Description: [PRODUK_JASA]\n- Target Market (demographics, segments): [PASAR_TUJUAN]\n- Geographic Region: [REGION_GEOGRAFIS]\n- Existing Data or Assumptions (if any): [DATA_EXISTING]\n- Success Metrics (e.g., revenue target, market share, profit margin): [METRIK_KEBERHASAN]\n- Evaluation Time Horizon: [HORIZON_WAKTU]\n- Preferred Data Sources (e.g., industry reports, government statistics, surveys): [SUMBER_DATA]\n- Analytical Methodology or Framework (e.g., Porter’s Five Forces, SWOT, TAM/SAM/SOM): [METODOLOGI]\n- Tools/Libraries to be used (e.g., Excel, Python pandas, R): [ALAT]\n- Desired Output Format (e.g., markdown report, JSON summary, bullet points): [FORMAT_KELUARAN]\n- Evaluation Criteria for the answer (e.g., inclusion of data sources, citation of references, clear separation of facts vs. assumptions): [KRITERIA_PENILAIAN]\n- Specific Research Objectives (e.g., market size estimation, competitor analysis, customer segmentation): [TUJUAN_RISSET]\n\nWork Steps:\n1. Clarify and confirm all placeholders with the user.\n2. Gather data from the specified sources respecting any budget or access constraints.\n3. Apply the chosen methodology to analyze market size, growth trends, competitive landscape, and customer segments.\n4. Evaluate the business against the defined success metrics within the given time horizon.\n5. Draft the findings, explicitly labeling:\n   - Facts (with source citations)\n   - Assumptions\n   - Hypotheses\n   - Unknowns\n6. Formulate a concise conclusion on the business’s potential success, referencing the success metrics.\n7. Present the result in the requested output format.\n\nOutput Format:\n- Title\n- Executive Summary\n- Methodology\n- Data Sources (cited)\n- Findings (structured per research objective)\n- Assumptions & Limitations\n- Conclusion on Success Potential\n- Recommendations (optional)\n\nConstraints & Rules:\n- Do not fabricate any data, URLs, or references.\n- Use placeholders wherever information is missing.\n- Adhere to any ethical or licensing considerations for data usage.\n- Maintain a neutral, evidence‑based tone.\n- Ensure the final output matches the specified [FORMAT_KELUARAN].",
   "changes": [
-    "Menambahkan peran (Market Research Analyst) dan tanggung jawab yang jelas",
-    "Mendefinisikan tujuan spesifik dengan ruang lingkup riset yang terperinci",
-    "Menyediakan placeholder terstruktur untuk semua informasi yang belum lengkap",
-    "Menetapkan langkah operasional yang sistematis untuk pengumpulan dan analisis data",
-    "Menentukan format keluaran markdown dengan bagian‑bagian yang terstruktur",
-    "Menetapkan batasan penggunaan data publik dan kriteria evaluasi hasil"
+    "Menambahkan peran (Role) dan tanggung jawab yang jelas sebagai Market Research Analyst",
+    "Mendefinisikan tujuan spesifik (Objective) dengan fokus pada riset pasar dan penilaian kesuksesan bisnis",
+    "Menyediakan placeholder terstruktur untuk semua informasi yang belum lengkap (jenis bisnis, produk, pasar, wilayah, data, metrik, dll.)",
+    "Menetapkan langkah operasional terperinci (Work Steps) untuk proses riset",
+    "Menentukan format keluaran yang diharapkan beserta struktur laporan",
+    "Menambahkan batasan khusus untuk menghindari halusinasi data dan memastikan kepatuhan etika"
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (misalnya [JENIS_BISNIS], [PRODUK_LAYANAN], dll.) dengan informasi yang akurat sebelum menjalankan prompt",
-    "Pastikan sumber data yang dipilih memang bersifat publik dan tidak melanggar hak cipta atau perizinan",
-    "Verifikasi bahwa metrik keberhasilan yang ditetapkan realistis dan dapat diukur"
+    "Pengguna wajib mengganti semua placeholder (misalnya [JENIS_BISNIS], [PRODUK_JASA], dll.) dengan informasi yang relevan sebelum menjalankan prompt",
+    "Pastikan sumber data yang dipilih dapat digunakan secara legal dan etis",
+    "Periksa kembali definisi metrik keberhasilan dan horizon waktu agar sesuai dengan tujuan bisnis"
   ],
   "evaluation": {
-    "score": 94,
+    "score": 98,
     "passed": true,
-    "auditorNotes": "Optimized prompt menjaga maksud asli (riset pasar dan kesimpulan) dengan menambahkan permintaan konteks melalui placeholder, memisahkan asumsi, fakta, dan batasan, serta tidak mengarang fakta atau URL. Struktur jelas, peran, langkah operasional, dan format output terdefinisi dengan baik.",
+    "auditorNotes": "Optimized prompt mempertahankan maksud asli (riset pasar & kesimpulan) dengan menambahkan placeholder terstruktur untuk konteks, memisahkan fakta, asumsi, hipotesis, dan hal yang belum diketahui, serta menegaskan larangan fabrikasi data. Tidak ada fakta atau URL palsu yang dibuat. Struktur jelas, berperan, dan terorganisir.",
     "intentPreserved": true,
     "deceptiveCertaintyAvoided": true,
     "clarityAndStructureScore": 90
   },
   "metadata": {
     "modelTarget": "openai/gpt-oss-120b",
-    "processingTimeMs": 7364,
-    "latencyMs": 7363,
+    "processingTimeMs": 7218,
+    "latencyMs": 7217,
     "tokensUsed": {
-      "promptTokens": 3449,
-      "completionTokens": 2632,
-      "totalTokens": 6081
+      "promptTokens": 3248,
+      "completionTokens": 2329,
+      "totalTokens": 5577
     },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"

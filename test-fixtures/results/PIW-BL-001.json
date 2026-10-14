@@ -1,97 +1,97 @@
 {
   "requestId": "req-PIW-BL-001",
   "originalPrompt": "Buatkan saya kode Python untuk web scraping.",
-  "detectedIntent": "User meminta kode Python untuk melakukan web scraping, namun mengharapkan model menanyakan detail yang diperlukan atau memberikan kerangka kerja dengan placeholder tanpa mengarang URL atau selector.",
+  "detectedIntent": "User wants a Python web scraping script template, with placeholders and without fabricating URLs or selectors, and expects the model to request missing details instead of providing a complete working script.",
   "analysis": {
     "findings": [
       {
         "category": "Tujuan",
         "severity": "major",
         "evidence": "\"Buatkan saya kode Python untuk web scraping.\"",
-        "recommendation": "Jelaskan tujuan spesifik scraping (misalnya: mengumpulkan harga produk, artikel berita, dll.) agar kode dapat difokuskan pada kebutuhan pengguna.",
+        "recommendation": "Jelaskan tujuan spesifik scraping (misalnya: mengumpulkan judul artikel, harga produk, dll.) agar kode dapat difokuskan.",
         "type": "tujuan",
-        "message": "Jelaskan tujuan spesifik scraping (misalnya: mengumpulkan harga produk, artikel berita, dll.) agar kode dapat difokuskan pada kebutuhan pengguna."
+        "message": "Jelaskan tujuan spesifik scraping (misalnya: mengumpulkan judul artikel, harga produk, dll.) agar kode dapat difokuskan."
       },
       {
         "category": "Konteks",
         "severity": "critical",
-        "evidence": "Tidak ada informasi tentang situs target, struktur halaman, atau data yang ingin diambil.",
-        "recommendation": "Sertakan domain situs web, contoh URL (atau nyatakan bahwa URL belum diketahui), serta elemen HTML yang relevan (misalnya: class, id, tag) atau minta model untuk menanyakan hal tersebut.",
+        "evidence": "Tidak ada URL target, tidak ada jenis data yang ingin diambil, tidak ada contoh halaman.",
+        "recommendation": "Sertakan contoh URL atau deskripsi situs target serta elemen HTML yang relevan (misalnya: tag, kelas, atau ID).",
         "type": "konteks",
-        "message": "Sertakan domain situs web, contoh URL (atau nyatakan bahwa URL belum diketahui), serta elemen HTML yang relevan (misalnya: class, id, tag) atau minta model untuk menanyakan hal tersebut."
+        "message": "Sertakan contoh URL atau deskripsi situs target serta elemen HTML yang relevan (misalnya: tag, kelas, atau ID)."
       },
       {
         "category": "Ambiguitas",
         "severity": "major",
-        "evidence": "Kata-kata seperti \"kode Python untuk web scraping\" bersifat sangat umum dan tidak terukur.",
-        "recommendation": "Gunakan istilah yang lebih spesifik, misalnya \"scrape judul artikel dan tanggal publikasi dari halaman blog X menggunakan library requests dan BeautifulSoup\".",
+        "evidence": "Istilah \"web scraping\" bersifat luas dan tidak terukur.",
+        "recommendation": "Tentukan apakah scraping bersifat statis atau dinamis, frekuensi scraping, dan batasan etika (robots.txt, rate limiting).",
         "type": "ambiguitas",
-        "message": "Gunakan istilah yang lebih spesifik, misalnya \"scrape judul artikel dan tanggal publikasi dari halaman blog X menggunakan library requests dan BeautifulSoup\"."
+        "message": "Tentukan apakah scraping bersifat statis atau dinamis, frekuensi scraping, dan batasan etika (robots.txt, rate limiting)."
       },
       {
         "category": "Batasan",
         "severity": "major",
-        "evidence": "Tidak ada batasan mengenai library yang boleh dipakai, versi Python, atau batasan performa.",
-        "recommendation": "Tentukan apakah boleh menggunakan libraries seperti requests, aiohttp, Selenium, atau Scrapy, serta versi Python yang diharapkan.",
+        "evidence": "Tidak ada batasan library (misalnya: requests, BeautifulSoup, Selenium), tidak ada batasan lingkungan (Python versi), tidak ada batasan lisensi atau kebijakan penggunaan.",
+        "recommendation": "Nyatakan library yang diizinkan atau dilarang, versi Python, serta batasan sumber daya (misalnya: timeout, memory).",
         "type": "batasan",
-        "message": "Tentukan apakah boleh menggunakan libraries seperti requests, aiohttp, Selenium, atau Scrapy, serta versi Python yang diharapkan."
+        "message": "Nyatakan library yang diizinkan atau dilarang, versi Python, serta batasan sumber daya (misalnya: timeout, memory)."
       },
       {
         "category": "Keluaran",
         "severity": "major",
-        "evidence": "Prompt tidak menyebutkan format output yang diinginkan (JSON, CSV, dll.).",
-        "recommendation": "Sebutkan format data hasil scraping yang diharapkan, misalnya \"output dalam bentuk list of dictionaries\" atau \"tulis ke file CSV\".",
+        "evidence": "Tidak ada format output yang diminta (JSON, CSV, dll.) atau struktur data hasil scraping.",
+        "recommendation": "Tentukan format dan struktur data yang diharapkan dari script (misalnya: list of dicts, pandas DataFrame, file CSV).",
         "type": "keluaran",
-        "message": "Sebutkan format data hasil scraping yang diharapkan, misalnya \"output dalam bentuk list of dictionaries\" atau \"tulis ke file CSV\"."
+        "message": "Tentukan format dan struktur data yang diharapkan dari script (misalnya: list of dicts, pandas DataFrame, file CSV)."
       },
       {
         "category": "Keberhasilan",
-        "severity": "minor",
-        "evidence": "Tidak ada kriteria untuk menilai apakah kode berhasil atau tidak.",
-        "recommendation": "Definisikan metrik keberhasilan, seperti \"kode harus dapat mengambil minimal 10 item tanpa error\" atau \"menyimpan hasil ke file output yang valid\".",
+        "severity": "major",
+        "evidence": "Tidak ada kriteria evaluasi apakah script berhasil (misalnya: jumlah record yang diambil, handling error).",
+        "recommendation": "Definisikan metrik atau kondisi keberhasilan, seperti berhasil mengekstrak X elemen tanpa error.",
         "type": "keberhasilan",
-        "message": "Definisikan metrik keberhasilan, seperti \"kode harus dapat mengambil minimal 10 item tanpa error\" atau \"menyimpan hasil ke file output yang valid\"."
+        "message": "Definisikan metrik atau kondisi keberhasilan, seperti berhasil mengekstrak X elemen tanpa error."
       },
       {
         "category": "Bukti",
         "severity": "info",
-        "evidence": "Tidak ada contoh URL atau HTML yang dapat dijadikan referensi.",
-        "recommendation": "Jika memungkinkan, berikan contoh potongan HTML atau URL contoh (atau nyatakan bahwa model harus meminta contoh tersebut).",
+        "evidence": "Tidak ada contoh kode yang sudah ada atau error yang muncul untuk diperbaiki.",
+        "recommendation": "Jika ada kode awal atau pesan error, lampirkan untuk membantu penyesuaian.",
         "type": "bukti",
-        "message": "Jika memungkinkan, berikan contoh potongan HTML atau URL contoh (atau nyatakan bahwa model harus meminta contoh tersebut)."
+        "message": "Jika ada kode awal atau pesan error, lampirkan untuk membantu penyesuaian."
       }
     ],
-    "score": 28,
+    "score": 25,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Role: Python Developer specialized in web scraping.\n\nObjective: Buatkan kode Python yang dapat melakukan web scraping sesuai dengan kebutuhan spesifik pengguna.\n\nInput & Parameters:\n- Target website URL: [MASUKKAN_URL_TARGET]\n- Data yang ingin diambil (misalnya: judul artikel, harga produk, tanggal publikasi, dll.): [DAFTAR_DATA_YANG_INGIN_DIAMBIL]\n- Elemen HTML yang relevan (class, id, tag, atau selector CSS): [ELEMEN_HTML]\n- Library Python yang diizinkan (misalnya: requests, BeautifulSoup, aiohttp, Selenium, Scrapy): [LIBRARY_YANG_DIPAKAI]\n- Versi Python yang diharapkan: [VERSI_PYTHON]\n- Format output yang diinginkan (misalnya: list of dictionaries, CSV, JSON file): [FORMAT_OUTPUT]\n- Kriteria keberhasilan (misalnya: berhasil mengambil minimal 10 item tanpa error, menyimpan hasil ke file yang valid): [KRITERIA_KEBERHASILAN]\n\nOperational Steps:\n1. Validasi input placeholder telah diisi.\n2. Impor library yang dipilih sesuai dengan [LIBRARY_YANG_DIPAKAI] dan pastikan kompatibilitas dengan [VERSI_PYTHON].\n3. Buat fungsi untuk mengirim permintaan HTTP ke [MASUKKAN_URL_TARGET] dengan penanganan error (timeout, status code non‑200).\n4. Parse respons HTML menggunakan selector yang diberikan di [ELEMEN_HTML] untuk mengekstrak [DAFTAR_DATA_YANG_INGIN_DIAMBIL].\n5. Simpan hasil ekstraksi ke dalam format yang ditentukan di [FORMAT_OUTPUT].\n6. Tambahkan log atau print statement yang menunjukkan apakah [KRITERIA_KEBERHASILAN] terpenuhi.\n7. Sertakan komentar singkat pada setiap bagian kode untuk kejelasan.\n\nOutput Format:\n- Kode Python lengkap yang dapat dijalankan secara langsung.\n- Penjelasan singkat (maksimum 3‑4 kalimat) tentang cara kerja kode dan cara menyesuaikannya jika diperlukan.\n\nConstraints:\n- Hanya gunakan library yang disebutkan dalam [LIBRARY_YANG_DIPAKAI]; jangan menambahkan library lain tanpa persetujuan.\n- Pastikan kode mematuhi kebijakan etika scraping (misalnya, menghormati robots.txt, tidak melakukan permintaan berlebihan).\n- Jangan menyertakan URL atau data nyata yang tidak diberikan; gunakan placeholder yang ada.\n- Kode harus kompatibel dengan versi Python yang ditentukan di [VERSI_PYTHON].",
+  "optimizedPrompt": "Role: Python developer specialized in web scraping.\n\nObjective: Generate a complete, ready‑to‑run Python script that performs web scraping according to the user‑specified target website and data requirements.\n\nInput & Parameters:\n- Target URL: [MASUKKAN_URL_TARGET]\n- Data to extract (e.g., titles, prices, dates): [DAFTAR_DATA_YANG_INGIN_DIAMBIL]\n- Type of scraping (static HTML or dynamic content requiring a browser): [JENIS_SCRAPING]\n- Allowed libraries (e.g., requests, BeautifulSoup, Selenium, lxml): [PERMIT_LIBRARIES]\n- Python version to target: [PYTHON_VERSION]\n- Desired output format (JSON, CSV, pandas DataFrame, etc.): [OUTPUT_FORMAT]\n- Success criteria (e.g., minimum number of records, no unhandled exceptions): [KRITERIA_KEBERHASILAN]\n- Optional rate‑limiting or delay between requests: [RATE_LIMIT]\n\nWork Steps:\n1. Verify that scraping the target URL complies with its robots.txt and any legal/ethical guidelines.\n2. Set up the environment according to the specified Python version and allowed libraries.\n3. Retrieve the page content using the appropriate method (requests for static, Selenium/WebDriver for dynamic).\n4. Parse the HTML (BeautifulSoup, lxml, etc.) and locate the elements defined in [DAFTAR_DATA_YANG_INGIN_DIAMBIL] using tags, classes, IDs, or XPath as needed.\n5. Extract the required fields, handling missing or malformed data gracefully.\n6. Store the extracted records in the format defined by [OUTPUT_FORMAT].\n7. Implement error handling, logging, and respect the [RATE_LIMIT] if provided.\n8. At the end, print a brief summary indicating whether the [KRITERIA_KEBERHASILAN] were met.\n\nExpected Output Format:\n- The response should contain the full Python script enclosed in triple backticks (```python ... ```).\n- Include inline comments explaining each major block.\n- Provide a short usage example (how to run the script and where the output file will be saved).\n- If applicable, include a sample snippet of the expected output (e.g., a JSON array or CSV header row).\n\nConstraints & Rules:\n- Use only the libraries listed in [PERMIT_LIBRARIES]; do not import any disallowed packages.\n- Respect the target site's robots.txt and include a polite User‑Agent string.\n- Do not hard‑code credentials or sensitive information.\n- Ensure the script runs on the specified [PYTHON_VERSION] without requiring external services beyond the allowed libraries.\n- Keep memory usage reasonable (e.g., process pages sequentially, avoid loading the entire site into memory).",
   "changes": [
     "Menambahkan peran (Role) dan tujuan spesifik (Objective) untuk memperjelas konteks.",
-    "Menyediakan placeholder terstruktur untuk semua informasi yang belum lengkap (URL, data, elemen HTML, library, versi Python, format output, kriteria keberhasilan).",
-    "Mendefinisikan langkah operasional (Operational Steps) yang detail untuk menghasilkan kode yang sesuai.",
-    "Menentukan format keluaran yang diharapkan (kode lengkap + penjelasan singkat).",
-    "Menetapkan batasan khusus terkait penggunaan library, versi Python, dan etika scraping."
+    "Menyediakan placeholder terstruktur untuk semua informasi yang belum lengkap (URL, data, jenis scraping, library, versi Python, format output, kriteria keberhasilan, rate limit).",
+    "Mendefinisikan langkah‑langkah operasional yang detail, termasuk pengecekan robots.txt, handling error, dan logging.",
+    "Menentukan format keluaran yang diharapkan (script dalam blok kode, contoh penggunaan, contoh output).",
+    "Menetapkan batasan khusus terkait library yang diizinkan, versi Python, etika scraping, dan penggunaan sumber daya."
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (misalnya [MASUKKAN_URL_TARGET], [DAFTAR_DATA_YANG_INGIN_DIAMBIL], dll.) sebelum menjalankan prompt.",
-    "Pastikan bahwa scraping yang dilakukan mematuhi kebijakan robots.txt situs target dan peraturan hukum yang berlaku."
+    "Pengguna wajib mengganti semua placeholder (misalnya [MASUKKAN_URL_TARGET], [DAFTAR_DATA_YANG_INGIN_DIAMBIL], dll.) dengan nilai yang sesuai sebelum menjalankan prompt.",
+    "Pastikan bahwa scraping target URL mematuhi kebijakan robots.txt dan peraturan hukum yang berlaku."
   ],
   "evaluation": {
-    "score": 98,
+    "score": 95,
     "passed": true,
-    "auditorNotes": "Optimized prompt menjaga maksud asli (minta kode web‑scraping) dan menambahkan placeholder yang diperlukan tanpa mengarang URL atau selector. Tidak ada fakta palsu, semua informasi yang belum diberikan ditandai dengan placeholder yang jelas. Struktur prompt sangat terorganisir dengan peran, langkah operasional, dan format output.",
+    "auditorNotes": "Optimized prompt tetap pada tujuan membuat kode Python untuk web scraping, menambahkan placeholder terstruktur tanpa mengarang URL atau selector. Tidak ada fakta palsu, dan struktur serta kejelasannya sangat baik.",
     "intentPreserved": true,
     "deceptiveCertaintyAvoided": true,
-    "clarityAndStructureScore": 92
+    "clarityAndStructureScore": 95
   },
   "metadata": {
     "modelTarget": "openai/gpt-oss-120b",
-    "processingTimeMs": 7715,
-    "latencyMs": 7706,
+    "processingTimeMs": 7247,
+    "latencyMs": 7244,
     "tokensUsed": {
-      "promptTokens": 3237,
-      "completionTokens": 2694,
-      "totalTokens": 5931
+      "promptTokens": 3312,
+      "completionTokens": 2512,
+      "totalTokens": 5824
     },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"
