@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dotenv from "dotenv";
 import path from "path";
-import { getHistory, savePrompt, prisma, type SavePromptInput } from "@prompt-workspace/database";
+import { getHistory, savePrompt, deletePrompt, type SavePromptInput } from "@prompt-workspace/database";
 
 // Pastikan konfigurasi .env root dimuat untuk DATABASE_URL dan konfigurasi lainnya
 dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
@@ -106,9 +106,17 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await prisma.savedPrompt.delete({
-      where: { id },
-    });
+    try {
+      await deletePrompt(id);
+    } catch (err: any) {
+      if (err?.code === "P2025") {
+        return NextResponse.json(
+          { success: false, error: "Prompt dengan ID tersebut tidak ditemukan di database." },
+          { status: 404 }
+        );
+      }
+      throw err;
+    }
 
     return NextResponse.json({
       success: true,

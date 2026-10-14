@@ -76,3 +76,12 @@ export async function getPromptById(id: string): Promise<SavedPrompt | null> {
     where: { id },
   });
 }
+
+/**
+ * Menghapus prompt tersimpan berdasarkan ID.
+ */
+export async function deletePrompt(id: string): Promise<SavedPrompt> {
+  return await prisma.savedPrompt.delete({
+    where: { id },
+  });
+}

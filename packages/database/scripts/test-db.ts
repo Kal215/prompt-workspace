@@ -1,4 +1,4 @@
-import { savePrompt, getHistory, prisma } from "../src/index.js";
+import { savePrompt, getHistory, getPromptById, deletePrompt, prisma } from "../src/index.js";
 
 async function main() {
   console.log("═══════════════════════════════════════════════════════════════════");
@@ -27,6 +27,23 @@ async function main() {
   for (const item of history) {
     console.log(`   - [ID: ${item.id.slice(0, 8)}...] Skor: ${item.score} | Intent: ${item.intentSummary}`);
   }
+
+  console.log("\n[3] Menjalankan getPromptById()...");
+  const fetched = await getPromptById(saved.id);
+  if (!fetched || fetched.id !== saved.id) {
+    throw new Error(`getPromptById gagal menemukan ID: ${saved.id}`);
+  }
+  console.log(`✅ getPromptById berhasil mengambil record [ID: ${fetched.id.slice(0, 8)}...]`);
+
+  console.log("\n[4] Menjalankan deletePrompt()...");
+  const deleted = await deletePrompt(saved.id);
+  console.log(`✅ deletePrompt berhasil menghapus record [ID: ${deleted.id.slice(0, 8)}...]`);
+
+  const recheck = await getPromptById(saved.id);
+  if (recheck !== null) {
+    throw new Error(`Record ${saved.id} masih ditemukan setelah dihapus!`);
+  }
+  console.log("✅ Konfirmasi record terhapus bersih (recheck = null)");
 
   await prisma.$disconnect();
   console.log("\n═══════════════════════════════════════════════════════════════════");
