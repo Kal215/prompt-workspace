@@ -193,6 +193,12 @@ export function ResultDashboard({
         appliedDomainRule={
           result.appliedDomainRule || result.metadata?.appliedDomainRule
         }
+        providerId={
+          result.providerId || (result.metadata?.providerId as string)
+        }
+        model={
+          result.model || (result.metadata?.model as string) || (result.metadata?.modelTarget as string)
+        }
       />
 
       {/* 3. Findings & Changes Side-by-Side */}

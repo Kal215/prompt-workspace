@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { PromptOptimizationRequestSchema } from "@prompt-workspace/prompt-contracts";
 import { runOptimizationPipeline } from "@prompt-workspace/prompt-engine";
-import { GroqAdapter } from "@prompt-workspace/provider-adapters";
+import {
+  ProviderAdapterError,
+} from "@prompt-workspace/provider-adapters";
 import crypto from "crypto";
 import path from "path";
 import fs from "fs";
@@ -12,7 +14,7 @@ import {
   extractClientIP,
 } from "../../../lib/rate-limiter";
 
-// Pastikan environment variables (GROQ_API_KEY_1..6) ter-load di server Next.js
+// Pastikan environment variables (GROQ_API_KEY_1..6, GEMINI_API_KEY, dll) ter-load di server Next.js
 if (!process.env.GROQ_API_KEY_1) {
   const rootEnv = path.resolve(process.cwd(), "../../.env");
   const localEnv = path.resolve(process.cwd(), ".env");
@@ -21,15 +23,6 @@ if (!process.env.GROQ_API_KEY_1) {
   } else if (fs.existsSync(localEnv)) {
     dotenv.config({ path: localEnv });
   }
-}
-
-// Module-level adapter instance to share key rotation pool across API invocations
-let groqAdapterInstance: GroqAdapter | null = null;
-function getGroqAdapter(): GroqAdapter {
-  if (!groqAdapterInstance) {
-    groqAdapterInstance = new GroqAdapter();
-  }
-  return groqAdapterInstance;
 }
 
 export async function POST(request: Request) {
@@ -69,6 +62,8 @@ export async function POST(request: Request) {
       taskType: body.taskType ?? null,
       constraints: Array.isArray(body.constraints) ? body.constraints : [],
       requestId: body.requestId || crypto.randomUUID(),
+      providerId: body.providerId ?? null,
+      targetModel: body.targetModel ?? null,
     };
 
     const validationResult = PromptOptimizationRequestSchema.safeParse(payload);
@@ -83,10 +78,9 @@ export async function POST(request: Request) {
     }
 
     const validatedData = validationResult.data;
-    const adapter = getGroqAdapter();
 
-    // Jalankan pipeline nyata (Analyzer -> Optimizer) via Groq LLM
-    const engineResult = await runOptimizationPipeline(validatedData, adapter);
+    // Jalankan pipeline nyata via provider yang dipilih pengguna (default: groq)
+    const engineResult = await runOptimizationPipeline(validatedData);
 
     return NextResponse.json(engineResult, { status: 200 });
   } catch (error) {
@@ -95,18 +89,29 @@ export async function POST(request: Request) {
     // Sanitasi pesan error agar tidak membocorkan stack trace atau API key
     let safeMessage =
       "Engine sedang sibuk atau gagal menganalisis. Coba lagi atau sederhanakan prompt.";
+    let httpStatus = 500;
 
-    if (error instanceof Error) {
+    if (error instanceof ProviderAdapterError) {
+      safeMessage = error.message;
+      httpStatus = error.statusCode || 500;
+    } else if (error instanceof Error) {
       const msg = error.message.toLowerCase();
       if (msg.includes("rate limit") || msg.includes("429")) {
         safeMessage =
           "Batas kuota request (rate limit) tercapai pada provider LLM. Silakan tunggu beberapa saat dan coba lagi.";
+        httpStatus = 429;
       } else if (msg.includes("timeout") || msg.includes("timed out")) {
         safeMessage =
           "Waktu tunggu analisis engine melebihi batas. Coba perpendek prompt asli Anda.";
-      } else if (msg.includes("api key") || msg.includes("authentication")) {
+        httpStatus = 504;
+      } else if (msg.includes("api key") || msg.includes("authentication") || msg.includes("belum dikonfigurasi")) {
         safeMessage =
-          "Koneksi provider LLM bermasalah. Kunci API tidak dapat digunakan.";
+          "Provider LLM yang dipilih belum dikonfigurasi atau kunci API-nya tidak valid. Periksa pengaturan server.";
+        httpStatus = 503;
+      } else if (msg.includes("tidak didukung") || msg.includes("not supported")) {
+        safeMessage =
+          "Provider yang dipilih tidak didukung oleh sistem.";
+        httpStatus = 400;
       }
     }
 
@@ -114,7 +119,7 @@ export async function POST(request: Request) {
       {
         error: safeMessage,
       },
-      { status: 500 }
+      { status: httpStatus }
     );
   }
 }

@@ -20,6 +20,7 @@ import {
 } from "@/components/workspace/history-sidebar";
 import { PrivacyDisclosure } from "@/components/workspace/privacy-disclosure";
 import { listDomainPacks, DomainRulePack } from "@prompt-workspace/domain-rules";
+import { ProviderCapability } from "@prompt-workspace/prompt-contracts";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -34,18 +35,106 @@ import {
   Layers,
 } from "lucide-react";
 
+// Fallback daftar statis aman provider saat inisialisasi / loading
+const DEFAULT_PROVIDERS: ProviderCapability[] = [
+  {
+    providerId: "groq",
+    displayName: "Groq Cloud (Fast LPUs)",
+    defaultModel: "llama-3.3-70b-versatile",
+    availableModels: [
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "mixtral-8x7b-32768",
+      "openai/gpt-oss-120b",
+    ],
+    supportsJsonMode: true,
+    isLocal: false,
+    configured: true,
+    description: "Inferensi super cepat berbasis LPU dengan rotasi multi-key otomatis untuk keandalan tinggi.",
+  },
+  {
+    providerId: "gemini",
+    displayName: "Google Gemini",
+    defaultModel: "gemini-2.5-flash",
+    availableModels: [
+      "gemini-2.5-flash",
+      "gemini-2.5-pro",
+      "gemini-2.0-flash",
+    ],
+    supportsJsonMode: true,
+    isLocal: false,
+    configured: false,
+    description: "Model multimodal canggih dari Google dengan jendela konteks luas dan penalaran tajam.",
+  },
+  {
+    providerId: "openrouter",
+    displayName: "OpenRouter (Unified Gateway)",
+    defaultModel: "meta-llama/llama-3.3-70b-instruct",
+    availableModels: [
+      "meta-llama/llama-3.3-70b-instruct",
+      "deepseek/deepseek-chat",
+      "anthropic/claude-3.5-sonnet",
+      "openai/gpt-4o-mini",
+    ],
+    supportsJsonMode: true,
+    isLocal: false,
+    configured: false,
+    description: "Gateway multi-model global yang menghubungkan ke ratusan model open-source dan proprietary.",
+  },
+  {
+    providerId: "ollama",
+    displayName: "Ollama (Lokal / Self-Hosted)",
+    defaultModel: "llama3.2",
+    availableModels: [
+      "llama3.2",
+      "qwen2.5-coder",
+      "mistral",
+    ],
+    supportsJsonMode: true,
+    isLocal: true,
+    configured: false,
+    description: "Eksekusi LLM secara mandiri di mesin lokal tanpa biaya API eksternal dan privasi total.",
+  },
+];
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [context, setContext] = useState("");
   const [selectedDomain, setSelectedDomain] = useState<string>("general");
+  const [providers, setProviders] = useState<ProviderCapability[]>(DEFAULT_PROVIDERS);
+  const [selectedProvider, setSelectedProvider] = useState<string>("groq");
+  const [selectedModel, setSelectedModel] = useState<string>("llama-3.3-70b-versatile");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PromptOptimizationResult | null>(null);
+
+  // Ambil kapabilitas provider dari /api/providers saat mount
+  useEffect(() => {
+    fetch("/api/providers")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.providers)) {
+          setProviders(json.providers);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Daftar Domain Rule Packs dari @prompt-workspace/domain-rules
   const domainPacks: DomainRulePack[] = listDomainPacks();
   const activeDomainPack =
     domainPacks.find((p) => p.domainId === selectedDomain) || domainPacks[0];
+
+  const activeProvider =
+    providers.find((p) => p.providerId === selectedProvider) || providers[0];
+
+  const handleProviderChange = (newProviderId: string) => {
+    setSelectedProvider(newProviderId);
+    const targetProvider = providers.find((p) => p.providerId === newProviderId);
+    if (targetProvider) {
+      setSelectedModel(targetProvider.defaultModel);
+    }
+  };
 
   // History Sidebar state (real-time SQLite database)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -84,6 +173,8 @@ export default function Home() {
           prompt: prompt.trim(),
           context: context.trim() || null,
           taskType: selectedDomain,
+          providerId: selectedProvider,
+          targetModel: selectedModel,
         }),
       });
 
@@ -112,6 +203,8 @@ export default function Home() {
     setPrompt("");
     setContext("");
     setSelectedDomain("general");
+    setSelectedProvider("groq");
+    setSelectedModel("llama-3.3-70b-versatile");
     setResult(null);
     setError(null);
   };
@@ -277,6 +370,100 @@ export default function Home() {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Provider & Target Model Selectors */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Provider Select */}
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="provider-select"
+                        className="font-medium text-xs flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Cpu className="h-3.5 w-3.5 text-primary" />
+                          <span>Penyedia AI (Provider)</span>
+                        </span>
+                        {activeProvider.isLocal ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20 py-0"
+                          >
+                            Lokal (Ollama)
+                          </Badge>
+                        ) : activeProvider.configured ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 py-0"
+                          >
+                            Siap / Terkonfigurasi
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 py-0"
+                          >
+                            Belum Dikonfigurasi
+                          </Badge>
+                        )}
+                      </Label>
+                      <div className="relative">
+                        <select
+                          id="provider-select"
+                          data-testid="provider-select"
+                          value={selectedProvider}
+                          onChange={(e) => handleProviderChange(e.target.value)}
+                          disabled={isLoading}
+                          className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                        >
+                          {providers.map((p: ProviderCapability) => (
+                            <option key={p.providerId} value={p.providerId}>
+                              {p.displayName} {p.isLocal ? "(Lokal)" : p.configured ? "✓" : "(!)"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {!activeProvider.configured && !activeProvider.isLocal && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-snug">
+                          API Key belum diatur di server (.env).
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Target Model Select */}
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="target-model-select"
+                        className="font-medium text-xs flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Sliders className="h-3.5 w-3.5 text-primary" />
+                          <span>Model Tujuan (Target Model)</span>
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {activeProvider.availableModels.length} model
+                        </span>
+                      </Label>
+                      <div className="relative">
+                        <select
+                          id="target-model-select"
+                          data-testid="target-model-select"
+                          value={selectedModel}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          disabled={isLoading}
+                          className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                        >
+                          {activeProvider.availableModels.map((m: string) => (
+                            <option key={m} value={m}>
+                              {m} {m === activeProvider.defaultModel ? "(Default)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate leading-snug">
+                        {activeProvider.description}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Prompt Input */}
