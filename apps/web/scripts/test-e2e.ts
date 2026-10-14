@@ -124,7 +124,7 @@ const mockOptimizationResult = {
     status: "analyzed",
   },
   optimizedPrompt:
-    "Sebagai Senior Python Engineer, buatkan skrip automasi web scraping e-commerce menggunakan BeautifulSoup4 dan requests. Skrip harus mengekstrak: nama produk, harga, dan rating; menangani pagination dan error handling; serta mengekspor data ke file JSON terstruktur.",
+    "Sebagai Senior Python Engineer, buatkan skrip automasi web scraping e-commerce menggunakan BeautifulSoup4 dan requests untuk mengekstrak data ke format [FORMAT_OUTPUT]. Skrip harus mengekstrak: nama produk, harga, dan rating; menangani pagination dan error handling; serta mengekspor data ke file terstruktur.",
   changes: [
     "Menambahkan persona Senior Python Engineer",
     "Menetapkan pustaka BeautifulSoup4 & requests",
@@ -155,6 +155,30 @@ const mockOptimizationResult = {
     tokensUsed: { promptTokens: 120, completionTokens: 180, totalTokens: 300 },
     confidenceScore: 0.95,
   },
+};
+
+const mockExecutionResult = {
+  executionId: "mock-exec-e2e-12345",
+  resolvedPrompt:
+    "Sebagai Senior Python Engineer, buatkan skrip automasi web scraping e-commerce menggunakan BeautifulSoup4 dan requests untuk mengekstrak data ke format JSON terstruktur. Skrip harus mengekstrak: nama produk, harga, dan rating; menangani pagination dan error handling; serta mengekspor data ke file terstruktur.\n\n--- KASUS UJI / TEST CASE INPUT ---\nTarget URL: https://example.com/products",
+  unresolvedPlaceholders: [],
+  output:
+    "Berikut adalah skrip Python BeautifulSoup4 lengkap dengan pagination dan ekspor JSON:\n```python\nimport requests\nfrom bs4 import BeautifulSoup\n# Scraping logic...\n```",
+  providerId: "groq",
+  model: "llama-3.3-70b-versatile",
+  parameters: {
+    temperature: 0.3,
+    maxOutputTokens: 1024,
+  },
+  latencyMs: 382,
+  usage: {
+    promptTokens: 85,
+    completionTokens: 210,
+    totalTokens: 295,
+  },
+  nondeterminismNotice:
+    "Catatan: Respons model bahasa probabilistik; hasil dapat bervariasi pada temperature > 0.",
+  createdAt: new Date().toISOString(),
 };
 
 async function runE2ESuite() {
@@ -221,14 +245,30 @@ async function runE2ESuite() {
     const page: Page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 900 });
 
-    // Intersepsi Jaringan: Mock Deterministik /api/optimize
+    // Intersepsi Jaringan: Mock Deterministik /api/optimize & /api/execute
     let interceptedTaskType: string | null = null;
     let interceptedProviderId: string | null = null;
     let interceptedTargetModel: string | null = null;
+    let interceptedExecPrompt: string | null = null;
     await page.setRequestInterception(true);
     page.on("request", (interceptedReq) => {
       const url = interceptedReq.url();
-      if (url.includes("/api/optimize") && interceptedReq.method() === "POST") {
+      if (url.includes("/api/execute") && interceptedReq.method() === "POST") {
+        try {
+          const postData = JSON.parse(interceptedReq.postData() || "{}");
+          interceptedExecPrompt = postData.prompt ?? null;
+        } catch {
+          interceptedExecPrompt = null;
+        }
+        console.log(
+          `  🎯 [Network Intercept] Intersepsi POST /api/execute -> Mengembalikan mock fixture execution`
+        );
+        interceptedReq.respond({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ success: true, data: mockExecutionResult }),
+        });
+      } else if (url.includes("/api/optimize") && interceptedReq.method() === "POST") {
         try {
           const postData = JSON.parse(interceptedReq.postData() || "{}");
           interceptedTaskType = postData.taskType ?? null;
@@ -296,6 +336,13 @@ async function runE2ESuite() {
     assert(
       privacyNoticeExists,
       "Panel informasi transparansi privasi, pemrosesan Groq API, & retensi sesi ter-render di DOM"
+    );
+
+    // Verifikasi Keberadaan Panel Panduan Pengguna (Tahap 6 - Bagian 12)
+    const userGuideExists = await page.$('[data-testid="user-guide-section"]');
+    assert(
+      userGuideExists !== null,
+      "Panel panduan pengguna (data-testid='user-guide-section') ter-render di DOM"
     );
 
     const getBadgeCount = async (): Promise<number> => {
@@ -452,6 +499,57 @@ async function runE2ESuite() {
       pageTextAfterOptimize.includes("Sebagai Senior Python Engineer") ||
       pageTextAfterOptimize.includes("BeautifulSoup4"),
       "Komponen Diff Viewer berhasil dirender dengan teks prompt teroptimasi"
+    );
+
+    // 7B. Verifikasi Komponen Playground & Alur Eksekusi Target Model (Task #30 / Fitur C3)
+    console.log("\n▶ [Step 7B] Menguji Target Model Execution Playground (PlaygroundCard)...");
+
+    await page.waitForSelector('[data-testid="playground-card"]', { timeout: 5000 });
+    const playgroundExists = await page.$('[data-testid="playground-card"]');
+    assert(playgroundExists !== null, "Komponen PlaygroundCard (data-testid='playground-card') ter-render di DOM");
+
+    // Verifikasi form input placeholder dinamis
+    const placeholderInputsExists = await page.$('[data-testid="placeholder-inputs"]');
+    assert(placeholderInputsExists !== null, "Form input variabel placeholder (data-testid='placeholder-inputs') ter-render");
+
+    // Isi nilai placeholder [FORMAT_OUTPUT]
+    await page.type('input[id="placeholder-[FORMAT_OUTPUT]"]', 'JSON terstruktur');
+    console.log("  🎯 Mengisi nilai placeholder [FORMAT_OUTPUT] = 'JSON terstruktur'");
+
+    // Isi optional test case input
+    await page.type('#playground-test-input', 'Target URL: https://example.com/products');
+    console.log("  🎯 Mengisi kasus uji tambahan (test input)");
+
+    // Klik tombol Jalankan pada Model Tujuan
+    const runBtn = await page.$('[data-testid="run-playground-btn"]');
+    assert(runBtn !== null, "Tombol 'Jalankan pada Model Tujuan' (data-testid='run-playground-btn') ditemukan");
+    await page.click('[data-testid="run-playground-btn"]');
+
+    // Tunggu hasil eksekusi muncul di data-testid="playground-result"
+    await page.waitForSelector('[data-testid="playground-result"]', { timeout: 8000 });
+    const resultExists = await page.$('[data-testid="playground-result"]');
+    assert(resultExists !== null, "Kontainer hasil eksekusi (data-testid='playground-result') ter-render di DOM");
+
+    const resultText = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="playground-result"]');
+      return el ? el.textContent || "" : "";
+    });
+
+    assert(
+      resultText.includes("BeautifulSoup4") && resultText.includes("groq"),
+      "Output nyata target model dan badge metadata ter-render di Playground"
+    );
+    assert(
+      resultText.includes("tokens") && resultText.includes("ms"),
+      "Metadata token dan latensi eksekusi ter-render di Playground"
+    );
+    assert(
+      resultText.includes("probabilistik") || resultText.includes("nondeterminism") || resultText.includes("bervariasi"),
+      "Catatan transparansi nondeterminism ter-render di Playground"
+    );
+    assert(
+      Boolean(interceptedExecPrompt),
+      "Payload request POST /api/execute berhasil diintersepsi dan memuat prompt"
     );
 
     // 8. Interaksi "Accept & Save" ke Riwayat SQLite

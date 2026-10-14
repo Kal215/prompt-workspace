@@ -72,3 +72,24 @@ export interface PromptOptimizationResult {
     [key: string]: unknown;
   };
 }
+
+export interface PromptExecutionResult {
+  executionId: string;
+  resolvedPrompt: string;
+  unresolvedPlaceholders: string[];
+  output: string;
+  providerId: string;
+  model: string;
+  parameters: {
+    temperature: number;
+    maxOutputTokens: number;
+  };
+  latencyMs: number;
+  usage: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+  nondeterminismNotice: string;
+  createdAt: string;
+}

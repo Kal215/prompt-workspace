@@ -7,6 +7,7 @@
 
 import { GET, POST, DELETE } from "../src/app/api/history/route";
 import { GET as GET_PROVIDERS } from "../src/app/api/providers/route";
+import { POST as POST_EXECUTE } from "../src/app/api/execute/route";
 import { getPromptById, savePrompt, prisma, setDatabaseUrl } from "@prompt-workspace/database";
 import { signSession } from "../src/lib/session";
 import { InMemorySlidingWindowLimiter } from "../src/lib/rate-limiter";
@@ -554,6 +555,65 @@ async function runApiRegressionSuite() {
     assert(!hasGskLeak && !hasAizaLeak && !hasSkOrLeak, "Response JSON 100% bebas dari kebocoran string API key");
   } catch (err: unknown) {
     assert(false, "GET /api/providers test", String(err));
+  }
+
+  // 23. Test POST /api/execute (Target Model Execution Playground API)
+  console.log("\n▶ [Test 23] POST /api/execute (CSRF Protection, Schema Validation & Safe Execution)");
+  try {
+    // 23.1 CSRF Fail-Closed: Request tanpa Origin / Referer harus ditolak HTTP 403
+    const reqNoOrigin = new Request("http://localhost:3000/api/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "Test prompt" }),
+    });
+    const resNoOrigin = await POST_EXECUTE(reqNoOrigin);
+    assert(resNoOrigin.status === 403, "CSRF: Request /api/execute tanpa Origin/Referer ditolak HTTP 403");
+
+    // 23.2 CSRF Valid Origin, Payload Kosong / Invalid -> HTTP 400
+    const reqInvalid = new Request("http://localhost:3000/api/execute", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({ prompt: "" }),
+    });
+    const resInvalid = await POST_EXECUTE(reqInvalid);
+    assert(resInvalid.status === 400, "Validasi: Payload dengan prompt kosong ditolak HTTP 400");
+    const jsonInvalid = await resInvalid.json();
+    assert(jsonInvalid.success === false, "Response penolakan memuat success: false");
+
+    // 23.3 Eksekusi Terstruktur atau Penanganan Error Ramah
+    const reqExecute = new Request("http://localhost:3000/api/execute", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({
+        prompt: "Halo model, katakan 'SIAP' dalam satu kata.",
+        placeholderValues: {},
+        providerId: "groq",
+        parameters: { temperature: 0.1, maxOutputTokens: 64 },
+      }),
+    });
+    const resExecute = await POST_EXECUTE(reqExecute);
+    assert(
+      [200, 429, 503, 504].includes(resExecute.status),
+      `POST /api/execute mengembalikan status valid [200/429/503/504] (diterima: ${resExecute.status})`
+    );
+    const jsonExecute = await resExecute.json();
+    if (resExecute.status === 200) {
+      assert(jsonExecute.success === true, "Eksekusi berhasil dengan success: true");
+      assert(typeof jsonExecute.data?.output === "string", "Response memuat output teks model");
+      assert(typeof jsonExecute.data?.resolvedPrompt === "string", "Response memuat resolvedPrompt");
+    } else {
+      assert(jsonExecute.success === false, "Error response memuat success: false");
+      assert(typeof jsonExecute.error === "string", "Error response memuat pesan ramah pengguna");
+      assert(!JSON.stringify(jsonExecute).includes("stack"), "Error response tidak membocorkan stack trace");
+    }
+  } catch (err: unknown) {
+    assert(false, "POST /api/execute test", String(err));
   }
 
   // Ringkasan

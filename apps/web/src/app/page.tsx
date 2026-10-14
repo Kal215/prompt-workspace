@@ -19,6 +19,7 @@ import {
   SavedPromptItem,
 } from "@/components/workspace/history-sidebar";
 import { PrivacyDisclosure } from "@/components/workspace/privacy-disclosure";
+import { UserGuideSection } from "@/components/workspace/user-guide-section";
 import { listDomainPacks, DomainRulePack } from "@prompt-workspace/domain-rules";
 import { ProviderCapability } from "@prompt-workspace/prompt-contracts";
 import { toast } from "sonner";
@@ -634,6 +635,9 @@ export default function Home() {
             )}
           </section>
         </div>
+
+        {/* User Guide & Help Documentation Section (Tahap 6 - Bagian 12) */}
+        <UserGuideSection />
       </main>
     </div>
   );
