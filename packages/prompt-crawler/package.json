@@ -1,0 +1,18 @@
+{
+  "name": "@prompt-workspace/prompt-crawler",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Secure, stream-bounded prompt & grounding context crawler with strict SSRF defense",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "npx tsx scripts/test-crawler.ts"
+  },
+  "dependencies": {
+    "@prompt-workspace/prompt-contracts": "*",
+    "@prompt-workspace/provider-adapters": "*",
+    "dotenv": "^16.4.7"
+  }
+}

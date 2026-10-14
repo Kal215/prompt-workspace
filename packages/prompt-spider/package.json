@@ -1,0 +1,18 @@
+{
+  "name": "@prompt-workspace/prompt-spider",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Adversarial stress-testing, robustness matrix, and multi-branch evaluator for prompts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "npx tsx scripts/test-spider.ts"
+  },
+  "dependencies": {
+    "@prompt-workspace/domain-rules": "*",
+    "@prompt-workspace/prompt-contracts": "*",
+    "@prompt-workspace/provider-adapters": "*"
+  }
+}
