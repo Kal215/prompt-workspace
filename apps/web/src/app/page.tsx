@@ -19,6 +19,7 @@ import {
   SavedPromptItem,
 } from "@/components/workspace/history-sidebar";
 import { PrivacyDisclosure } from "@/components/workspace/privacy-disclosure";
+import { listDomainPacks, DomainRulePack } from "@prompt-workspace/domain-rules";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -30,14 +31,21 @@ import {
   RefreshCw,
   Cpu,
   History,
+  Layers,
 } from "lucide-react";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [context, setContext] = useState("");
+  const [selectedDomain, setSelectedDomain] = useState<string>("general");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PromptOptimizationResult | null>(null);
+
+  // Daftar Domain Rule Packs dari @prompt-workspace/domain-rules
+  const domainPacks: DomainRulePack[] = listDomainPacks();
+  const activeDomainPack =
+    domainPacks.find((p) => p.domainId === selectedDomain) || domainPacks[0];
 
   // History Sidebar state (real-time SQLite database)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -75,6 +83,7 @@ export default function Home() {
         body: JSON.stringify({
           prompt: prompt.trim(),
           context: context.trim() || null,
+          taskType: selectedDomain,
         }),
       });
 
@@ -102,6 +111,7 @@ export default function Home() {
   const handleReset = () => {
     setPrompt("");
     setContext("");
+    setSelectedDomain("general");
     setResult(null);
     setError(null);
   };
@@ -216,6 +226,59 @@ export default function Home() {
 
               <CardContent className="pt-4">
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Domain Pack Selector */}
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="domain-pack-select"
+                      className="font-medium text-xs flex items-center justify-between"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Layers className="h-3.5 w-3.5 text-primary" />
+                        <span>Mode Domain / Jenis Tugas</span>
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        v{activeDomainPack?.ruleVersion || "1.0.0"}
+                      </span>
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="domain-pack-select"
+                        data-testid="domain-pack-select"
+                        value={selectedDomain}
+                        onChange={(e) => setSelectedDomain(e.target.value)}
+                        disabled={isLoading}
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                      >
+                        {domainPacks.map((pack) => (
+                          <option key={pack.domainId} value={pack.domainId}>
+                            {pack.name} ({pack.domainId})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Active Domain Indicator & Focus Categories */}
+                    {activeDomainPack && (
+                      <div className="rounded-md bg-muted/40 border border-border/50 p-2 space-y-1 text-[11px] text-muted-foreground">
+                        <p className="leading-snug text-foreground/90 font-medium">
+                          {activeDomainPack.description}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                          <span className="text-[10px] font-semibold text-muted-foreground">Fokus Audit:</span>
+                          {activeDomainPack.focusCategories.map((cat) => (
+                            <Badge
+                              key={cat}
+                              variant="secondary"
+                              className="text-[9px] px-1.5 py-0 font-normal bg-background/80 border border-border/40 text-foreground/80"
+                            >
+                              {cat}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Prompt Input */}
                   <div className="space-y-1.5">
                     <Label

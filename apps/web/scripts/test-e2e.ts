@@ -133,6 +133,11 @@ const mockOptimizationResult = {
   warnings: [
     "Pastikan kepatuhan terhadap robots.txt dan ketentuan layanan situs target",
   ],
+  appliedDomainRule: {
+    domainId: "coding",
+    ruleVersion: "1.0.0",
+    name: "Pengembangan Perangkat Lunak (Coding)",
+  },
   evaluation: {
     score: 95,
     passed: true,
@@ -215,11 +220,20 @@ async function runE2ESuite() {
     await page.setViewport({ width: 1280, height: 900 });
 
     // Intersepsi Jaringan: Mock Deterministik /api/optimize
+    let interceptedTaskType: string | null = null;
     await page.setRequestInterception(true);
     page.on("request", (interceptedReq) => {
       const url = interceptedReq.url();
       if (url.includes("/api/optimize") && interceptedReq.method() === "POST") {
-        console.log("  🎯 [Network Intercept] Intersepsi POST /api/optimize -> Mengembalikan mock fixture deterministik");
+        try {
+          const postData = JSON.parse(interceptedReq.postData() || "{}");
+          interceptedTaskType = postData.taskType ?? null;
+        } catch {
+          interceptedTaskType = null;
+        }
+        console.log(
+          `  🎯 [Network Intercept] Intersepsi POST /api/optimize (taskType: ${interceptedTaskType}) -> Mengembalikan mock fixture deterministik`
+        );
         interceptedReq.respond({
           status: 200,
           contentType: "application/json",
@@ -319,6 +333,16 @@ async function runE2ESuite() {
 
     // 6. Alur Pengujian Deterministik /api/optimize
     console.log("\n▶ [Step 6] Menguji alur form optimasi deterministik (Form Input -> Optimize)...");
+
+    // Verifikasi keberadaan dan interaksi Domain Pack Selector (Task #26)
+    await page.waitForSelector("#domain-pack-select", { timeout: 5000 });
+    const domainSelectExists = await page.$("#domain-pack-select");
+    assert(domainSelectExists !== null, "Elemen #domain-pack-select ditemukan di form input");
+
+    // Pilih domain 'coding' secara eksplisit
+    await page.select("#domain-pack-select", "coding");
+    console.log("  🎯 Memilih mode domain: 'coding' (Pengembangan Perangkat Lunak)");
+
     const inputPromptText = mockOptimizationResult.originalPrompt;
     await page.waitForSelector("#original-prompt", { timeout: 5000 });
     await page.type("#original-prompt", inputPromptText, { delay: 10 });
@@ -345,6 +369,25 @@ async function runE2ESuite() {
 
     // 7. Verifikasi Render Komponen Hasil Optimasi
     console.log("\n▶ [Step 7] Memverifikasi render Intent Guard, Findings Panel, dan Diff Viewer...");
+
+    // Verifikasi bahwa taskType 'coding' terkirim dalam payload request POST /api/optimize
+    assert(
+      interceptedTaskType === "coding",
+      `Payload request POST /api/optimize memuat taskType 'coding' (diterima: '${interceptedTaskType}')`
+    );
+
+    // Verifikasi render badge aturan domain aktif (Task #26)
+    const domainBadgeText = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="applied-domain-badge"]');
+      return el ? el.textContent?.trim() : null;
+    });
+    assert(
+      domainBadgeText !== null &&
+        domainBadgeText.includes("Pengembangan Perangkat Lunak") &&
+        domainBadgeText.includes("v1.0.0"),
+      `Badge aturan domain aktif (data-testid="applied-domain-badge") ter-render di DOM: "${domainBadgeText}"`
+    );
+
     const pageTextAfterOptimize = await page.evaluate(() => document.body.textContent || "");
 
     assert(

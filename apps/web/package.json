@@ -16,6 +16,7 @@
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "@prompt-workspace/database": "*",
+    "@prompt-workspace/domain-rules": "*",
     "@prompt-workspace/prompt-contracts": "*",
     "@prompt-workspace/prompt-engine": "*",
     "@prompt-workspace/provider-adapters": "*",
