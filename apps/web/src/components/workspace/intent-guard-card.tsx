@@ -7,14 +7,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DetectedIntent } from "@/types/prompt";
+import { DetectedIntent, AppliedDomainRuleInfo } from "@/types/prompt";
 import { ShieldCheck, HelpCircle, Target, FileText, CheckCircle2 } from "lucide-react";
 
 interface IntentGuardCardProps {
   intent: DetectedIntent | string;
+  appliedDomainRule?: AppliedDomainRuleInfo | null;
 }
 
-export function IntentGuardCard({ intent }: IntentGuardCardProps) {
+export function IntentGuardCard({ intent, appliedDomainRule }: IntentGuardCardProps) {
   const isString = typeof intent === "string";
   const summary = isString ? intent : intent.summary;
   const confidence = !isString && typeof intent.confidence === "number" ? intent.confidence : 0.95;
@@ -48,7 +49,16 @@ export function IntentGuardCard({ intent }: IntentGuardCardProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {appliedDomainRule && (
+              <Badge
+                variant="outline"
+                data-testid="applied-domain-badge"
+                className="bg-primary/10 text-primary border-primary/20 text-[11px] font-medium"
+              >
+                Domain: {appliedDomainRule.name} (v{appliedDomainRule.ruleVersion})
+              </Badge>
+            )}
             <span className="text-muted-foreground">Confidence:</span>
             <Badge
               variant="secondary"

@@ -31,6 +31,12 @@ export interface DetectedIntent {
   outputFormat?: string;
 }
 
+export interface AppliedDomainRuleInfo {
+  domainId: string;
+  ruleVersion: string;
+  name: string;
+}
+
 export interface PromptOptimizationResult {
   requestId: string;
   originalPrompt: string;
@@ -44,6 +50,7 @@ export interface PromptOptimizationResult {
   };
   changes: (string | PromptChange)[];
   warnings?: string[];
+  appliedDomainRule?: AppliedDomainRuleInfo;
   metrics?: {
     clarityScore?: number;
     constraintCoverage?: number;
@@ -57,6 +64,7 @@ export interface PromptOptimizationResult {
     processingTimeMs?: number;
     confidenceScore?: number;
     estimatedTokenSavings?: string;
+    appliedDomainRule?: AppliedDomainRuleInfo;
     [key: string]: unknown;
   };
 }

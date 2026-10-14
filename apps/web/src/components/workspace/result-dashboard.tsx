@@ -188,7 +188,12 @@ export function ResultDashboard({
       />
 
       {/* 2. Intent Guard Card */}
-      <IntentGuardCard intent={result.detectedIntent} />
+      <IntentGuardCard
+        intent={result.detectedIntent}
+        appliedDomainRule={
+          result.appliedDomainRule || result.metadata?.appliedDomainRule
+        }
+      />
 
       {/* 3. Findings & Changes Side-by-Side */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
