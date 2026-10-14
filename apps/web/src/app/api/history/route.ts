@@ -8,6 +8,12 @@ import {
   deletePrompt,
   type SavePromptInput,
 } from "@prompt-workspace/database";
+import { getOrCreateSession } from "../../../lib/session";
+import {
+  getHistoryRateLimiter,
+  extractClientIP,
+} from "../../../lib/rate-limiter";
+import { checkCsrf, csrfForbiddenResponse } from "../../../lib/csrf";
 
 // Pastikan konfigurasi .env root dimuat untuk DATABASE_URL dan konfigurasi lainnya
 dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
@@ -28,24 +34,60 @@ function logSanitizedError(operation: string, error: unknown) {
 }
 
 /**
+ * Helper: Membuat response rate-limited 429.
+ */
+function rateLimitedResponse(retryAfter: number) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "Terlalu banyak request. Silakan coba lagi nanti.",
+    },
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(retryAfter),
+      },
+    }
+  );
+}
+
+/**
  * GET /api/history
  * Mengambil riwayat prompt tersimpan dari database SQLite via Prisma.
+ * Hanya mengembalikan prompt milik pengguna yang terautentikasi + prompt legacy.
  */
 export async function GET(request: Request) {
   try {
+    // Rate limiting
+    const clientIP = extractClientIP(request);
+    const rl = getHistoryRateLimiter().check(`history:${clientIP}`);
+    if (!rl.allowed) {
+      return rateLimitedResponse(rl.retryAfter);
+    }
+
+    // Session identity
+    const session = getOrCreateSession(request);
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get("limit");
     const limit = limitParam
       ? Math.min(Math.max(parseInt(limitParam, 10) || 20, 1), 100)
       : 50;
 
-    const history = await getHistory(limit);
+    const history = await getHistory(limit, session.userId);
 
-    return NextResponse.json({
-      success: true,
-      data: history,
-      count: history.length,
-    });
+    const headers: Record<string, string> = {};
+    if (session.isNew) {
+      headers["Set-Cookie"] = session.cookieHeaderValue;
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: history,
+        count: history.length,
+      },
+      { headers }
+    );
   } catch (error: unknown) {
     logSanitizedError("GET", error);
     return NextResponse.json(
@@ -61,10 +103,26 @@ export async function GET(request: Request) {
 /**
  * POST /api/history
  * Menyimpan prompt yang di-accept oleh user ke database SQLite.
- * Dilengkapi dengan validasi ketat, idempotensi, batasan ukuran, dan sanitasi error.
+ * Dilengkapi dengan validasi ketat, idempotensi, batasan ukuran, CSRF, rate limit, dan ownership.
  */
 export async function POST(request: Request) {
   try {
+    // CSRF check
+    const csrf = checkCsrf(request);
+    if (!csrf.allowed) {
+      return csrfForbiddenResponse(csrf.reason || "CSRF validation failed.");
+    }
+
+    // Rate limiting
+    const clientIP = extractClientIP(request);
+    const rl = getHistoryRateLimiter().check(`history:${clientIP}`);
+    if (!rl.allowed) {
+      return rateLimitedResponse(rl.retryAfter);
+    }
+
+    // Session identity
+    const session = getOrCreateSession(request);
+
     // 1. Validasi Ukuran Content-Length Header
     const contentLength = request.headers.get("content-length");
     if (contentLength && parseInt(contentLength, 10) > MAX_PAYLOAD_BYTES) {
@@ -83,23 +141,34 @@ export async function POST(request: Request) {
       const reader = request.body.getReader();
       const decoder = new TextDecoder();
       let totalBytes = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        totalBytes += value.length;
-        if (totalBytes > MAX_PAYLOAD_BYTES) {
-          await reader.cancel();
-          return NextResponse.json(
-            {
-              success: false,
-              error: "Ukuran payload melebihi batas maksimum 256 KB.",
-            },
-            { status: 413 }
-          );
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          totalBytes += value.length;
+          if (totalBytes > MAX_PAYLOAD_BYTES) {
+            await reader.cancel();
+            return NextResponse.json(
+              {
+                success: false,
+                error: "Ukuran payload melebihi batas maksimum 256 KB.",
+              },
+              { status: 413 }
+            );
+          }
+          rawText += decoder.decode(value, { stream: true });
         }
-        rawText += decoder.decode(value, { stream: true });
+        rawText += decoder.decode();
+      } catch (streamErr: unknown) {
+        logSanitizedError("POST_STREAM", streamErr);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Gagal membaca body request.",
+          },
+          { status: 400 }
+        );
       }
-      rawText += decoder.decode();
     } else {
       rawText = await request.text();
       if (rawText.length > MAX_PAYLOAD_BYTES) {
@@ -149,7 +218,7 @@ export async function POST(request: Request) {
     const { originalPrompt, optimizedPrompt, intentSummary, score, id } =
       body as Record<string, unknown>;
 
-    // 3. Validasi Field Wajib & Input Kosong
+    // 4. Validasi Field Wajib & Input Kosong
     if (typeof originalPrompt !== "string" || !originalPrompt.trim()) {
       return NextResponse.json(
         {
@@ -170,7 +239,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Validasi Batas Maksimum Karakter Prompt
+    // 5. Validasi Batas Maksimum Karakter Prompt
     if (
       originalPrompt.length > MAX_PROMPT_CHARS ||
       optimizedPrompt.length > MAX_PROMPT_CHARS
@@ -184,7 +253,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Validasi Rentang Nilai Score (0 - 100)
+    // 6. Validasi Rentang Nilai Score (0 - 100)
     let parsedScore = 80;
     if (score !== undefined && score !== null) {
       if (typeof score !== "number" || isNaN(score) || score < 0 || score > 100) {
@@ -206,7 +275,7 @@ export async function POST(request: Request) {
     const cleanId =
       typeof id === "string" && id.trim() ? id.trim() : undefined;
 
-    // 6. Idempotensi & Validasi Duplikasi ID
+    // 7. Idempotensi & Validasi Duplikasi ID
     if (cleanId) {
       const existing = await getPromptById(cleanId);
       if (existing) {
@@ -239,6 +308,7 @@ export async function POST(request: Request) {
 
     const payload: SavePromptInput = {
       id: cleanId,
+      userId: session.userId,
       originalPrompt: cleanOriginal,
       optimizedPrompt: cleanOptimized,
       intentSummary: cleanIntent,
@@ -301,9 +371,30 @@ export async function POST(request: Request) {
 /**
  * DELETE /api/history?id=...
  * Menghapus prompt tertentu dari riwayat database SQLite.
+ * Hanya pemilik (userId match) atau data legacy yang dapat dihapus.
  */
 export async function DELETE(request: Request) {
   try {
+    // CSRF check untuk DELETE: validasi Origin/Referer jika ada
+    const origin = request.headers.get("origin");
+    const referer = request.headers.get("referer");
+    if (origin || referer) {
+      const csrf = checkCsrf(request);
+      if (!csrf.allowed) {
+        return csrfForbiddenResponse(csrf.reason || "CSRF validation failed.");
+      }
+    }
+
+    // Rate limiting
+    const clientIP = extractClientIP(request);
+    const rl = getHistoryRateLimiter().check(`history:${clientIP}`);
+    if (!rl.allowed) {
+      return rateLimitedResponse(rl.retryAfter);
+    }
+
+    // Session identity
+    const session = getOrCreateSession(request);
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -320,16 +411,25 @@ export async function DELETE(request: Request) {
     const cleanId = id.trim();
 
     try {
-      await deletePrompt(cleanId);
+      await deletePrompt(cleanId, session.userId);
     } catch (err: unknown) {
-      const prismaErr = err as { code?: string };
-      if (prismaErr?.code === "P2025") {
+      const errObj = err as { code?: string };
+      if (errObj?.code === "P2025" || errObj?.code === "NOT_FOUND") {
         return NextResponse.json(
           {
             success: false,
             error: "Prompt dengan ID tersebut tidak ditemukan di database.",
           },
           { status: 404 }
+        );
+      }
+      if (errObj?.code === "FORBIDDEN") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Anda tidak berhak menghapus prompt milik pengguna lain.",
+          },
+          { status: 403 }
         );
       }
       throw err;

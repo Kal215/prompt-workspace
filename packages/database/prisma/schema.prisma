@@ -9,9 +9,12 @@ generator client {
 
 model SavedPrompt {
   id              String   @id @default(uuid())
+  userId          String   @default("legacy_default_user")
   originalPrompt  String
   optimizedPrompt String
   intentSummary   String?
   score           Int
   createdAt       DateTime @default(now())
+
+  @@index([userId])
 }

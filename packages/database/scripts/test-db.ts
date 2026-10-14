@@ -6,27 +6,34 @@ async function main() {
   console.log("═══════════════════════════════════════════════════════════════════");
 
   const samplePrompt = {
+    userId: "test-user-alpha",
     originalPrompt: "Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.",
     optimizedPrompt: "Role: Market Research Analyst...\nObjective: Menyusun analisis riset pasar komprehensif...",
     intentSummary: "Riset awal untuk memahami pelanggan, kompetitor, harga, dan risiko bisnis.",
     score: 95,
   };
 
-  console.log("[1] Menjalankan savePrompt()...");
+  console.log("[1] Menjalankan savePrompt() dengan userId...");
   const saved = await savePrompt(samplePrompt);
   console.log("✅ Berhasil menyimpan prompt:", {
     id: saved.id,
+    userId: saved.userId,
     originalPromptSnippet: saved.originalPrompt.substring(0, 40) + "...",
     score: saved.score,
     createdAt: saved.createdAt.toISOString(),
   });
 
-  console.log("\n[2] Menjalankan getHistory(5)...");
-  const history = await getHistory(5);
-  console.log(`✅ Berhasil mengambil ${history.length} data riwayat prompt.`);
-  for (const item of history) {
-    console.log(`   - [ID: ${item.id.slice(0, 8)}...] Skor: ${item.score} | Intent: ${item.intentSummary}`);
+  console.log("\n[2] Menjalankan getHistory() isolasi pengguna...");
+  const historyAlpha = await getHistory(5, "test-user-alpha");
+  const historyBeta = await getHistory(5, "test-user-beta");
+  console.log(`✅ User Alpha melihat ${historyAlpha.length} riwayat (termasuk legacy).`);
+  console.log(`✅ User Beta melihat ${historyBeta.length} riwayat (tanpa data User Alpha).`);
+
+  const betaSeesAlpha = historyBeta.some((item) => item.id === saved.id);
+  if (betaSeesAlpha) {
+    throw new Error("ISOLATION_FAILURE: User Beta melihat record milik User Alpha!");
   }
+  console.log("✅ Konfirmasi isolasi data antar pengguna terverifikasi.");
 
   console.log("\n[3] Menjalankan getPromptById()...");
   const fetched = await getPromptById(saved.id);
@@ -35,8 +42,20 @@ async function main() {
   }
   console.log(`✅ getPromptById berhasil mengambil record [ID: ${fetched.id.slice(0, 8)}...]`);
 
-  console.log("\n[4] Menjalankan deletePrompt()...");
-  const deleted = await deletePrompt(saved.id);
+  console.log("\n[4] Menguji proteksi otorisasi deletePrompt() lintas pengguna...");
+  try {
+    await deletePrompt(saved.id, "test-user-beta");
+    throw new Error("SECURITY_FAILURE: User Beta berhasil menghapus record milik User Alpha!");
+  } catch (err: unknown) {
+    const code = (err as { code?: string })?.code;
+    if (code !== "FORBIDDEN") {
+      throw err;
+    }
+    console.log("✅ Penghapusan lintas pengguna berhasil diblokir dengan FORBIDDEN.");
+  }
+
+  console.log("\n[5] Menjalankan deletePrompt() oleh pemilik yang sah...");
+  const deleted = await deletePrompt(saved.id, "test-user-alpha");
   console.log(`✅ deletePrompt berhasil menghapus record [ID: ${deleted.id.slice(0, 8)}...]`);
 
   const recheck = await getPromptById(saved.id);
@@ -47,7 +66,7 @@ async function main() {
 
   await prisma.$disconnect();
   console.log("\n═══════════════════════════════════════════════════════════════════");
-  console.log("🏁 TEST PRISMA & SQLITE BERHASIL 100%");
+  console.log("🏁 TEST PRISMA & SQLITE DATA OWNERSHIP BERHASIL 100%");
   console.log("═══════════════════════════════════════════════════════════════════");
 }
 
