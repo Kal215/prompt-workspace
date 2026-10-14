@@ -5,6 +5,7 @@ import {
   PromptOptimizationResultSchema,
 } from "@prompt-workspace/prompt-contracts";
 import { GroqAdapter } from "@prompt-workspace/provider-adapters";
+import { getDomainPack, DomainRulePack } from "@prompt-workspace/domain-rules";
 import { analyzePrompt, AnalyzePromptResult } from "./analyzer.js";
 import { optimizePrompt, OptimizePromptResult } from "./optimizer.js";
 import { evaluateOptimization, EvaluateOptimizationResult } from "./evaluator.js";
@@ -68,11 +69,15 @@ export async function runOptimizationPipeline(
   // Inisialisasi adapter bersama agar memanfaatkan pool rotasi key yang sama
   const groq = adapter || new GroqAdapter();
 
+  // Resolusi Domain Rule Pack berdasarkan taskType
+  const domainPack: DomainRulePack = getDomainPack(validatedRequest.taskType);
+
   // 2. Tahap Analisis
   const analysisResult: AnalyzePromptResult = await analyzePrompt(
     validatedRequest.prompt,
     validatedRequest.context,
-    groq
+    groq,
+    domainPack
   );
 
   // 3. Tahap Optimasi (Intent Preservation)
@@ -80,7 +85,8 @@ export async function runOptimizationPipeline(
     validatedRequest.prompt,
     analysisResult.findings,
     validatedRequest.constraints || [],
-    groq
+    groq,
+    domainPack
   );
 
   // 4. Tahap Evaluasi LLM-as-a-Judge (Opsional jika expectedBehavior diberikan)
@@ -90,7 +96,8 @@ export async function runOptimizationPipeline(
       validatedRequest.prompt,
       optimizationResult.optimizedPrompt,
       options.expectedBehavior,
-      groq
+      groq,
+      domainPack
     );
   }
 
@@ -118,6 +125,12 @@ export async function runOptimizationPipeline(
     process.env.GROQ_MODEL ||
     "groq-llama-3.3-70b-versatile";
 
+  const appliedDomainRule = {
+    domainId: domainPack.domainId,
+    ruleVersion: domainPack.ruleVersion,
+    name: domainPack.name,
+  };
+
   // 5. Susun hasil akhir sesuai PromptOptimizationResultSchema
   const result: PromptOptimizationResult = {
     requestId: validatedRequest.requestId,
@@ -132,6 +145,7 @@ export async function runOptimizationPipeline(
     changes: optimizationResult.changes,
     warnings: optimizationResult.warnings,
     evaluation: evaluationResult,
+    appliedDomainRule,
     metadata: {
       modelTarget,
       processingTimeMs,
@@ -143,6 +157,7 @@ export async function runOptimizationPipeline(
       },
       confidenceScore: 0.95,
       estimatedTokenSavings: "+24% precision",
+      appliedDomainRule,
     },
   };
 

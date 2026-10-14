@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@prompt-workspace/domain-rules": "*",
     "@prompt-workspace/prompt-contracts": "*",
     "@prompt-workspace/provider-adapters": "*",
     "dotenv": "^16.4.7"

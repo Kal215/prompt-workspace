@@ -1,5 +1,6 @@
 import { GroqAdapter } from "@prompt-workspace/provider-adapters";
 import { OptimizationEvaluation } from "@prompt-workspace/prompt-contracts";
+import { DomainRulePack, getDomainPack } from "@prompt-workspace/domain-rules";
 import { z } from "zod";
 import { safeLogger } from "./logger.js";
 import {
@@ -98,16 +99,30 @@ function extractJsonFromText(rawText: string): any {
  * @param optimizedPrompt Prompt hasil rekonstruksi Optimizer
  * @param expectedBehavior Standar perilaku yang diharapkan dari dataset baseline
  * @param adapter GroqAdapter instance opsional
+ * @param domainPackInput DomainRulePack instance atau taskType string opsional
  */
 export async function evaluateOptimization(
   originalPrompt: string,
   optimizedPrompt: string,
   expectedBehavior: string,
-  adapter?: GroqAdapter
+  adapter?: GroqAdapter,
+  domainPackInput?: DomainRulePack | string | null
 ): Promise<EvaluateOptimizationResult> {
   const groq = adapter || new GroqAdapter();
 
-  safeLogger.info("Memulai evaluasi LLM-as-a-Judge (Auditor QA)");
+  const domainPack: DomainRulePack =
+    typeof domainPackInput === "string" || domainPackInput === null || domainPackInput === undefined
+      ? getDomainPack(domainPackInput)
+      : domainPackInput;
+
+  safeLogger.info("Memulai evaluasi LLM-as-a-Judge (Auditor QA)", {
+    domainId: domainPack.domainId,
+  });
+
+  const domainCriteriaSection =
+    domainPack.evaluationCriteriaNotes && domainPack.domainId !== "general"
+      ? `\nPanduan Tambahan Evaluasi Domain [${domainPack.name}]:\n"${domainPack.evaluationCriteriaNotes}"\n`
+      : "";
 
   const userContent = [
     `AUDIT HASIL OPTIMASI PROMPT BERIKUT:`,
@@ -117,12 +132,14 @@ export async function evaluateOptimization(
     ``,
     `Ekspektasi Perilaku (Expected Behavior):`,
     `"${expectedBehavior}"`,
-    ``,
+    domainCriteriaSection,
     `Prompt Hasil Optimasi (Optimized Prompt):`,
     `"${optimizedPrompt}"`,
     ``,
     `Instruksi: Nilai apakah optimizedPrompt di atas mematuhi expectedBehavior, menjaga maksud asli tanpa menambah tujuan baru, dan TIDAK MENGARANG fakta/URL (menggunakan placeholder yang sesuai).`,
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   let response;
   try {
