@@ -1,4 +1,5 @@
 import { PrismaClient, type SavedPrompt } from "@prisma/client";
+import { existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,15 +15,33 @@ export interface SavePromptInput {
 
 // In ESM / Node environments, resolve the absolute path to prisma/dev.db
 const getDatabaseUrl = (): string => {
-  if (process.env.DATABASE_URL) {
-    return process.env.DATABASE_URL;
-  }
+  const envUrl = process.env.DATABASE_URL;
   const currentDir =
     typeof __dirname !== "undefined"
       ? __dirname
       : dirname(fileURLToPath(import.meta.url));
   const fallbackDbPath = resolve(currentDir, "../prisma/dev.db");
-  return `file:${fallbackDbPath}`;
+
+  if (!envUrl) {
+    return `file:${fallbackDbPath}`;
+  }
+
+  // Absolute SQLite path or protocol (e.g. file:/tmp/isolated.db or file:///...)
+  if (envUrl.startsWith("file:/")) {
+    return envUrl;
+  }
+
+  // Relative SQLite path (e.g. file:./packages/database/prisma/dev.db or file:./dev.db)
+  if (envUrl.startsWith("file:")) {
+    const rel = envUrl.replace(/^file:/, "");
+    const cwdPath = resolve(process.cwd(), rel);
+    if (existsSync(cwdPath)) {
+      return `file:${cwdPath}`;
+    }
+    return `file:${fallbackDbPath}`;
+  }
+
+  return envUrl;
 };
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };

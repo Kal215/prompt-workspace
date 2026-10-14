@@ -65,7 +65,7 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    // 1. Validasi Ukuran Content-Length
+    // 1. Validasi Ukuran Content-Length Header
     const contentLength = request.headers.get("content-length");
     if (contentLength && parseInt(contentLength, 10) > MAX_PAYLOAD_BYTES) {
       return NextResponse.json(
@@ -77,10 +77,55 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Validasi Format JSON (Cegah Crash Malformed JSON)
+    // 2. Baca Body dengan Batas Ukuran Streaming (Cegah chunked bypass sebelum parsing mahal)
+    let rawText = "";
+    if (request.body && typeof request.body.getReader === "function") {
+      const reader = request.body.getReader();
+      const decoder = new TextDecoder();
+      let totalBytes = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        totalBytes += value.length;
+        if (totalBytes > MAX_PAYLOAD_BYTES) {
+          await reader.cancel();
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Ukuran payload melebihi batas maksimum 256 KB.",
+            },
+            { status: 413 }
+          );
+        }
+        rawText += decoder.decode(value, { stream: true });
+      }
+      rawText += decoder.decode();
+    } else {
+      rawText = await request.text();
+      if (rawText.length > MAX_PAYLOAD_BYTES) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Ukuran payload melebihi batas maksimum 256 KB.",
+          },
+          { status: 413 }
+        );
+      }
+    }
+
+    // 3. Validasi Format JSON
     let body: unknown;
     try {
-      body = await request.json();
+      if (!rawText.trim()) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Format JSON tidak valid atau body kosong.",
+          },
+          { status: 400 }
+        );
+      }
+      body = JSON.parse(rawText);
     } catch {
       return NextResponse.json(
         {
@@ -200,7 +245,38 @@ export async function POST(request: Request) {
       score: parsedScore,
     };
 
-    const saved = await savePrompt(payload);
+    let saved;
+    try {
+      saved = await savePrompt(payload);
+    } catch (saveErr: unknown) {
+      const prismaErr = saveErr as { code?: string };
+      if (prismaErr?.code === "P2002" && cleanId) {
+        // Race condition: concurrent request paralel baru saja menyimpan ID ini
+        const racedRecord = await getPromptById(cleanId);
+        if (
+          racedRecord &&
+          racedRecord.originalPrompt === cleanOriginal &&
+          racedRecord.optimizedPrompt === cleanOptimized
+        ) {
+          return NextResponse.json(
+            {
+              success: true,
+              message: "Prompt sudah tersimpan sebelumnya (idempotent - race resolved).",
+              data: racedRecord,
+            },
+            { status: 200 }
+          );
+        }
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Conflict: ID prompt sudah terdaftar dengan data berbeda.",
+          },
+          { status: 409 }
+        );
+      }
+      throw saveErr;
+    }
 
     return NextResponse.json(
       {
