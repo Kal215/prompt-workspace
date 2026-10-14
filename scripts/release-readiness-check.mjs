@@ -3,11 +3,19 @@
 /**
  * ==============================================================================
  * PROMPT INTELLIGENCE ENGINEERING WORKSPACE (PIEW)
- * RELEASE READINESS AUDITOR & SMOKE TEST RUNNER (v1.1.0)
+ * STAGE GATE AUDITOR & SMOKE TEST RUNNER (STAGES G0 - G7)
  * ==============================================================================
- * Skrip audit mandiri untuk memverifikasi kesiapan rilis publik v1.1.0.
- * Memeriksa artefak wajib, governance zero-secret, integritas dev.db,
- * dan seluruh rangkaian automated test monorepo secara deterministik.
+ * Skrip audit mandiri untuk memverifikasi kesiapan rilis dan tata kelola platform
+ * Tahap 0 s/d Tahap 7 secara komprehensif dan deterministik tanpa mengubah package.json.
+ *
+ * Cakupan Audit:
+ * 1. Keberadaan 19 Artefak Wajib (Tahap 0 s/d Tahap 7: PRS, ADR, PDR, Runbook,
+ *    Checklist, Governance Policy, Contributing, Security, Roadmap, Changelog).
+ * 2. Audit Keamanan & Zero-Secret Governance (Gitignore, ls-files, dan scan regex).
+ * 3. Integritas Database Persisten dev.db (2 record aktif terlindungi).
+ * 4. Eksekusi 8 Rangkaian Pengujian Otomatis Monorepo (Typecheck, Playground,
+ *    Provider Adapters, Domain Rules, Database, Web Unit, Web API 57 asersi
+ *    termasuk /api/execute, Turbopack Build).
  * ==============================================================================
  */
 
@@ -49,21 +57,30 @@ function recordCheck(category, name, passed, detail = "") {
 }
 
 // ------------------------------------------------------------------------------
-// 1. Verifikasi Keberadaan Seluruh Artefak Wajib (Tahap 0 s/d Tahap 6)
+// 1. Verifikasi Keberadaan Seluruh Artefak Wajib (Tahap 0 s/d Tahap 7)
 // ------------------------------------------------------------------------------
-logHeader("1. AUDIT ARTEFAK WAJIB (STAGES G0 - G6)");
+logHeader("1. AUDIT ARTEFAK WAJIB (STAGES G0 - G7)");
 
 const REQUIRED_ARTIFACTS = [
+  // Fondasi & Arsitektur
   "docs/architecture/ADR-001-modular-monolith-and-security.md",
   "docs/architecture/RUNBOOK-operations-and-recovery.md",
+  "docs/architecture/COMPATIBILITY-AND-VERSIONING-POLICY.md",
+  "docs/architecture/ARCHITECTURE-AND-DEBT-REVIEW-2026-Q4.md",
+  // Keputusan Produk & Fitur
   "docs/product/PDR-001-domain-packs-c1.md",
   "docs/product/PDR-002-multi-provider-adapters-c2.md",
   "docs/product/PDR-003-target-model-playground-c3.md",
   "docs/product/RELEASE-NOTES-v1.0.0-mvp.md",
   "docs/product/RELEASE-NOTES-v1.1.0.md",
   "docs/product/USER-GUIDE-AND-FAQ.md",
+  "docs/product/ROADMAP-AND-METRICS-STAGE7.md",
+  "docs/product/BLUEPRINT-CHANGELOG.md",
+  // Operasi & Tata Kelola
   "docs/operations/RELEASE-CHECKLIST-v1.1.0.md",
   "docs/operations/RUNBOOK.md",
+  "CONTRIBUTING.md",
+  "SECURITY.md",
   "README.md",
   ".env.example",
   "test-fixtures/baseline-prompts.json",
@@ -204,7 +221,7 @@ const VERIFICATION_COMMANDS = [
   {
     name: "Web API Regression Tests",
     command: "npm run test:api --workspace=web",
-    detail: "50/50 asersi CSRF, Rate-limit, Providers",
+    detail: "57/57 asersi CSRF, Rate-limit, Providers, Execute (/api/execute)",
   },
   {
     name: "Monorepo Production Build",
@@ -231,7 +248,7 @@ for (const step of VERIFICATION_COMMANDS) {
 // ------------------------------------------------------------------------------
 // 5. Ringkasan Akhir & Exit Code
 // ------------------------------------------------------------------------------
-logHeader("5. RINGKASAN AKHIR AUDIT KESIAPAN RILIS v1.1.0");
+logHeader("5. RINGKASAN AKHIR AUDIT TATA KELOLA & KESIAPAN RILIS (STAGES G0 - G7)");
 
 const totalChecks = checkResults.length;
 const passedChecks = checkResults.filter((c) => c.passed).length;
@@ -242,7 +259,7 @@ console.log(`  Pemeriksaan Lulus : ${colors.green}${passedChecks}${colors.reset}
 console.log(`  Pemeriksaan Gagal : ${failedChecks > 0 ? `${colors.red}${failedChecks}${colors.reset}` : `${colors.green}0${colors.reset}`}`);
 
 if (failedChecks === 0) {
-  console.log(`\n${colors.bold}${colors.green}🏆 STATUS: ALL CHECKS PASSED — READY FOR PUBLIC RELEASE v1.1.0! 🚀${colors.reset}\n`);
+  console.log(`\n${colors.bold}${colors.green}🏆 STATUS: ALL CHECKS PASSED — READY FOR STAGE 7 PLATFORM EVOLUTION! 🚀${colors.reset}\n`);
   process.exit(0);
 } else {
   console.log(`\n${colors.bold}${colors.red}❌ STATUS: ${failedChecks} PEMERIKSAAN GAGAL. PERBAIKI SEBELUM MERGE!${colors.reset}\n`);
