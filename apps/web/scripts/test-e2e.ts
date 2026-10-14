@@ -138,6 +138,8 @@ const mockOptimizationResult = {
     ruleVersion: "1.0.0",
     name: "Pengembangan Perangkat Lunak (Coding)",
   },
+  providerId: "groq",
+  model: "llama-3.3-70b-versatile",
   evaluation: {
     score: 95,
     passed: true,
@@ -221,6 +223,8 @@ async function runE2ESuite() {
 
     // Intersepsi Jaringan: Mock Deterministik /api/optimize
     let interceptedTaskType: string | null = null;
+    let interceptedProviderId: string | null = null;
+    let interceptedTargetModel: string | null = null;
     await page.setRequestInterception(true);
     page.on("request", (interceptedReq) => {
       const url = interceptedReq.url();
@@ -228,11 +232,15 @@ async function runE2ESuite() {
         try {
           const postData = JSON.parse(interceptedReq.postData() || "{}");
           interceptedTaskType = postData.taskType ?? null;
+          interceptedProviderId = postData.providerId ?? null;
+          interceptedTargetModel = postData.targetModel ?? null;
         } catch {
           interceptedTaskType = null;
+          interceptedProviderId = null;
+          interceptedTargetModel = null;
         }
         console.log(
-          `  🎯 [Network Intercept] Intersepsi POST /api/optimize (taskType: ${interceptedTaskType}) -> Mengembalikan mock fixture deterministik`
+          `  🎯 [Network Intercept] Intersepsi POST /api/optimize (taskType: ${interceptedTaskType}, providerId: ${interceptedProviderId}, targetModel: ${interceptedTargetModel}) -> Mengembalikan mock fixture deterministik`
         );
         interceptedReq.respond({
           status: 200,
@@ -343,6 +351,20 @@ async function runE2ESuite() {
     await page.select("#domain-pack-select", "coding");
     console.log("  🎯 Memilih mode domain: 'coding' (Pengembangan Perangkat Lunak)");
 
+    // Verifikasi keberadaan dan interaksi Provider & Target Model Selector (Task #28)
+    await page.waitForSelector("#provider-select", { timeout: 5000 });
+    const providerSelectExists = await page.$("#provider-select");
+    assert(providerSelectExists !== null, "Elemen #provider-select ditemukan di form input");
+
+    await page.waitForSelector("#target-model-select", { timeout: 5000 });
+    const targetModelSelectExists = await page.$("#target-model-select");
+    assert(targetModelSelectExists !== null, "Elemen #target-model-select ditemukan di form input");
+
+    // Pilih provider 'groq' dan model default-nya
+    await page.select("#provider-select", "groq");
+    await page.select("#target-model-select", "llama-3.3-70b-versatile");
+    console.log("  🎯 Memilih provider 'groq' dan targetModel 'llama-3.3-70b-versatile'");
+
     const inputPromptText = mockOptimizationResult.originalPrompt;
     await page.waitForSelector("#original-prompt", { timeout: 5000 });
     await page.type("#original-prompt", inputPromptText, { delay: 10 });
@@ -376,6 +398,16 @@ async function runE2ESuite() {
       `Payload request POST /api/optimize memuat taskType 'coding' (diterima: '${interceptedTaskType}')`
     );
 
+    // Verifikasi bahwa providerId dan targetModel terkirim dalam payload request POST /api/optimize (Task #28)
+    assert(
+      interceptedProviderId === "groq",
+      `Payload request POST /api/optimize memuat providerId 'groq' (diterima: '${interceptedProviderId}')`
+    );
+    assert(
+      interceptedTargetModel === "llama-3.3-70b-versatile",
+      `Payload request POST /api/optimize memuat targetModel 'llama-3.3-70b-versatile' (diterima: '${interceptedTargetModel}')`
+    );
+
     // Verifikasi render badge aturan domain aktif (Task #26)
     const domainBadgeText = await page.evaluate(() => {
       const el = document.querySelector('[data-testid="applied-domain-badge"]');
@@ -386,6 +418,18 @@ async function runE2ESuite() {
         domainBadgeText.includes("Pengembangan Perangkat Lunak") &&
         domainBadgeText.includes("v1.0.0"),
       `Badge aturan domain aktif (data-testid="applied-domain-badge") ter-render di DOM: "${domainBadgeText}"`
+    );
+
+    // Verifikasi render badge provider & model aktif (Task #28)
+    const providerBadgeText = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="applied-provider-badge"]');
+      return el ? el.textContent?.trim() : null;
+    });
+    assert(
+      providerBadgeText !== null &&
+        providerBadgeText.includes("Provider: groq") &&
+        providerBadgeText.includes("llama-3.3-70b-versatile"),
+      `Badge provider aktif (data-testid="applied-provider-badge") ter-render di DOM: "${providerBadgeText}"`
     );
 
     const pageTextAfterOptimize = await page.evaluate(() => document.body.textContent || "");

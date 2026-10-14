@@ -6,6 +6,7 @@
  */
 
 import { GET, POST, DELETE } from "../src/app/api/history/route";
+import { GET as GET_PROVIDERS } from "../src/app/api/providers/route";
 import { getPromptById, savePrompt, prisma, setDatabaseUrl } from "@prompt-workspace/database";
 import { signSession } from "../src/lib/session";
 import { InMemorySlidingWindowLimiter } from "../src/lib/rate-limiter";
@@ -527,6 +528,32 @@ async function runApiRegressionSuite() {
     assert(checkLegacy !== null, "Record legacy tetap aman dan utuh di database");
   } catch (err: unknown) {
     assert(false, "Legacy protection test", String(err));
+  }
+
+  // 22. Test GET /api/providers (Multi-Provider Capabilities & Zero-Secret Leakage)
+  console.log("\n▶ [Test 22] GET /api/providers (Kapabilitas Provider & Proteksi Rahasia)");
+  try {
+    const resProviders = await GET_PROVIDERS();
+    assert(resProviders.status === 200, "GET /api/providers mengembalikan HTTP 200 OK");
+    const jsonProviders = await resProviders.json();
+    assert(jsonProviders.success === true, "Response JSON success: true");
+    assert(Array.isArray(jsonProviders.providers), "Response providers berupa array");
+    assert(jsonProviders.providers.length === 4, "Mengembalikan tepat 4 provider (groq, gemini, openrouter, ollama)");
+
+    const providerIds = jsonProviders.providers.map((p: { providerId: string }) => p.providerId).sort();
+    assert(
+      JSON.stringify(providerIds) === JSON.stringify(["gemini", "groq", "ollama", "openrouter"]),
+      "Provider IDs sesuai: gemini, groq, ollama, openrouter"
+    );
+
+    // Verifikasi Zero Secret Leakage pada JSON response
+    const rawJsonStr = JSON.stringify(jsonProviders);
+    const hasGskLeak = /gsk_[a-zA-Z0-9_-]{10,}/.test(rawJsonStr);
+    const hasAizaLeak = /AIza[a-zA-Z0-9_-]{20,}/.test(rawJsonStr);
+    const hasSkOrLeak = /sk-or-v1-[a-zA-Z0-9_-]{10,}/.test(rawJsonStr);
+    assert(!hasGskLeak && !hasAizaLeak && !hasSkOrLeak, "Response JSON 100% bebas dari kebocoran string API key");
+  } catch (err: unknown) {
+    assert(false, "GET /api/providers test", String(err));
   }
 
   // Ringkasan

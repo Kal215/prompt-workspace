@@ -51,6 +51,8 @@ export interface PromptOptimizationResult {
   changes: (string | PromptChange)[];
   warnings?: string[];
   appliedDomainRule?: AppliedDomainRuleInfo;
+  providerId?: string;
+  model?: string;
   metrics?: {
     clarityScore?: number;
     constraintCoverage?: number;
@@ -65,6 +67,8 @@ export interface PromptOptimizationResult {
     confidenceScore?: number;
     estimatedTokenSavings?: string;
     appliedDomainRule?: AppliedDomainRuleInfo;
+    providerId?: string;
+    model?: string;
     [key: string]: unknown;
   };
 }

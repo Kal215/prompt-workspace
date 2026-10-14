@@ -13,9 +13,11 @@ import { ShieldCheck, HelpCircle, Target, FileText, CheckCircle2 } from "lucide-
 interface IntentGuardCardProps {
   intent: DetectedIntent | string;
   appliedDomainRule?: AppliedDomainRuleInfo | null;
+  providerId?: string | null;
+  model?: string | null;
 }
 
-export function IntentGuardCard({ intent, appliedDomainRule }: IntentGuardCardProps) {
+export function IntentGuardCard({ intent, appliedDomainRule, providerId, model }: IntentGuardCardProps) {
   const isString = typeof intent === "string";
   const summary = isString ? intent : intent.summary;
   const confidence = !isString && typeof intent.confidence === "number" ? intent.confidence : 0.95;
@@ -57,6 +59,15 @@ export function IntentGuardCard({ intent, appliedDomainRule }: IntentGuardCardPr
                 className="bg-primary/10 text-primary border-primary/20 text-[11px] font-medium"
               >
                 Domain: {appliedDomainRule.name} (v{appliedDomainRule.ruleVersion})
+              </Badge>
+            )}
+            {providerId && (
+              <Badge
+                variant="outline"
+                data-testid="applied-provider-badge"
+                className="bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20 text-[11px] font-medium"
+              >
+                Provider: {providerId}{model ? ` \u2022 ${model}` : ""}
               </Badge>
             )}
             <span className="text-muted-foreground">Confidence:</span>
