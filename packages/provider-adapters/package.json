@@ -1,0 +1,16 @@
+{
+  "name": "@prompt-workspace/provider-adapters",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-provider LLM adapters with key rotation and failover",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "groq-sdk": "^0.15.0",
+    "openai": "^7.32.0"
+  }
+}

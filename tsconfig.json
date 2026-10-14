@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "references": [
+    { "path": "./packages/prompt-contracts" },
+    { "path": "./packages/provider-adapters" },
+    { "path": "./packages/prompt-engine" }
+  ],
+  "files": []
+}
