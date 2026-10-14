@@ -8,14 +8,18 @@
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
+    "test:adapter": "npx tsx packages/prompt-engine/scripts/test-adapter.ts",
+    "test:harness": "npx tsx packages/prompt-engine/scripts/test-harness.ts",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
   },
   "engines": {
     "node": ">=18"
   },
   "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }
