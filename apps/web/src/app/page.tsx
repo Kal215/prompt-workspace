@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,6 +18,7 @@ import {
   HistorySidebar,
   SavedPromptItem,
 } from "@/components/workspace/history-sidebar";
+import { toast } from "sonner";
 import {
   Sparkles,
   Loader2,
@@ -37,9 +38,22 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PromptOptimizationResult | null>(null);
 
-  // History Sidebar state
+  // History Sidebar state (real-time SQLite database)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [savedPrompts, setSavedPrompts] = useState<SavedPromptItem[]>([]);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [historyCount, setHistoryCount] = useState<number>(0);
+
+  // Sync initial history count from SQLite database
+  useEffect(() => {
+    fetch("/api/history?limit=50")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          setHistoryCount(json.data.length);
+        }
+      })
+      .catch(() => {});
+  }, [historyRefreshKey]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -91,40 +105,12 @@ export default function Home() {
     setError(null);
   };
 
-  const handleAcceptPrompt = (res: PromptOptimizationResult) => {
-    const intentStr =
-      typeof res.detectedIntent === "string"
-        ? res.detectedIntent
-        : res.detectedIntent?.summary || "";
-
-    const newItem: SavedPromptItem = {
-      id: res.requestId || Date.now().toString(),
-      requestId: res.requestId || Date.now().toString(),
-      originalPrompt: res.originalPrompt,
-      optimizedPrompt: res.optimizedPrompt,
-      timestamp: new Date().toISOString(),
-      score:
-        res.analysis?.score ??
-        res.analysis?.overallScore ??
-        res.metrics?.clarityScore ??
-        85,
-      detectedIntent: intentStr,
-    };
-
-    setSavedPrompts((prev) => {
-      // Avoid duplicate by requestId
-      const filtered = prev.filter((p) => p.requestId !== newItem.requestId);
-      return [newItem, ...filtered];
-    });
-  };
-
   const handleSelectHistoryPrompt = (item: SavedPromptItem) => {
     setPrompt(item.originalPrompt);
     setIsHistoryOpen(false);
-  };
-
-  const handleClearHistory = () => {
-    setSavedPrompts([]);
+    toast.info("Prompt dimuat ke editor workspace", {
+      description: "Anda dapat memodifikasi atau menganalisis ulang prompt ini.",
+    });
   };
 
   return (
@@ -133,9 +119,9 @@ export default function Home() {
       <HistorySidebar
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-        items={savedPrompts}
         onSelectPrompt={handleSelectHistoryPrompt}
-        onClearHistory={handleClearHistory}
+        refreshKey={historyRefreshKey}
+        onCountChange={setHistoryCount}
       />
 
       {/* Top Header */}
@@ -165,12 +151,12 @@ export default function Home() {
             >
               <History className="h-3.5 w-3.5 text-muted-foreground" />
               <span>Riwayat</span>
-              {savedPrompts.length > 0 && (
+              {historyCount > 0 && (
                 <Badge
                   variant="secondary"
                   className="ml-1 text-[10px] px-1.5 py-0 font-mono"
                 >
-                  {savedPrompts.length}
+                  {historyCount}
                 </Badge>
               )}
             </Button>
@@ -387,7 +373,9 @@ export default function Home() {
               <ResultDashboard
                 result={result}
                 onRegenerate={() => handleSubmit()}
-                onAccept={handleAcceptPrompt}
+                onRefreshHistory={() =>
+                  setHistoryRefreshKey((prev) => prev + 1)
+                }
               />
             )}
           </section>

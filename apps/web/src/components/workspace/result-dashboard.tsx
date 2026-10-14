@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { PromptOptimizationResult } from "@/types/prompt";
 import { IntentGuardCard } from "./intent-guard-card";
 import { FindingsPanel } from "./findings-panel";
@@ -13,13 +13,17 @@ interface ResultDashboardProps {
   result: PromptOptimizationResult;
   onRegenerate: () => void;
   onAccept?: (result: PromptOptimizationResult) => void;
+  onRefreshHistory?: () => void;
 }
 
 export function ResultDashboard({
   result,
   onRegenerate,
   onAccept,
+  onRefreshHistory,
 }: ResultDashboardProps) {
+  const [isSaving, setIsSaving] = useState(false);
+
   // Defensive fallbacks to gracefully handle both raw Engine results and enhanced mocks
   const score =
     result.analysis?.score ??
@@ -52,19 +56,57 @@ export function ResultDashboard({
   };
 
   const handleAcceptAndSave = async () => {
+    setIsSaving(true);
     try {
+      // 1. Copy ke clipboard
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(result.optimizedPrompt).catch(() => {});
       }
+
+      // 2. Format data intent summary
+      const intentSummary =
+        typeof result.detectedIntent === "string"
+          ? result.detectedIntent
+          : result.detectedIntent?.summary || null;
+
+      // 3. Simpan ke database via POST /api/history
+      const response = await fetch("/api/history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: result.requestId || undefined,
+          originalPrompt: result.originalPrompt,
+          optimizedPrompt: result.optimizedPrompt,
+          intentSummary,
+          score,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal menyimpan ke database.");
+      }
+
+      toast.success("Prompt diterima dan disimpan ke database!", {
+        description:
+          "Versi teroptimasi disalin ke clipboard dan tersimpan permanen di database SQLite.",
+      });
+
+      onAccept?.(result);
+      onRefreshHistory?.();
     } catch (err) {
-      console.warn("Clipboard access warning:", err);
+      console.error("Gagal menyimpan ke database:", err);
+      toast.warning("Prompt disalin ke clipboard, tapi gagal tersimpan ke database.", {
+        description:
+          err instanceof Error ? err.message : "Periksa koneksi database SQLite.",
+      });
+      onAccept?.(result);
+    } finally {
+      setIsSaving(false);
     }
-
-    toast.success("Prompt diterima dan disalin ke clipboard!", {
-      description: "Versi teroptimasi siap digunakan langsung di generator atau model target.",
-    });
-
-    onAccept?.(result);
   };
 
   return (
@@ -142,6 +184,7 @@ export function ResultDashboard({
         onRegenerate={onRegenerate}
         onExportMarkdown={handleExportMarkdown}
         onAcceptAndSave={handleAcceptAndSave}
+        isSaving={isSaving}
       />
 
       {/* 2. Intent Guard Card */}
