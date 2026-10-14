@@ -119,7 +119,7 @@ export class GroqAdapter {
       throw new GroqAdapterError("Messages array cannot be empty", "INVALID_REQUEST");
     }
 
-    const model = options?.model || this.defaultModel;
+    let model = options?.model || process.env.GROQ_MODEL || this.defaultModel;
     const timeoutMs = options?.timeoutMs || this.defaultTimeoutMs;
     const maxAttempts = this.keys.length;
 
@@ -198,6 +198,16 @@ export class GroqAdapter {
         } else if (err?.name === "AbortError" || errorMsg.includes("timeout")) {
           lastErrorCode = "TIMEOUT";
           console.warn(`[GroqAdapter] Key ${maskedKeyId} timed out. Rotating to next key...`);
+          continue;
+        } else if (
+          (status === 404 || errorMsg.includes("model_not_found")) &&
+          model === this.defaultModel
+        ) {
+          lastErrorCode = "INVALID_REQUEST";
+          console.warn(
+            `[GroqAdapter] Model "${model}" not available on Groq API. Auto-falling back to "openai/gpt-oss-120b"...`
+          );
+          model = "openai/gpt-oss-120b";
           continue;
         } else {
           lastErrorCode = "NETWORK_ERROR";
