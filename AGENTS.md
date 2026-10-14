@@ -27,3 +27,12 @@ Berdasarkan: Prompt_Intelligence_Engineering_Workspace_Blueprint_v1.0
 - Commit message jelas: feat(engine): add intent validator
 - Jangan push langsung ke main. Selalu buat Pull Request (PR)
 - Types First: definisikan kontrak di packages/prompt-contracts dulu sebelum implementasi
+
+## 4. PIEW v2.0 Stage Gate Protocol (Gate 0 s/d Gate 6)
+- **Zero-Regression Guarantee**: Seluruh skema, tabel, helper, dan API v1.0 WAJIB 100% backward-compatible.
+- **Nama Kolom Kanonis SavedPrompt**: Selalu gunakan `originalPrompt` (bukan rawPrompt) dan `score` (bukan overallScore).
+- **Perlindungan dev.db**: 2 record aktif di `packages/database/prisma/dev.db` wajib dijaga utuh.
+- **Batasan P0 Crawler & Spider**:
+  - Crawler Allowlist: `raw.githubusercontent.com` dan `github.com`.
+  - Spider Runner: Maksimal 5 test case per run, semaphore concurrency = 2.
+  - Retensi SQLite: Maksimal 20 `PromptVersion` dan 10 `SpiderRun`.
