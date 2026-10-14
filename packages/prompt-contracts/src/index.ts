@@ -1,6 +1,26 @@
 import { z } from "zod";
 
 // ──────────────────────────────────────────────
+// Blueprint v1.0 Bagian 4.2 & 11.3 — Multi-Provider Contracts
+// ──────────────────────────────────────────────
+
+export const ProviderIdEnum = z.enum(["groq", "gemini", "openrouter", "ollama"]);
+export const ProviderIdSchema = ProviderIdEnum;
+export type ProviderId = z.infer<typeof ProviderIdSchema>;
+
+export const ProviderCapabilitySchema = z.object({
+  providerId: ProviderIdSchema,
+  displayName: z.string(),
+  defaultModel: z.string(),
+  availableModels: z.array(z.string()),
+  supportsJsonMode: z.boolean(),
+  isLocal: z.boolean(),
+  configured: z.boolean(),
+  description: z.string(),
+});
+export type ProviderCapability = z.infer<typeof ProviderCapabilitySchema>;
+
+// ──────────────────────────────────────────────
 // Blueprint v1.0 Bagian 5.2 — Core Request Schema
 // ──────────────────────────────────────────────
 
@@ -25,6 +45,12 @@ export const PromptOptimizationRequestSchema = z.object({
 
   /** ID unik per request untuk traceability */
   requestId: z.string().min(1, "requestId is required"),
+
+  /** ID provider LLM target (groq, gemini, openrouter, ollama) */
+  providerId: ProviderIdSchema.nullable().optional(),
+
+  /** Model spesifik yang diminta pengguna (opsional) */
+  targetModel: z.string().nullable().optional(),
 });
 
 /** TypeScript type yang di-infer dari schema Zod */
@@ -81,10 +107,6 @@ export const FindingSchema = z.object({
 export type Finding = z.infer<typeof FindingSchema>;
 
 // ──────────────────────────────────────────────
-// Blueprint v1.0 Bagian 5.3 — Core Result Schema
-// ──────────────────────────────────────────────
-
-// ──────────────────────────────────────────────
 // Blueprint v1.0 Bagian 11.4 & Bagian 3 — Domain Rule Metadata
 // ──────────────────────────────────────────────
 
@@ -113,6 +135,8 @@ export type PromptAnalysis = z.infer<typeof PromptAnalysisSchema>;
 export const PromptMetadataSchema = z
   .object({
     modelTarget: z.string().optional(),
+    providerId: ProviderIdSchema.optional(),
+    model: z.string().optional(),
     processingTimeMs: z.number().optional(),
     latencyMs: z.number().optional(),
     tokensUsed: z
@@ -175,6 +199,12 @@ export const PromptOptimizationResultSchema = z.object({
 
   /** Domain rule pack yang diterapkan (opsional, transparansi UI) */
   appliedDomainRule: AppliedDomainRuleSchema.optional(),
+
+  /** Provider yang digunakan untuk optimasi (opsional, transparansi UI) */
+  providerId: ProviderIdSchema.optional(),
+
+  /** Model aktual yang mengeksekusi optimasi */
+  model: z.string().optional(),
 
   /** Hasil audit evaluasi kualitas / LLM-as-a-Judge (opsional) */
   evaluation: OptimizationEvaluationSchema.optional(),

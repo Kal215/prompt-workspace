@@ -3,8 +3,13 @@ import {
   PromptOptimizationRequestSchema,
   PromptOptimizationResult,
   PromptOptimizationResultSchema,
+  ProviderId,
 } from "@prompt-workspace/prompt-contracts";
-import { GroqAdapter } from "@prompt-workspace/provider-adapters";
+import {
+  GroqAdapter,
+  LLMProviderAdapter,
+  createProviderAdapter,
+} from "@prompt-workspace/provider-adapters";
 import { getDomainPack, DomainRulePack } from "@prompt-workspace/domain-rules";
 import { analyzePrompt, AnalyzePromptResult } from "./analyzer.js";
 import { optimizePrompt, OptimizePromptResult } from "./optimizer.js";
@@ -41,7 +46,7 @@ export * from "./errors.js";
  */
 export async function runOptimizationPipeline(
   request: PromptOptimizationRequest,
-  adapter?: GroqAdapter,
+  adapter?: LLMProviderAdapter | GroqAdapter,
   options?: { expectedBehavior?: string }
 ): Promise<PromptOptimizationResult> {
   const startTime = Date.now();
@@ -50,6 +55,8 @@ export async function runOptimizationPipeline(
     requestId: request.requestId,
     prompt: request.prompt,
     taskType: request.taskType,
+    providerId: request.providerId,
+    targetModel: request.targetModel,
   });
 
   // 1. Validasi input request
@@ -67,7 +74,10 @@ export async function runOptimizationPipeline(
   }
 
   // Inisialisasi adapter bersama agar memanfaatkan pool rotasi key yang sama
-  const groq = adapter || new GroqAdapter();
+  const providerId: ProviderId = (validatedRequest.providerId as ProviderId) || "groq";
+  const targetModel = validatedRequest.targetModel || undefined;
+  const resolvedAdapter: LLMProviderAdapter =
+    adapter || createProviderAdapter({ providerId, targetModel });
 
   // Resolusi Domain Rule Pack berdasarkan taskType
   const domainPack: DomainRulePack = getDomainPack(validatedRequest.taskType);
@@ -76,7 +86,7 @@ export async function runOptimizationPipeline(
   const analysisResult: AnalyzePromptResult = await analyzePrompt(
     validatedRequest.prompt,
     validatedRequest.context,
-    groq,
+    resolvedAdapter,
     domainPack
   );
 
@@ -85,7 +95,7 @@ export async function runOptimizationPipeline(
     validatedRequest.prompt,
     analysisResult.findings,
     validatedRequest.constraints || [],
-    groq,
+    resolvedAdapter,
     domainPack
   );
 
@@ -96,7 +106,7 @@ export async function runOptimizationPipeline(
       validatedRequest.prompt,
       optimizationResult.optimizedPrompt,
       options.expectedBehavior,
-      groq,
+      resolvedAdapter,
       domainPack
     );
   }
@@ -119,11 +129,15 @@ export async function runOptimizationPipeline(
     (evaluationResult?.telemetry?.usage?.completionTokens || 0);
   const totalTokens = promptTokens + completionTokens;
 
+  const effectiveProviderId: ProviderId =
+    (resolvedAdapter.providerId as ProviderId) || providerId || "groq";
+
   const modelTarget =
     optimizationResult.telemetry?.model ||
     analysisResult.telemetry?.model ||
-    process.env.GROQ_MODEL ||
-    "groq-llama-3.3-70b-versatile";
+    targetModel ||
+    resolvedAdapter.defaultModel ||
+    "llama-3.3-70b-versatile";
 
   const appliedDomainRule = {
     domainId: domainPack.domainId,
@@ -131,7 +145,7 @@ export async function runOptimizationPipeline(
     name: domainPack.name,
   };
 
-  // 5. Susun hasil akhir sesuai PromptOptimizationResultSchema
+  // 6. Susun hasil akhir sesuai PromptOptimizationResultSchema
   const result: PromptOptimizationResult = {
     requestId: validatedRequest.requestId,
     originalPrompt: validatedRequest.prompt,
@@ -146,7 +160,11 @@ export async function runOptimizationPipeline(
     warnings: optimizationResult.warnings,
     evaluation: evaluationResult,
     appliedDomainRule,
+    providerId: effectiveProviderId,
+    model: modelTarget,
     metadata: {
+      providerId: effectiveProviderId,
+      model: modelTarget,
       modelTarget,
       processingTimeMs,
       latencyMs: totalLatencyMs,
