@@ -8,10 +8,19 @@
     "packages/*"
   ],
   "scripts": {
+    "pretypecheck": "node scripts/patch-db-dist.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
+    "postbuild": "node scripts/patch-db-dist.mjs",
     "test:adapter": "npx tsx packages/prompt-engine/scripts/test-adapter.ts",
     "test:harness": "npx tsx packages/prompt-engine/scripts/test-harness.ts",
+    "test:contracts": "npx tsx packages/prompt-contracts/scripts/test-contracts-v2.ts",
+    "test:crawler": "npx tsx packages/prompt-crawler/scripts/test-crawler.ts",
+    "pretest:spider": "node scripts/patch-db-dist.mjs",
+    "test:spider": "npx tsx packages/prompt-spider/scripts/test-spider.ts",
+    "test:closed-loop": "npx tsx packages/prompt-engine/scripts/test-closed-loop.ts",
+    "pretest:v2-engines": "node scripts/patch-db-dist.mjs",
+    "test:v2-engines": "npm run test:contracts && npm run test:crawler && npm run test:spider && npm run test:closed-loop",
     "db:backup": "npx tsx packages/database/scripts/backup-db.ts",
     "db:restore": "npx tsx packages/database/scripts/restore-db.ts",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"

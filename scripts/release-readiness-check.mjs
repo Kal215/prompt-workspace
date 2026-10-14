@@ -1,22 +1,10 @@
 #!/usr/bin/env node
-
 /**
- * ==============================================================================
- * PROMPT INTELLIGENCE ENGINEERING WORKSPACE (PIEW)
- * STAGE GATE AUDITOR & SMOKE TEST RUNNER (STAGES G0 - G7)
- * ==============================================================================
- * Skrip audit mandiri untuk memverifikasi kesiapan rilis dan tata kelola platform
- * Tahap 0 s/d Tahap 7 secara komprehensif dan deterministik tanpa mengubah package.json.
- *
- * Cakupan Audit:
- * 1. Keberadaan 19 Artefak Wajib (Tahap 0 s/d Tahap 7: PRS, ADR, PDR, Runbook,
- *    Checklist, Governance Policy, Contributing, Security, Roadmap, Changelog).
- * 2. Audit Keamanan & Zero-Secret Governance (Gitignore, ls-files, dan scan regex).
- * 3. Integritas Database Persisten dev.db (2 record aktif terlindungi).
- * 4. Eksekusi 8 Rangkaian Pengujian Otomatis Monorepo (Typecheck, Playground,
- *    Provider Adapters, Domain Rules, Database, Web Unit, Web API 57 asersi
- *    termasuk /api/execute, Turbopack Build).
- * ==============================================================================
+ * scripts/release-readiness-check.mjs
+ * -----------------------------------------------------------------------------
+ * Audit Kesiapan Rilis & Tata Kelola Platform Otomatis
+ * PIEW v2.0.0 — Checklist Kelulusan Rilis P0 (Lampiran A ADR-002) & Stages G0 - G5
+ * -----------------------------------------------------------------------------
  */
 
 import fs from "node:fs";
@@ -24,29 +12,25 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, "..");
 
 const colors = {
   reset: "\x1b[0m",
-  bold: "\x1b[1m",
   green: "\x1b[32m",
   red: "\x1b[31m",
   yellow: "\x1b[33m",
   cyan: "\x1b[36m",
-  gray: "\x1b[90m",
+  bold: "\x1b[1m",
 };
 
 function logHeader(title) {
-  console.log(`\n${colors.bold}${colors.cyan}════════════════════════════════════════════════════════════════════════════════${colors.reset}`);
-  console.log(`${colors.bold}${colors.cyan}  ${title}${colors.reset}`);
-  console.log(`${colors.bold}${colors.cyan}════════════════════════════════════════════════════════════════════════════════${colors.reset}\n`);
+  console.log(`\n${colors.bold}${colors.cyan}=== [${title}] ===${colors.reset}`);
 }
 
-function logStep(label, status, detail = "") {
+function logStep(step, status) {
   const icon = status === "PASS" ? `${colors.green}✔ PASS${colors.reset}` : `${colors.red}✖ FAIL${colors.reset}`;
-  console.log(`  [${icon}] ${colors.bold}${label}${colors.reset} ${detail ? `${colors.gray}(${detail})${colors.reset}` : ""}`);
+  console.log(`  [${icon}] ${step}`);
 }
 
 const checkResults = [];
@@ -57,17 +41,17 @@ function recordCheck(category, name, passed, detail = "") {
 }
 
 // ------------------------------------------------------------------------------
-// 1. Verifikasi Keberadaan Seluruh Artefak Wajib (Tahap 0 s/d Tahap 7)
+// 1. Verifikasi Keberadaan Seluruh Artefak Wajib (v1.x & P0 v2.0 Lampiran A ADR-002)
 // ------------------------------------------------------------------------------
-logHeader("1. AUDIT ARTEFAK WAJIB (STAGES G0 - G7)");
+logHeader("1. AUDIT ARTEFAK WAJIB (STAGES G0 - G5 & ADR-002)");
 
 const REQUIRED_ARTIFACTS = [
-  // Fondasi & Arsitektur
+  // Fondasi & Arsitektur v1.x
   "docs/architecture/ADR-001-modular-monolith-and-security.md",
   "docs/architecture/RUNBOOK-operations-and-recovery.md",
   "docs/architecture/COMPATIBILITY-AND-VERSIONING-POLICY.md",
   "docs/architecture/ARCHITECTURE-AND-DEBT-REVIEW-2026-Q4.md",
-  // Keputusan Produk & Fitur
+  // Keputusan Produk & Fitur v1.x
   "docs/product/PDR-001-domain-packs-c1.md",
   "docs/product/PDR-002-multi-provider-adapters-c2.md",
   "docs/product/PDR-003-target-model-playground-c3.md",
@@ -76,7 +60,7 @@ const REQUIRED_ARTIFACTS = [
   "docs/product/USER-GUIDE-AND-FAQ.md",
   "docs/product/ROADMAP-AND-METRICS-STAGE7.md",
   "docs/product/BLUEPRINT-CHANGELOG.md",
-  // Operasi & Tata Kelola
+  // Operasi & Tata Kelola v1.x
   "docs/operations/RELEASE-CHECKLIST-v1.1.0.md",
   "docs/operations/RUNBOOK.md",
   "CONTRIBUTING.md",
@@ -84,6 +68,33 @@ const REQUIRED_ARTIFACTS = [
   "README.md",
   ".env.example",
   "test-fixtures/baseline-prompts.json",
+
+  // --- Artefak Wajib v2.0 (Checklist Kelulusan Rilis P0 Lampiran A ADR-002) ---
+  // 1. Dokumen Arsitektur & Rilis v2.0
+  "docs/architecture/ADR-002-crawler-spider-integration.md",
+  "docs/architecture/GATE-0-COMPATIBILITY-REPORT.md",
+  "docs/product/RELEASE-NOTES-v2.0.0.md",
+  // 2. Package @prompt-workspace/prompt-crawler
+  "packages/prompt-crawler/src/ssrf-guard.ts",
+  "packages/prompt-crawler/src/fetcher.ts",
+  "packages/prompt-crawler/src/redactor.ts",
+  "packages/prompt-crawler/src/extractor.ts",
+  // 3. Package @prompt-workspace/prompt-spider
+  "packages/prompt-spider/src/test-suite.ts",
+  "packages/prompt-spider/src/runner.ts",
+  "packages/prompt-spider/src/evaluator.ts",
+  "packages/prompt-spider/src/semaphore.ts",
+  // 4. Helper closed-loop & kontrak v2.0
+  "packages/prompt-engine/src/closed-loop.ts",
+  "packages/prompt-contracts/src/crawler.ts",
+  "packages/prompt-contracts/src/spider.ts",
+  // 5. Route API, Feature Flags & Komponen UI v2.0
+  "apps/web/src/app/api/crawl/route.ts",
+  "apps/web/src/app/api/spider/route.ts",
+  "apps/web/src/lib/feature-flags.ts",
+  "apps/web/src/components/workspace/crawler-import-modal.tsx",
+  "apps/web/src/components/workspace/spider-matrix-panel.tsx",
+  "apps/web/src/components/workspace/prompt-version-bar.tsx",
 ];
 
 for (const relPath of REQUIRED_ARTIFACTS) {
@@ -131,7 +142,6 @@ try {
 // C. Scan potensi naked secret API key di file yang di-track Git
 try {
   let secretFound = false;
-  // Periksa diff atau committed code terhadap pola key nyata (bukan placeholder dummy)
   const patternMatch = execSync(
     'git grep -E "(gsk_[a-zA-Z0-9]{30,}|AIzaSy[a-zA-Z0-9_-]{33}|sk-or-v1-[a-zA-Z0-9]{32,})" -- ":!test-fixtures/*" ":!*.test.*" ":!*.example" ":!*test*" || true',
     {
@@ -167,7 +177,6 @@ if (!fs.existsSync(devDbPath)) {
     let lines = [];
     let hasLegacyOwner = false;
 
-    // Utamakan modul bawaan node:sqlite untuk portabilitas lintas-platform tanpa dependensi eksternal sqlite3 CLI
     try {
       const { DatabaseSync } = await import("node:sqlite");
       const db = new DatabaseSync(devDbPath);
@@ -206,7 +215,12 @@ const VERIFICATION_COMMANDS = [
   {
     name: "Monorepo Typecheck",
     command: "npm run typecheck",
-    detail: "Validasi TypeScript 6 workspace",
+    detail: "Validasi TypeScript 8 workspace",
+  },
+  {
+    name: "v2 Engines Test Suite",
+    command: "npm run test:v2-engines",
+    detail: "Contracts, Crawler, Spider, & Closed-Loop synthesis",
   },
   {
     name: "Prompt Engine Playground Tests",
@@ -224,19 +238,19 @@ const VERIFICATION_COMMANDS = [
     detail: "155/155 asersi 5 domain packs",
   },
   {
-    name: "Database Persistence & Isolation",
+    name: "Database Persistence & WAL Mode",
     command: "npm run test --workspace=@prompt-workspace/database",
-    detail: "Isolasi data & CRUD pada temp DB",
+    detail: "Isolasi data, WAL mode & CRUD pada temp DB",
   },
   {
     name: "Web Unit Tests",
     command: "npm run test:unit --workspace=web",
-    detail: "22/22 subtest route handlers",
+    detail: "39/39 Vitest subtests (UI & feature flags)",
   },
   {
     name: "Web API Regression Tests",
     command: "npm run test:api --workspace=web",
-    detail: "57/57 asersi CSRF, Rate-limit, Providers, Execute (/api/execute)",
+    detail: "79/79 asersi CSRF, Rate-limit, Crawler, Spider, Playground",
   },
   {
     name: "Monorepo Production Build",
@@ -263,7 +277,7 @@ for (const step of VERIFICATION_COMMANDS) {
 // ------------------------------------------------------------------------------
 // 5. Ringkasan Akhir & Exit Code
 // ------------------------------------------------------------------------------
-logHeader("5. RINGKASAN AKHIR AUDIT TATA KELOLA & KESIAPAN RILIS (STAGES G0 - G7)");
+logHeader("5. RINGKASAN AKHIR AUDIT TATA KELOLA & KESIAPAN RILIS (PIEW v2.0.0)");
 
 const totalChecks = checkResults.length;
 const passedChecks = checkResults.filter((c) => c.passed).length;
@@ -274,7 +288,7 @@ console.log(`  Pemeriksaan Lulus : ${colors.green}${passedChecks}${colors.reset}
 console.log(`  Pemeriksaan Gagal : ${failedChecks > 0 ? `${colors.red}${failedChecks}${colors.reset}` : `${colors.green}0${colors.reset}`}`);
 
 if (failedChecks === 0) {
-  console.log(`\n${colors.bold}${colors.green}🏆 STATUS: ALL CHECKS PASSED — READY FOR STAGE 7 PLATFORM EVOLUTION! 🚀${colors.reset}\n`);
+  console.log(`\n${colors.bold}${colors.green}🏆 STATUS: ALL CHECKS PASSED — READY FOR PIEW v2.0.0 RELEASE! 🚀${colors.reset}\n`);
   process.exit(0);
 } else {
   console.log(`\n${colors.bold}${colors.red}❌ STATUS: ${failedChecks} PEMERIKSAAN GAGAL. PERBAIKI SEBELUM MERGE!${colors.reset}\n`);
