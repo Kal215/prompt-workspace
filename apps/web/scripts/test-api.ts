@@ -8,9 +8,21 @@
 import { GET, POST, DELETE } from "../src/app/api/history/route";
 import { GET as GET_PROVIDERS } from "../src/app/api/providers/route";
 import { POST as POST_EXECUTE } from "../src/app/api/execute/route";
-import { getPromptById, savePrompt, prisma, setDatabaseUrl } from "@prompt-workspace/database";
+import { POST as POST_CRAWL, GET as GET_CRAWL } from "../src/app/api/crawl/route";
+import { POST as POST_SPIDER, GET as GET_SPIDER } from "../src/app/api/spider/route";
+import {
+  getPromptById,
+  savePrompt,
+  savePromptVersion,
+  prisma,
+  setDatabaseUrl,
+} from "@prompt-workspace/database";
 import { signSession } from "../src/lib/session";
-import { InMemorySlidingWindowLimiter } from "../src/lib/rate-limiter";
+import {
+  InMemorySlidingWindowLimiter,
+  getCrawlRateLimiter,
+  getSpiderRateLimiter,
+} from "../src/lib/rate-limiter";
 import crypto from "crypto";
 import os from "os";
 import path from "path";
@@ -614,6 +626,216 @@ async function runApiRegressionSuite() {
     }
   } catch (err: unknown) {
     assert(false, "POST /api/execute test", String(err));
+  }
+
+  // 24. Test POST & GET /api/crawl (Web Crawler & Grounding Facts API)
+  console.log("\n▶ [Test 24] /api/crawl (CSRF, Session, SSRF/Allowlist Rejection, Extraction, & Anti-IDOR)");
+  try {
+    // 24.1 CSRF Fail-Closed: POST /api/crawl tanpa Origin / Referer ditolak 403
+    const reqCrawlNoOrigin = new Request("http://localhost:3000/api/crawl", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetUrl: "https://raw.githubusercontent.com/owner/repo/main/prompt.md" }),
+    });
+    const resCrawlNoOrigin = await POST_CRAWL(reqCrawlNoOrigin);
+    assert(resCrawlNoOrigin.status === 403, "CSRF: Request /api/crawl tanpa Origin/Referer ditolak HTTP 403");
+
+    // 24.2 Session: Token sesi palsu ditolak 401
+    const reqCrawlFakeSession = new Request("http://localhost:3000/api/crawl", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+        Cookie: "piw_session=fake.signature.token",
+      },
+      body: JSON.stringify({ targetUrl: "https://raw.githubusercontent.com/owner/repo/main/prompt.md" }),
+    });
+    const resCrawlFakeSession = await POST_CRAWL(reqCrawlFakeSession);
+    assert(resCrawlFakeSession.status === 401, "Session: Request /api/crawl dengan token palsu ditolak HTTP 401");
+
+    // 24.3 SSRF & Allowlist: URL HTTP biasa ditolak 422
+    const reqCrawlHttp = new Request("http://localhost:3000/api/crawl", {
+      method: "POST",
+      headers: authHeadersA,
+      body: JSON.stringify({ targetUrl: "http://raw.githubusercontent.com/repo/file.txt" }),
+    });
+    const resCrawlHttp = await POST_CRAWL(reqCrawlHttp);
+    assert(resCrawlHttp.status === 422, "SSRF: URL non-HTTPS ditolak HTTP 422");
+
+    // 24.4 SSRF & Allowlist: URL di luar allowlist ditolak 422
+    const reqCrawlDisallowed = new Request("http://localhost:3000/api/crawl", {
+      method: "POST",
+      headers: authHeadersA,
+      body: JSON.stringify({ targetUrl: "https://malicious-external-site.com/evil.txt" }),
+    });
+    const resCrawlDisallowed = await POST_CRAWL(reqCrawlDisallowed);
+    assert(resCrawlDisallowed.status === 422, "SSRF: Host di luar allowlist P0 ditolak HTTP 422");
+
+    // 24.5 Eksekusi Berhasil (Happy Path) POST /api/crawl
+    const reqCrawlHappy = new Request("http://localhost:3000/api/crawl", {
+      method: "POST",
+      headers: authHeadersA,
+      body: JSON.stringify({
+        targetUrl: "https://raw.githubusercontent.com/test-org/test-repo/main/PROMPT.md",
+        mode: "EXTRACT_GROUNDING_CONTEXT",
+        sourceType: "GITHUB_RAW_FILE",
+      }),
+    });
+    const resCrawlHappy = await POST_CRAWL(reqCrawlHappy);
+    assert(resCrawlHappy.status === 201, "POST /api/crawl mengembalikan status HTTP 201 Created");
+    const jsonCrawl = await resCrawlHappy.json();
+    assert(jsonCrawl.success === true, "POST /api/crawl memuat success: true");
+    assert(Array.isArray(jsonCrawl.data?.items), "POST /api/crawl mengembalikan array items");
+    assert(typeof jsonCrawl.data?.crawlerSourceId === "string", "POST /api/crawl mengembalikan crawlerSourceId");
+
+    const createdCrawlSourceId = jsonCrawl.data.crawlerSourceId;
+
+    // 24.6 Anti-IDOR pada GET /api/crawl:
+    // Buat SavedPrompt untuk User A dan kaitkan dengan CrawlerSource ini
+    const promptA = await savePrompt({
+      userId: userIdA,
+      originalPrompt: "Prompt A with crawler source",
+      optimizedPrompt: "Optimized Prompt A",
+      score: 90,
+    });
+    await prisma.crawlerSource.update({
+      where: { id: createdCrawlSourceId },
+      data: { savedPromptId: promptA.id },
+    });
+
+    // Reset rate limiter crawl agar tidak terhambat kuota saat uji anti-IDOR
+    getCrawlRateLimiter().reset();
+
+    // User B mencoba mengakses dokumen crawler milik User A -> HTTP 403
+    const reqGetCrawlUserB = new Request(`http://localhost:3000/api/crawl?id=${createdCrawlSourceId}`, {
+      method: "GET",
+      headers: authHeadersB,
+    });
+    const resGetCrawlUserB = await GET_CRAWL(reqGetCrawlUserB);
+    assert(resGetCrawlUserB.status === 403, "Anti-IDOR: User B mengakses CrawlerSource milik User A ditolak HTTP 403");
+
+    // User A mengakses dokumen miliknya sendiri -> HTTP 200
+    const reqGetCrawlUserA = new Request(`http://localhost:3000/api/crawl?id=${createdCrawlSourceId}`, {
+      method: "GET",
+      headers: authHeadersA,
+    });
+    const resGetCrawlUserA = await GET_CRAWL(reqGetCrawlUserA);
+    assert(resGetCrawlUserA.status === 200, "User A berhasil mengakses CrawlerSource miliknya sendiri (HTTP 200)");
+  } catch (err: unknown) {
+    assert(false, "/api/crawl suite test", String(err));
+  }
+
+  // 25. Test POST & GET /api/spider (Prompt Spider Matrix & Adversarial Benchmark API)
+  console.log("\n▶ [Test 25] /api/spider (CSRF, Session, Validation, 5 Categories Execution, & Anti-IDOR)");
+  try {
+    // 25.1 CSRF Fail-Closed: POST /api/spider tanpa Origin / Referer ditolak 403
+    const reqSpiderNoOrigin = new Request("http://localhost:3000/api/spider", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ promptContent: "Test prompt content" }),
+    });
+    const resSpiderNoOrigin = await POST_SPIDER(reqSpiderNoOrigin);
+    assert(resSpiderNoOrigin.status === 403, "CSRF: Request /api/spider tanpa Origin/Referer ditolak HTTP 403");
+
+    // 25.2 Session: Token sesi palsu ditolak 401
+    const reqSpiderFakeSession = new Request("http://localhost:3000/api/spider", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+        Cookie: "piw_session=fake.signature.token",
+      },
+      body: JSON.stringify({ promptContent: "Test prompt content" }),
+    });
+    const resSpiderFakeSession = await POST_SPIDER(reqSpiderFakeSession);
+    assert(resSpiderFakeSession.status === 401, "Session: Request /api/spider dengan token palsu ditolak HTTP 401");
+
+    // 25.3 Validasi: Body kosong ditolak 400
+    const reqSpiderEmpty = new Request("http://localhost:3000/api/spider", {
+      method: "POST",
+      headers: authHeadersA,
+      body: JSON.stringify({}),
+    });
+    const resSpiderEmpty = await POST_SPIDER(reqSpiderEmpty);
+    assert(resSpiderEmpty.status === 400, "Validasi: Request /api/spider tanpa promptContent ditolak HTTP 400");
+
+    // 25.4 Happy Path POST /api/spider (Langsung promptContent)
+    const reqSpiderHappy = new Request("http://localhost:3000/api/spider", {
+      method: "POST",
+      headers: authHeadersA,
+      body: JSON.stringify({
+        promptContent: "Bertindaklah sebagai arsitek sistem yang teliti dan selalu validasi schema JSON.",
+        targetProvider: "groq",
+        targetModel: "llama-3.3-70b-versatile",
+      }),
+    });
+    const resSpiderHappy = await POST_SPIDER(reqSpiderHappy);
+    assert(resSpiderHappy.status === 201, "POST /api/spider berhasil (HTTP 201 Created)");
+    const jsonSpider = await resSpiderHappy.json();
+    assert(jsonSpider.success === true, "POST /api/spider memuat success: true");
+    assert(typeof jsonSpider.data?.criticalGatePassed === "boolean", "POST /api/spider mengevaluasi criticalGatePassed");
+    assert(Array.isArray(jsonSpider.data?.testCases) && jsonSpider.data.testCases.length === 5, "POST /api/spider menjalankan tepat 5 kasus uji");
+    assert(typeof jsonSpider.data?.qualityMetrics?.robustnessScore === "number", "POST /api/spider memuat skor robustness");
+
+    // 25.5 Anti-IDOR pada PromptVersion dan SpiderRun:
+    // Buat prompt untuk User A dan PromptVersion
+    const promptUserA = await savePrompt({
+      userId: userIdA,
+      originalPrompt: "Prompt User A for Spider",
+      optimizedPrompt: "Optimized Prompt User A for Spider",
+      score: 88,
+    });
+    const versionUserA = await savePromptVersion({
+      savedPromptId: promptUserA.id,
+      promptText: promptUserA.optimizedPrompt,
+      score: 88,
+      changesSummary: "Versi 1 awal",
+    });
+
+    // User B mencoba menjalankan spider terhadap version milik User A -> HTTP 403
+    const reqSpiderRunUserB = new Request("http://localhost:3000/api/spider", {
+      method: "POST",
+      headers: authHeadersB,
+      body: JSON.stringify({
+        promptVersionId: versionUserA.id,
+      }),
+    });
+    const resSpiderRunUserB = await POST_SPIDER(reqSpiderRunUserB);
+    assert(resSpiderRunUserB.status === 403, "Anti-IDOR: User B menjalankan uji Spider pada promptVersion milik User A ditolak HTTP 403");
+
+    // User A menjalankan spider terhadap versinya sendiri -> HTTP 201
+    const reqSpiderRunUserA = new Request("http://localhost:3000/api/spider", {
+      method: "POST",
+      headers: authHeadersA,
+      body: JSON.stringify({
+        promptVersionId: versionUserA.id,
+      }),
+    });
+    const resSpiderRunUserA = await POST_SPIDER(reqSpiderRunUserA);
+    assert(resSpiderRunUserA.status === 201, "User A berhasil menjalankan uji Spider pada versinya sendiri (HTTP 201)");
+    const jsonSpiderRunA = await resSpiderRunUserA.json();
+    const createdSpiderRunId = jsonSpiderRunA.data.runId;
+
+    // Reset spider rate limiter untuk pengujian anti-IDOR
+    getSpiderRateLimiter().reset();
+
+    // User B mencoba membaca SpiderRun milik User A via GET /api/spider?id=... -> HTTP 403
+    const reqGetSpiderUserB = new Request(`http://localhost:3000/api/spider?id=${createdSpiderRunId}`, {
+      method: "GET",
+      headers: authHeadersB,
+    });
+    const resGetSpiderUserB = await GET_SPIDER(reqGetSpiderUserB);
+    assert(resGetSpiderUserB.status === 403, "Anti-IDOR: User B membaca hasil SpiderRun milik User A ditolak HTTP 403");
+
+    // User A membaca SpiderRun miliknya sendiri -> HTTP 200
+    const reqGetSpiderUserA = new Request(`http://localhost:3000/api/spider?id=${createdSpiderRunId}`, {
+      method: "GET",
+      headers: authHeadersA,
+    });
+    const resGetSpiderUserA = await GET_SPIDER(reqGetSpiderUserA);
+    assert(resGetSpiderUserA.status === 200, "User A berhasil membaca hasil SpiderRun miliknya sendiri (HTTP 200)");
+  } catch (err: unknown) {
+    assert(false, "/api/spider suite test", String(err));
   }
 
   // Ringkasan

@@ -24,6 +24,16 @@ import {
   TelemetrySummaryBar,
   TelemetryMetrics,
 } from "@/components/workspace/telemetry-summary-bar";
+import { CrawlerImportModal } from "@/components/workspace/crawler-import-modal";
+import { formatGroundingFactsForContext } from "@/lib/v2-workspace-helpers";
+import { isCrawlerFeatureEnabled } from "@/lib/feature-flags";
+import {
+  CrawlerResultItem,
+  CrawlerExtractionMode,
+  PromptVersionRecord,
+  SpiderReportSummary,
+  SpiderSecurityFinding,
+} from "@/types/v2-workspace";
 import { listDomainPacks, DomainRulePack } from "@prompt-workspace/domain-rules";
 import { ProviderCapability } from "@prompt-workspace/prompt-contracts";
 import { toast } from "sonner";
@@ -38,6 +48,7 @@ import {
   Cpu,
   History,
   Layers,
+  Globe,
 } from "lucide-react";
 
 // Fallback daftar statis aman provider saat inisialisasi / loading
@@ -155,6 +166,161 @@ export default function Home() {
     averageScore: 88,
   });
 
+  // v2.0 Web Crawler & Prompt Spider State
+  const [isCrawlerModalOpen, setIsCrawlerModalOpen] = useState(false);
+  const [versions, setVersions] = useState<PromptVersionRecord[]>([]);
+  const [activeVersionId, setActiveVersionId] = useState<string>("v1");
+  const [spiderReport, setSpiderReport] = useState<SpiderReportSummary | null>(null);
+  const [isSpiderLoading, setIsSpiderLoading] = useState(false);
+
+  const handleCrawlerExtract = async (
+    url: string,
+    mode: CrawlerExtractionMode
+  ): Promise<CrawlerResultItem[]> => {
+    const res = await fetch("/api/crawl", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetUrl: url,
+        mode,
+        sourceType: "GITHUB_BLOB_URL",
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || "Gagal mengekstrak dari crawler.");
+    }
+    return json.data.items;
+  };
+
+  const handleSelectCrawlerPrompt = (promptText: string) => {
+    setPrompt(promptText);
+    toast.success("Kandidat prompt berhasil dimuat ke editor!");
+  };
+
+  const handleInjectGroundingFacts = (selectedFacts: CrawlerResultItem[]) => {
+    setContext((prevContext) => {
+      const newContext = formatGroundingFactsForContext(prevContext, selectedFacts);
+      return newContext;
+    });
+    toast.success(`${selectedFacts.length} Fakta sumber terverifikasi berhasil disuntikkan ke konteks!`);
+  };
+
+  const handleRunSpider = async () => {
+    if (!result) return;
+    setIsSpiderLoading(true);
+    try {
+      const res = await fetch("/api/spider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          promptContent: result.optimizedPrompt,
+          targetProvider: selectedProvider,
+          targetModel: selectedModel,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        const report = json.data as SpiderReportSummary;
+        setSpiderReport(report);
+        setVersions((prev) =>
+          prev.map((v) =>
+            v.versionId === activeVersionId
+              ? {
+                  ...v,
+                  criticalGatePassed: report.criticalGatePassed,
+                  qualityScore: report.qualityMetrics.robustnessScore,
+                }
+              : v
+          )
+        );
+        toast.info("Uji Ketahanan Spider Selesai", {
+          description: report.criticalGatePassed
+            ? "Gerbang kritis lulus (5/5 kasus nominal & adversarial terpenuhi)."
+            : "Gerbang kritis belum lulus. Terdapat potensi kerentanan prompt.",
+        });
+      } else {
+        throw new Error(json.error || "Gagal menjalankan Spider.");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal memproses uji Spider.";
+      toast.error(msg);
+    } finally {
+      setIsSpiderLoading(false);
+    }
+  };
+
+  const handleRequestSpiderRefinement = async (findings: SpiderSecurityFinding[]) => {
+    if (!result) return;
+    const remediationBlock = findings
+      .map(
+        (f, idx) =>
+          `[Remediasi Temuan Spider #${idx + 1} (${f.severity})]: ${f.recommendation}`
+      )
+      .join("\n");
+
+    const nextContext = context
+      ? `${context}\n\n--- [REMEDIASI TEMUAN SPIDER] ---\n${remediationBlock}`
+      : `--- [REMEDIASI TEMUAN SPIDER] ---\n${remediationBlock}`;
+
+    setContext(nextContext);
+    toast.info("Memulai Closed-Loop Refinement...", {
+      description: "Rekomendasi remediasi diinjeksikan ke konteks untuk menghasilkan versi baru.",
+    });
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/optimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: result.optimizedPrompt,
+          context: nextContext,
+          taskType: selectedDomain,
+          providerId: selectedProvider,
+          targetModel: selectedModel,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        const nextOpt = data as PromptOptimizationResult;
+        setResult(nextOpt);
+        const nextVerNumber = versions.length + 1;
+        const newVersionId = `v${nextVerNumber}`;
+        const newVerRecord: PromptVersionRecord = {
+          versionId: newVersionId,
+          versionNumber: nextVerNumber,
+          promptText: nextOpt.optimizedPrompt,
+          contextText: nextContext,
+          source: "spider-refinement",
+          createdAt: new Date().toISOString(),
+          qualityScore: nextOpt.analysis?.score ?? 90,
+          changeSummary: "Dihasilkan otomatis melalui Closed-Loop Spider Refinement",
+        };
+        setVersions((prev) => [...prev, newVerRecord]);
+        setActiveVersionId(newVersionId);
+        setSpiderReport(null);
+        toast.success(`Versi baru (${newVersionId}) berhasil dibuat dari temuan Spider!`);
+      }
+    } catch {
+      toast.error("Gagal melakukan optimasi perbaikan tertutup.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectVersion = (versionId: string) => {
+    setActiveVersionId(versionId);
+    const targetVer = versions.find((v) => v.versionId === versionId);
+    if (targetVer && result) {
+      setResult({
+        ...result,
+        optimizedPrompt: targetVer.promptText,
+      });
+    }
+  };
+
   // Sync initial history count from SQLite database
   useEffect(() => {
     fetch("/api/history?limit=50")
@@ -214,6 +380,20 @@ export default function Home() {
 
       const optResult = data as PromptOptimizationResult;
       setResult(optResult);
+
+      // Inisialisasi atau rekam versi v1
+      const v1Record: PromptVersionRecord = {
+        versionId: "v1",
+        versionNumber: 1,
+        promptText: optResult.optimizedPrompt,
+        contextText: context,
+        source: "initial",
+        createdAt: new Date().toISOString(),
+        qualityScore: optResult.analysis?.score ?? 85,
+      };
+      setVersions([v1Record]);
+      setActiveVersionId("v1");
+      setSpiderReport(null);
 
       // Perbarui metrik sesi lokal
       setTelemetry((prev) => {
@@ -520,6 +700,19 @@ export default function Home() {
                       <span>
                         Prompt Asli <span className="text-destructive">*</span>
                       </span>
+                      {isCrawlerFeatureEnabled() && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          data-testid="open-crawler-modal-button"
+                          onClick={() => setIsCrawlerModalOpen(true)}
+                          className="h-6 px-2 text-[11px] text-primary hover:text-primary hover:bg-primary/10 gap-1 cursor-pointer font-normal"
+                        >
+                          <Globe className="h-3 w-3" />
+                          <span>🌐 Impor Sumber &amp; Fakta (Crawler)</span>
+                        </Button>
+                      )}
                     </Label>
                     <Textarea
                       id="original-prompt"
@@ -676,6 +869,13 @@ export default function Home() {
                   setHistoryRefreshKey((prev) => prev + 1)
                 }
                 onTelemetryAction={handleTelemetryAction}
+                versions={versions}
+                activeVersionId={activeVersionId}
+                onSelectVersion={handleSelectVersion}
+                spiderReport={spiderReport}
+                isSpiderLoading={isSpiderLoading}
+                onRunSpider={handleRunSpider}
+                onRequestRefinement={handleRequestSpiderRefinement}
               />
             )}
           </section>
@@ -684,6 +884,15 @@ export default function Home() {
         {/* User Guide & Help Documentation Section (Tahap 6 - Bagian 12) */}
         <UserGuideSection />
       </main>
+
+      {/* v2.0 Web Crawler Import Modal */}
+      <CrawlerImportModal
+        isOpen={isCrawlerModalOpen}
+        onClose={() => setIsCrawlerModalOpen(false)}
+        onSelectAsPrompt={handleSelectCrawlerPrompt}
+        onInjectGroundingFacts={handleInjectGroundingFacts}
+        onExtract={handleCrawlerExtract}
+      />
     </div>
   );
 }

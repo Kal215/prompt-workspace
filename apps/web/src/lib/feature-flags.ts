@@ -58,11 +58,10 @@ export const DEFAULT_V2_LIMITS = {
  */
 function parseBooleanEnv(
   value: string | undefined,
-  defaultValueInDev: boolean
+  defaultValue: boolean = true
 ): boolean {
   if (value === undefined || value === null || value.trim() === "") {
-    const isProd = process.env.NODE_ENV === "production";
-    return isProd ? false : defaultValueInDev;
+    return defaultValue;
   }
   const normalized = value.trim().toLowerCase();
   if (normalized === "true" || normalized === "1" || normalized === "yes") {
@@ -71,7 +70,7 @@ function parseBooleanEnv(
   if (normalized === "false" || normalized === "0" || normalized === "no") {
     return false;
   }
-  return defaultValueInDev;
+  return defaultValue;
 }
 
 /**

@@ -215,6 +215,8 @@ async function runE2ESuite() {
         DATABASE_URL: tempDbUrl,
         SESSION_SECRET: "e2e-test-session-secret-at-least-32-characters-long",
         ALLOWED_ORIGINS: "http://127.0.0.1:3124,http://localhost:3124",
+        NEXT_PUBLIC_ENABLE_CRAWLER: "true",
+        NEXT_PUBLIC_ENABLE_SPIDER: "true",
       },
       shell: isWin,
       stdio: "ignore",
@@ -350,6 +352,13 @@ async function runE2ESuite() {
     assert(
       telemetryBarExists !== null,
       "Panel metrik sesi & North-Star telemetry (data-testid='stage7-telemetry-bar') ter-render di DOM"
+    );
+
+    // Verifikasi Keberadaan Tombol Web Crawler (Task #37 / Gate 2 & 3)
+    const crawlerButtonExists = await page.$('[data-testid="open-crawler-modal-button"]');
+    assert(
+      crawlerButtonExists !== null,
+      "Tombol Web Crawler (data-testid='open-crawler-modal-button') ter-render di DOM"
     );
 
     const getBadgeCount = async (): Promise<number> => {
@@ -609,6 +618,21 @@ async function runE2ESuite() {
     });
     await new Promise((r) => setTimeout(r, 400));
     console.log("  🎯 Ekspor terverifikasi Markdown, JSON, dan Human Utility Feedback berhasil diverifikasi di DOM.");
+
+    // 7D. Verifikasi Keberadaan Spider Matrix Panel & Prompt Version Bar (Task #37 / Gate 2 & 3)
+    console.log("\n▶ [Step 7D] Menguji Render Spider Matrix Panel & Prompt Version Bar (v2.0)...");
+    const spiderMatrixExists = await page.$('[data-testid="spider-matrix-section"]');
+    assert(
+      spiderMatrixExists !== null,
+      "Komponen Spider Matrix (data-testid='spider-matrix-section') ter-render di DOM"
+    );
+
+    const versionBarExists = await page.$('[data-testid="prompt-version-bar"]');
+    assert(
+      versionBarExists !== null,
+      "Komponen Prompt Version Bar (data-testid='prompt-version-bar') ter-render di DOM"
+    );
+    console.log("  🎯 Spider Matrix Panel dan Prompt Version Bar terverifikasi di DOM.");
 
     // 8. Interaksi "Accept & Save" ke Riwayat SQLite
     console.log("\n▶ [Step 8] Menguji interaksi tombol 'Accept & Save'...");
