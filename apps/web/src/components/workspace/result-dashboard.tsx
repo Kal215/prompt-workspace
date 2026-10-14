@@ -4,6 +4,7 @@ import { IntentGuardCard } from "./intent-guard-card";
 import { FindingsPanel } from "./findings-panel";
 import { PromptDiffViewer } from "./prompt-diff-viewer";
 import { ChangesTracker } from "./changes-tracker";
+import { PlaygroundCard } from "./playground-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { exportOptimizationResultToMarkdown } from "@/lib/export";
 import { toast } from "sonner";
@@ -210,6 +211,21 @@ export function ResultDashboard({
           <ChangesTracker changes={result.changes} />
         </div>
       </div>
+
+      {/* 4. Target Model Execution Playground (Fitur C3 - Tahap 5 Blueprint v1.0) */}
+      <PlaygroundCard
+        prompt={result.optimizedPrompt}
+        originalPrompt={result.originalPrompt}
+        providerId={
+          result.providerId || (result.metadata?.providerId as string) || "groq"
+        }
+        model={
+          result.model ||
+          (result.metadata?.model as string) ||
+          (result.metadata?.modelTarget as string) ||
+          "llama-3.3-70b-versatile"
+        }
+      />
     </div>
   );
 }

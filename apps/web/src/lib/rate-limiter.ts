@@ -144,12 +144,21 @@ const optimizeLimiter = new InMemorySlidingWindowLimiter(
   60 // per 60 seconds
 );
 
+const executeLimiter = new InMemorySlidingWindowLimiter(
+  15, // 15 requests
+  60 // per 60 seconds
+);
+
 export function getHistoryRateLimiter(): InMemorySlidingWindowLimiter {
   return historyLimiter;
 }
 
 export function getOptimizeRateLimiter(): InMemorySlidingWindowLimiter {
   return optimizeLimiter;
+}
+
+export function getExecuteRateLimiter(): InMemorySlidingWindowLimiter {
+  return executeLimiter;
 }
 
 /**
