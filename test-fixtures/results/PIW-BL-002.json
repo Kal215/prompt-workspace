@@ -1,82 +1,88 @@
 {
   "requestId": "req-PIW-BL-002",
   "originalPrompt": "Tulis esai tentang AI yang bagus dan lengkap.",
-  "detectedIntent": "User wants a well‑written, comprehensive essay on AI, including relevant details and an initial structure, without fabricating references or assuming specific assignment rules.",
+  "detectedIntent": "Pengguna ingin menghasilkan esai akademik tentang AI yang mencakup detail relevan dan struktur awal, tanpa menciptakan referensi palsu atau mengasumsikan aturan tugas.",
   "analysis": {
     "findings": [
       {
-        "category": "Tujuan",
+        "category": "Konteks",
         "severity": "major",
         "evidence": "\"Tulis esai tentang AI yang bagus dan lengkap.\"",
-        "recommendation": "Specify the exact purpose of the essay (e.g., inform, argue, compare) and the intended audience or use case.",
-        "type": "tujuan",
-        "message": "Specify the exact purpose of the essay (e.g., inform, argue, compare) and the intended audience or use case."
+        "recommendation": "Sertakan informasi tentang audiens target, panjang esai (kata atau halaman), gaya penulisan (formal, semi‑formal), dan batasan topik spesifik yang diinginkan.",
+        "type": "konteks",
+        "message": "Sertakan informasi tentang audiens target, panjang esai (kata atau halaman), gaya penulisan (formal, semi‑formal), dan batasan topik spesifik yang diinginkan."
       },
       {
         "category": "Ambiguitas",
         "severity": "major",
-        "evidence": "Kata‑kata subjektif seperti \"bagus\" dan \"lengkap\".",
-        "recommendation": "Define measurable criteria for \"good\" (e.g., clarity, depth, academic tone) and \"complete\" (e.g., sections to cover, word count).",
+        "evidence": "\"bagus dan lengkap\"",
+        "recommendation": "Definisikan kriteria objektif untuk \"bagus\" (misalnya, argumen kuat, contoh relevan) dan \"lengkap\" (misalnya, mencakup sejarah, aplikasi, tantangan, masa depan).",
         "type": "ambiguitas",
-        "message": "Define measurable criteria for \"good\" (e.g., clarity, depth, academic tone) and \"complete\" (e.g., sections to cover, word count)."
+        "message": "Definisikan kriteria objektif untuk \"bagus\" (misalnya, argumen kuat, contoh relevan) dan \"lengkap\" (misalnya, mencakup sejarah, aplikasi, tantangan, masa depan)."
       },
       {
         "category": "Keluaran",
         "severity": "major",
-        "evidence": "Tidak ada format output yang diminta.",
-        "recommendation": "State the desired output format (plain text, markdown, outline, JSON) and any structural requirements (headings, bullet points).",
+        "evidence": "Prompt tidak menyebutkan format atau struktur output yang diharapkan.",
+        "recommendation": "Tentukan format output (misalnya, markdown dengan heading, atau outline bullet) serta elemen yang harus ada (pendahuluan, tubuh, kesimpulan, referensi).",
         "type": "keluaran",
-        "message": "State the desired output format (plain text, markdown, outline, JSON) and any structural requirements (headings, bullet points)."
-      },
-      {
-        "category": "Batasan",
-        "severity": "major",
-        "evidence": "Tidak ada batasan panjang, gaya sitasi, atau sumber yang boleh dipakai.",
-        "recommendation": "Provide constraints such as word count, citation style (APA, MLA), allowed sources, and any technical limits.",
-        "type": "batasan",
-        "message": "Provide constraints such as word count, citation style (APA, MLA), allowed sources, and any technical limits."
+        "message": "Tentukan format output (misalnya, markdown dengan heading, atau outline bullet) serta elemen yang harus ada (pendahuluan, tubuh, kesimpulan, referensi)."
       },
       {
         "category": "Keberhasilan",
         "severity": "major",
-        "evidence": "Tidak ada kriteria evaluasi atau metrik penyelesaian.",
-        "recommendation": "Define success criteria (e.g., includes introduction, body, conclusion; covers at least three AI sub‑topics; no fabricated references).",
+        "evidence": "Tidak ada kriteria penilaian atau metrik keberhasilan.",
+        "recommendation": "Berikan kriteria evaluasi seperti kepatuhan pada batasan panjang, kejelasan argumen, penggunaan sumber yang dapat diverifikasi, dan tidak adanya referensi fiktif.",
         "type": "keberhasilan",
-        "message": "Define success criteria (e.g., includes introduction, body, conclusion; covers at least three AI sub‑topics; no fabricated references)."
+        "message": "Berikan kriteria evaluasi seperti kepatuhan pada batasan panjang, kejelasan argumen, penggunaan sumber yang dapat diverifikasi, dan tidak adanya referensi fiktif."
       },
       {
-        "category": "Konteks",
+        "category": "Batasan",
         "severity": "minor",
-        "evidence": "\"Domain: Penulisan akademik\" but missing target audience and level of expertise.",
-        "recommendation": "Add details about the intended readership (undergraduate, graduate, general public) and any disciplinary focus.",
-        "type": "konteks",
-        "message": "Add details about the intended readership (undergraduate, graduate, general public) and any disciplinary focus."
+        "evidence": "Prompt tidak menyebutkan batasan teknis seperti gaya sitasi atau larangan penggunaan data eksternal.",
+        "recommendation": "Nyatakan batasan spesifik, misalnya: gunakan gaya APA, hindari referensi yang tidak ada, dan batasi penggunaan contoh hingga sumber terbuka.",
+        "type": "batasan",
+        "message": "Nyatakan batasan spesifik, misalnya: gunakan gaya APA, hindari referensi yang tidak ada, dan batasi penggunaan contoh hingga sumber terbuka."
+      },
+      {
+        "category": "Tujuan",
+        "severity": "minor",
+        "evidence": "Tujuan esai tidak dijelaskan secara eksplisit (misalnya, informatif, argumentatif, atau tinjauan literatur).",
+        "recommendation": "Jelaskan tujuan utama esai: apakah untuk memberikan gambaran umum, mengkritisi teknologi AI, atau menyajikan analisis tren.",
+        "type": "tujuan",
+        "message": "Jelaskan tujuan utama esai: apakah untuk memberikan gambaran umum, mengkritisi teknologi AI, atau menyajikan analisis tren."
       }
     ],
     "score": 32,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Role: Penulis esai akademik yang berpengalaman.\n\nObjective: Menulis esai tentang Kecerdasan Buatan (AI) yang memenuhi tujuan spesifik, audiens target, dan kriteria kualitas yang ditentukan.\n\nInput & Parameters:\n- Tujuan esai: [TUJUAN_ESSAY] (misalnya: menginformasikan, meyakinkan, membandingkan, atau mengkritisi)\n- Audiens target: [AUDIENS_TARGET] (misalnya: mahasiswa S1, profesional TI, atau publik umum)\n- Panjang esai: [PANJANG_KATA] kata\n- Gaya sitasi yang harus dipakai: [GAYA_SITASI] (misalnya: APA, MLA, atau Chicago)\n- Sumber yang diizinkan: [SUMBER_YANG_DIIZINKAN] (misalnya: jurnal peer‑review, buku teks, artikel konferensi)\n- Sub‑topik AI yang harus dibahas: [DAFTAR_SUBTOPIK_AI] (misalnya: pembelajaran mesin, etika AI, aplikasi industri)\n- Kriteria kualitas: kejelasan, kedalaman analisis, nada akademik, dan tidak mengarang referensi.\n\nOperational Steps:\n1. Buat kerangka esai yang mencakup pendahuluan, tiga atau lebih bagian utama sesuai sub‑topik, dan kesimpulan.\n2. Kumpulkan informasi dari sumber yang diizinkan, catat semua referensi secara lengkap.\n3. Tulis setiap bagian dengan fokus pada tujuan esai dan audiens, gunakan bahasa yang sesuai tingkat keahlian.\n4. Sisipkan sitasi sesuai gaya yang ditentukan.\n5. Pastikan total kata mendekati [PANJANG_KATA] dengan toleransi ±5%.\n6. Periksa bahwa esai mencakup semua sub‑topik yang diminta dan tidak mengandung referensi fiktif.\n\nOutput Format:\n- Dokumen dalam format Markdown.\n- Gunakan heading level 1 untuk judul, level 2 untuk bagian utama, dan level 3 untuk sub‑bagian.\n- Daftar pustaka di akhir dengan format [GAYA_SITASI].\n- Sertakan tabel atau bullet point bila diperlukan untuk memperjelas poin.\n\nConstraints:\n- Tidak boleh melebihi atau kurang dari batas kata yang ditentukan.\n- Semua kutipan harus berasal dari [SUMBER_YANG_DIIZINKAN] dan dicantumkan secara akurat.\n- Hindari penggunaan bahasa subjektif tanpa dukungan fakta.\n- Tidak boleh menambahkan tujuan atau topik di luar yang tercantum dalam input.\n- Ikuti semua batasan etika penulisan akademik.",
+  "optimizedPrompt": "Role: You are an expert essay writer specialized in artificial intelligence.\nObjective: Write a comprehensive and high-quality essay about AI.\nInputs:\n- Target audience: [MASUKKAN_AUDIENS]\n- Desired length (words or pages): [MASUKKAN_PANJANG]\n- Writing style (formal, semi‑formal, etc.): [MASUKKAN_GAYA]\n- Specific sub‑topics to cover (e.g., history, applications, challenges, future): [MASUKKAN_SUBTOPIK]\n- Purpose of the essay (informative, argumentative, literature review): [MASUKKAN_TUJUAN]\n- Citation style (APA, MLA, etc.): [MASUKKAN_GAYA_SITASI]\nInstructions:\n1. Draft an outline with clear headings: Introduction, Body (with sub‑sections for each sub‑topic), Conclusion, References.\n2. Develop each section ensuring strong arguments, relevant examples, and full coverage of the requested sub‑topics.\n3. Cite all sources using the specified citation style; do not fabricate references or URLs.\n4. Keep the total length within the specified limit.\nOutput Format: Provide the essay in Markdown format, using appropriate headings, bullet points where helpful, and a properly formatted reference list.\nConstraints:\n- No invented sources or URLs.\n- Strict adherence to the chosen citation style.\n- Respect the length constraint.\n- Maintain academic integrity and avoid plagiarism.",
   "changes": [
-    "Menambahkan peran (Role) dan tanggung jawab penulis esai",
-    "Mendefinisikan tujuan spesifik, audiens, panjang kata, gaya sitasi, dan sumber sebagai placeholder terstruktur",
-    "Menyediakan langkah operasional yang jelas untuk penulisan",
-    "Menetapkan format keluaran dalam Markdown dengan struktur heading dan daftar pustaka",
-    "Menetapkan batasan panjang, sumber, dan kriteria kualitas untuk menghindari ambiguitas"
+    "Menambahkan peran (Role) dan tujuan spesifik (Objective) untuk memperjelas konteks tugas.",
+    "Menyediakan placeholder terstruktur untuk informasi yang belum lengkap (audiens, panjang, gaya, sub‑topik, tujuan, gaya sitasi).",
+    "Menentukan format keluaran (Markdown dengan heading dan daftar referensi) serta langkah operasional yang jelas.",
+    "Menetapkan batasan khusus untuk menghindari pembuatan sumber fiktif dan memastikan kepatuhan pada gaya sitasi."
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (misalnya [TUJUAN_ESSAY], [AUDIENS_TARGET], [PANJANG_KATA], dll.) dengan nilai yang sesuai sebelum menjalankan prompt",
-    "Pastikan semua sumber yang dipilih memenuhi hak cipta dan izin penggunaan",
-    "Periksa kembali kepatuhan terhadap gaya sitasi yang dipilih"
+    "Pengguna wajib mengganti semua placeholder [MASUKKAN_...] dengan nilai yang sesuai sebelum menjalankan prompt.",
+    "Pastikan semua referensi yang digunakan dapat diverifikasi dan tidak mengandung data atau URL fiktif."
   ],
+  "evaluation": {
+    "score": 98,
+    "passed": true,
+    "auditorNotes": "Optimized prompt menjaga maksud asli (menulis esai AI) sambil menawarkan struktur dan meminta detail tambahan melalui placeholder yang jujur. Tidak ada fakta atau URL yang difabricate; semua referensi diperlakukan sebagai placeholder. Prompt sangat jelas, terstruktur, dengan peran, tujuan, instruksi, dan format output yang rapi.",
+    "intentPreserved": true,
+    "deceptiveCertaintyAvoided": true,
+    "clarityAndStructureScore": 90
+  },
   "metadata": {
     "modelTarget": "openai/gpt-oss-120b",
-    "processingTimeMs": 5289,
-    "latencyMs": 5287,
+    "processingTimeMs": 6968,
+    "latencyMs": 6968,
     "tokensUsed": {
-      "promptTokens": 1856,
-      "completionTokens": 1915,
-      "totalTokens": 3771
+      "promptTokens": 2949,
+      "completionTokens": 2618,
+      "totalTokens": 5567
     },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"

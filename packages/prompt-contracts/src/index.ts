@@ -115,6 +115,27 @@ export const PromptMetadataSchema = z
 
 export type PromptMetadata = z.infer<typeof PromptMetadataSchema>;
 
+// ──────────────────────────────────────────────
+// Blueprint v1.0 Gate 3 — QA Evaluation Schema
+// ──────────────────────────────────────────────
+
+export const OptimizationEvaluationSchema = z.object({
+  /** Skor audit 1 - 100 */
+  score: z.number().min(0).max(100),
+
+  /** Status kelulusan audit (passed jika score >= 70 dan tidak ada halusinasi/pelanggaran intent) */
+  passed: z.boolean(),
+
+  /** Catatan penilaian objektif dari auditor */
+  auditorNotes: z.string(),
+
+  /** Detail evaluasi per kriteria (opsional) */
+  intentPreserved: z.boolean().optional(),
+  deceptiveCertaintyAvoided: z.boolean().optional(),
+  clarityAndStructureScore: z.number().optional(),
+});
+export type OptimizationEvaluation = z.infer<typeof OptimizationEvaluationSchema>;
+
 export const PromptOptimizationResultSchema = z.object({
   /** ID request terkait */
   requestId: z.string().min(1, "requestId is required"),
@@ -136,6 +157,9 @@ export const PromptOptimizationResultSchema = z.object({
 
   /** Peringatan asumsi atau informasi yang masih kurang */
   warnings: z.array(z.string()),
+
+  /** Hasil audit evaluasi kualitas / LLM-as-a-Judge (opsional) */
+  evaluation: OptimizationEvaluationSchema.optional(),
 
   /** Metadata tambahan (model target, waktu pemrosesan, token, dll.) */
   metadata: PromptMetadataSchema.optional(),
