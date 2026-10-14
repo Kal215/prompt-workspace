@@ -1,5 +1,4 @@
 import { PrismaClient, type SavedPrompt } from "@prisma/client";
-import { existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,13 +30,8 @@ const getDatabaseUrl = (): string => {
     return envUrl;
   }
 
-  // Relative SQLite path (e.g. file:./packages/database/prisma/dev.db or file:./dev.db)
+  // Jika berupa path relatif SQLite, arahkan ke path absolut dev.db kanonis
   if (envUrl.startsWith("file:")) {
-    const rel = envUrl.replace(/^file:/, "");
-    const cwdPath = resolve(process.cwd(), rel);
-    if (existsSync(cwdPath)) {
-      return `file:${cwdPath}`;
-    }
     return `file:${fallbackDbPath}`;
   }
 
