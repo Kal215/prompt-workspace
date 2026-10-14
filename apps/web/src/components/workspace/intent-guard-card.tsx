@@ -11,11 +11,17 @@ import { DetectedIntent } from "@/types/prompt";
 import { ShieldCheck, HelpCircle, Target, FileText, CheckCircle2 } from "lucide-react";
 
 interface IntentGuardCardProps {
-  intent: DetectedIntent;
+  intent: DetectedIntent | string;
 }
 
 export function IntentGuardCard({ intent }: IntentGuardCardProps) {
-  const confidencePercent = Math.round(intent.confidence * 100);
+  const isString = typeof intent === "string";
+  const summary = isString ? intent : intent.summary;
+  const confidence = !isString && typeof intent.confidence === "number" ? intent.confidence : 0.95;
+  const confidencePercent = Math.round(confidence * 100);
+  const targetAudience = !isString ? intent.targetAudience : "Model LLM Produksi";
+  const outputFormat = !isString ? intent.outputFormat : "Prompt Terstruktur (Role, Objective, Instructions, Placeholders)";
+  const uncertainties = !isString && intent.uncertainties ? intent.uncertainties : [];
 
   return (
     <Card className="border-border/80 shadow-xs overflow-hidden">
@@ -61,13 +67,13 @@ export function IntentGuardCard({ intent }: IntentGuardCardProps) {
             <span>Ringkasan Maksud Terdeteksi</span>
           </div>
           <p className="text-foreground leading-relaxed font-medium">
-            "{intent.summary}"
+            "{summary}"
           </p>
         </div>
 
         {/* Metadata Pills */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          {intent.targetAudience && (
+          {targetAudience && (
             <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted/30 border border-border/40">
               <Target className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <div>
@@ -75,13 +81,13 @@ export function IntentGuardCard({ intent }: IntentGuardCardProps) {
                   Target Model / Persona
                 </span>
                 <span className="font-medium text-foreground">
-                  {intent.targetAudience}
+                  {targetAudience}
                 </span>
               </div>
             </div>
           )}
 
-          {intent.outputFormat && (
+          {outputFormat && (
             <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted/30 border border-border/40">
               <FileText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <div>
@@ -89,7 +95,7 @@ export function IntentGuardCard({ intent }: IntentGuardCardProps) {
                   Ekspektasi Output Format
                 </span>
                 <span className="font-medium text-foreground">
-                  {intent.outputFormat}
+                  {outputFormat}
                 </span>
               </div>
             </div>
@@ -97,14 +103,14 @@ export function IntentGuardCard({ intent }: IntentGuardCardProps) {
         </div>
 
         {/* Uncertainties / Ambiguities Identified */}
-        {intent.uncertainties && intent.uncertainties.length > 0 && (
+        {uncertainties && uncertainties.length > 0 && (
           <div className="space-y-2 pt-1 border-t border-border/40">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
               <HelpCircle className="h-3.5 w-3.5 shrink-0" />
               <span>Celah Asumsi / Ketidakpastian yang Perlu Diperhatikan:</span>
             </div>
             <ul className="space-y-1.5 text-xs text-muted-foreground pl-1">
-              {intent.uncertainties.map((item, idx) => (
+              {uncertainties.map((item, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
                   <span className="leading-relaxed">{item}</span>

@@ -20,6 +20,8 @@ import {
   ArrowRight,
   RotateCcw,
   Sliders,
+  RefreshCw,
+  Cpu,
 } from "lucide-react";
 
 export default function Home() {
@@ -54,13 +56,18 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Gagal melakukan optimasi prompt.");
+        throw new Error(
+          data.error ||
+            "Engine sedang sibuk atau gagal menganalisis. Coba lagi atau sederhanakan prompt."
+        );
       }
 
       setResult(data as PromptOptimizationResult);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Terjadi kesalahan yang tidak terduga."
+        err instanceof Error
+          ? err.message
+          : "Engine sedang sibuk atau gagal menganalisis. Coba lagi atau sederhanakan prompt."
       );
     } finally {
       setIsLoading(false);
@@ -88,13 +95,16 @@ export default function Home() {
                 Prompt Intelligence Workspace
               </span>
               <span className="ml-2 text-xs text-muted-foreground hidden sm:inline-block border border-border px-1.5 py-0.5 rounded font-mono">
-                MVP v1.0
+                v1.0 (Live Engine)
               </span>
             </div>
           </div>
           <div className="text-xs text-muted-foreground flex items-center gap-2">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-medium">Engine Mock Ready</span>
+            <span className="font-medium text-foreground/80 flex items-center gap-1">
+              <Cpu className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              Groq Engine Live
+            </span>
           </div>
         </div>
       </header>
@@ -154,7 +164,7 @@ export default function Home() {
                     <Textarea
                       id="original-prompt"
                       rows={result ? 5 : 7}
-                      placeholder="Contoh: Buatkan saya fungsi TypeScript debounce dengan parameter immediate execution..."
+                      placeholder="Contoh: Buatkan saya kode Python untuk web scraping..."
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       disabled={isLoading}
@@ -179,7 +189,7 @@ export default function Home() {
                     <Textarea
                       id="context-prompt"
                       rows={result ? 2 : 3}
-                      placeholder="Contoh: Gunakan framework Next.js 16 App Router, target produksi enterprise..."
+                      placeholder="Contoh: Target e-commerce data extraction, gunakan BeautifulSoup..."
                       value={context}
                       onChange={(e) => setContext(e.target.value)}
                       disabled={isLoading}
@@ -187,11 +197,26 @@ export default function Home() {
                     />
                   </div>
 
-                  {/* Error Notification */}
+                  {/* Error Notification Alert */}
                   {error && (
-                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2.5">
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3.5 text-xs text-destructive flex items-start gap-3 animate-in fade-in">
                       <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                      <div>{error}</div>
+                      <div className="space-y-1.5 flex-1">
+                        <div className="font-semibold text-destructive">
+                          Terjadi Kendala Pemrosesan
+                        </div>
+                        <div className="leading-relaxed opacity-90">{error}</div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSubmit()}
+                          className="mt-1 h-7 text-[11px] border-destructive/30 hover:bg-destructive/20 text-destructive cursor-pointer"
+                        >
+                          <RefreshCw className="mr-1.5 h-3 w-3" />
+                          Coba Lagi
+                        </Button>
+                      </div>
                     </div>
                   )}
 
@@ -253,7 +278,7 @@ export default function Home() {
                     <span className="font-semibold text-foreground">
                       Analisis & Optimasi
                     </span>{" "}
-                    untuk melihat audit Intent Guard, rincian temuan perbaikan, serta perbandingan diff prompt.
+                    untuk menjalankan audit Intent Guard, temuan taksonomi kelemahan, serta rekonstruksi prompt berstandar produksi.
                   </p>
                 </div>
               </Card>
@@ -263,13 +288,18 @@ export default function Home() {
               <Card className="border-border/80 min-h-[420px] flex items-center justify-center p-8 text-center animate-pulse">
                 <div className="space-y-4 max-w-sm">
                   <Loader2 className="h-9 w-9 animate-spin mx-auto text-primary" />
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <h3 className="font-semibold text-foreground text-sm">
-                      Memproses Rekayasa & Evaluasi Prompt...
+                      Menjalankan Pipeline Engine via Groq LLM...
                     </h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Menjalankan audit semantik, memetakan polaritas intent, memeriksa ambiguitas, dan menyusun prompt berstandar produksi.
+                      Tahap 1: Analyzer (audit kelemahan semantik & deteksi maksud)
+                      <br />
+                      Tahap 2: Optimizer (rekonstruksi prompt terstruktur & Intent Preservation)
                     </p>
+                    <span className="inline-block text-[11px] text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded">
+                      Estimasi durasi: 3-8 detik
+                    </span>
                   </div>
                 </div>
               </Card>

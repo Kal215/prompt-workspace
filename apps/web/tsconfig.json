@@ -19,7 +19,10 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@prompt-workspace/prompt-engine": ["../../packages/prompt-engine/dist/src/index"],
+      "@prompt-workspace/provider-adapters": ["../../packages/provider-adapters/dist/index"],
+      "@prompt-workspace/prompt-contracts": ["../../packages/prompt-contracts/dist/index"]
     }
   },
   "include": [
