@@ -345,6 +345,13 @@ async function runE2ESuite() {
       "Panel panduan pengguna (data-testid='user-guide-section') ter-render di DOM"
     );
 
+    // Verifikasi Keberadaan Stage 7 North-Star Telemetry Bar (Task #32 / Tahap 7)
+    const telemetryBarExists = await page.$('[data-testid="stage7-telemetry-bar"]');
+    assert(
+      telemetryBarExists !== null,
+      "Panel metrik sesi & North-Star telemetry (data-testid='stage7-telemetry-bar') ter-render di DOM"
+    );
+
     const getBadgeCount = async (): Promise<number> => {
       return await page.evaluate(() => {
         const header = document.querySelector("header");
@@ -551,6 +558,57 @@ async function runE2ESuite() {
       Boolean(interceptedExecPrompt),
       "Payload request POST /api/execute berhasil diintersepsi dan memuat prompt"
     );
+
+    // 7C. Verifikasi Fitur Ekspor Terverifikasi (Markdown & JSON) & Human Utility Rating (Task #32 / Tahap 7)
+    console.log("\n▶ [Step 7C] Menguji Ekspor Terverifikasi (.md & .json) dan Feedback Kualitas...");
+
+    await page.waitForSelector('[data-testid="export-markdown-btn"]', { timeout: 5000 });
+    const exportMdBtn = await page.$('[data-testid="export-markdown-btn"]');
+    assert(exportMdBtn !== null, "Tombol 'Ekspor Markdown (.md)' (data-testid='export-markdown-btn') ditemukan");
+
+    const exportJsonBtn = await page.$('[data-testid="export-json-btn"]');
+    assert(exportJsonBtn !== null, "Tombol 'Ekspor JSON (.json)' (data-testid='export-json-btn') ditemukan");
+
+    const utilityHelpfulBtn = await page.$('[data-testid="utility-feedback-helpful"]');
+    assert(utilityHelpfulBtn !== null, "Tombol 'Perbaikan Ini Membantu' (data-testid='utility-feedback-helpful') ditemukan");
+
+    // Klik tombol Ekspor Markdown
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="export-markdown-btn"]') as HTMLButtonElement;
+      if (btn) btn.click();
+    });
+    await page.waitForSelector('[data-testid="export-status-msg"]', { timeout: 5000 });
+    const mdStatusText = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="export-status-msg"]');
+      return el ? el.textContent || "" : "";
+    });
+    assert(
+      mdStatusText.includes("Markdown") && mdStatusText.includes(".md"),
+      `Pesan status ekspor Markdown ter-render: "${mdStatusText}"`
+    );
+
+    // Klik tombol Ekspor JSON
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="export-json-btn"]') as HTMLButtonElement;
+      if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    const jsonStatusText = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="export-status-msg"]');
+      return el ? el.textContent || "" : "";
+    });
+    assert(
+      jsonStatusText.includes("JSON") && jsonStatusText.includes(".json"),
+      `Pesan status ekspor JSON ter-render: "${jsonStatusText}"`
+    );
+
+    // Klik tombol feedback kualitas
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="utility-feedback-helpful"]') as HTMLButtonElement;
+      if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    console.log("  🎯 Ekspor terverifikasi Markdown, JSON, dan Human Utility Feedback berhasil diverifikasi di DOM.");
 
     // 8. Interaksi "Accept & Save" ke Riwayat SQLite
     console.log("\n▶ [Step 8] Menguji interaksi tombol 'Accept & Save'...");

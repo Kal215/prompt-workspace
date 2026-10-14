@@ -20,6 +20,10 @@ import {
 } from "@/components/workspace/history-sidebar";
 import { PrivacyDisclosure } from "@/components/workspace/privacy-disclosure";
 import { UserGuideSection } from "@/components/workspace/user-guide-section";
+import {
+  TelemetrySummaryBar,
+  TelemetryMetrics,
+} from "@/components/workspace/telemetry-summary-bar";
 import { listDomainPacks, DomainRulePack } from "@prompt-workspace/domain-rules";
 import { ProviderCapability } from "@prompt-workspace/prompt-contracts";
 import { toast } from "sonner";
@@ -142,6 +146,15 @@ export default function Home() {
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [historyCount, setHistoryCount] = useState<number>(0);
 
+  // North-Star & Stage 7 Privacy-Safe Telemetry State (Blueprint Bagian 13 & 18.1)
+  const [telemetry, setTelemetry] = useState<TelemetryMetrics>({
+    optimizationsCount: 0,
+    acceptedOrExportedCount: 0,
+    playgroundRunsCount: 0,
+    historyCount: 0,
+    averageScore: 88,
+  });
+
   // Sync initial history count from SQLite database
   useEffect(() => {
     fetch("/api/history?limit=50")
@@ -149,10 +162,21 @@ export default function Home() {
       .then((json) => {
         if (json.success && Array.isArray(json.data)) {
           setHistoryCount(json.data.length);
+          setTelemetry((prev) => ({ ...prev, historyCount: json.data.length }));
         }
       })
       .catch(() => {});
   }, [historyRefreshKey]);
+
+  const handleTelemetryAction = (
+    actionType: "export" | "feedback_helpful" | "feedback_issue"
+  ) => {
+    void actionType;
+    setTelemetry((prev) => ({
+      ...prev,
+      acceptedOrExportedCount: prev.acceptedOrExportedCount + 1,
+    }));
+  };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -188,7 +212,24 @@ export default function Home() {
         );
       }
 
-      setResult(data as PromptOptimizationResult);
+      const optResult = data as PromptOptimizationResult;
+      setResult(optResult);
+
+      // Perbarui metrik sesi lokal
+      setTelemetry((prev) => {
+        const newCount = prev.optimizationsCount + 1;
+        const currentScore = optResult.analysis?.score ?? 85;
+        const prevAvg = prev.averageScore ?? 85;
+        const newAvg =
+          prev.optimizationsCount === 0
+            ? currentScore
+            : (prevAvg * prev.optimizationsCount + currentScore) / newCount;
+        return {
+          ...prev,
+          optimizationsCount: newCount,
+          averageScore: newAvg,
+        };
+      });
     } catch (err) {
       setError(
         err instanceof Error
@@ -289,6 +330,9 @@ export default function Home() {
             Audit semantik, perkuat batasan eksekusi (guardrails), dan validasi preserved intent sebelum digunakan di model produksi.
           </p>
         </section>
+
+        {/* Stage 7 North-Star & Funnel Telemetry Bar (Privacy-Safe Local Metrics) */}
+        <TelemetrySummaryBar metrics={telemetry} />
 
         {/* Workspace Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -631,6 +675,7 @@ export default function Home() {
                 onRefreshHistory={() =>
                   setHistoryRefreshKey((prev) => prev + 1)
                 }
+                onTelemetryAction={handleTelemetryAction}
               />
             )}
           </section>
