@@ -1,17 +1,28 @@
 import { GroqAdapter } from "@prompt-workspace/provider-adapters";
-import {
-  Finding,
-  FindingCategory,
-  FindingSeverity,
-  PromptAnalysis,
-} from "@prompt-workspace/prompt-contracts";
+import { Finding } from "@prompt-workspace/prompt-contracts";
 import { z } from "zod";
+import { safeLogger } from "./logger.js";
+import {
+  ProviderRateLimitError,
+  ProviderTimeoutError,
+  ProviderUnavailableError,
+  SchemaValidationError,
+} from "./errors.js";
 
 export interface AnalyzePromptResult {
   detectedIntent: string;
   findings: Finding[];
   score: number;
   status: string;
+  telemetry?: {
+    model: string;
+    latencyMs?: number;
+    usage?: {
+      promptTokens: number;
+      completionTokens: number;
+    };
+    keyUsed?: string;
+  };
 }
 
 const RawFindingSchema = z.object({
@@ -87,8 +98,11 @@ function extractJsonFromText(rawText: string): any {
 
   try {
     return JSON.parse(cleaned);
-  } catch (err) {
-    throw new Error(`Gagal mem-parse output JSON dari Analyzer: ${cleaned.substring(0, 200)}...`);
+  } catch (err: any) {
+    throw new SchemaValidationError(
+      `Gagal mem-parse output JSON dari Analyzer: ${cleaned.substring(0, 100)}...`,
+      err
+    );
   }
 }
 
@@ -104,6 +118,11 @@ export async function analyzePrompt(
   context?: string | null,
   adapter?: GroqAdapter
 ): Promise<AnalyzePromptResult> {
+  safeLogger.info("Memulai analisis prompt", {
+    prompt,
+    hasContext: !!context,
+  });
+
   const groq = adapter || new GroqAdapter();
 
   const userContent = [
@@ -112,15 +131,44 @@ export async function analyzePrompt(
     context ? `Konteks Tambahan: "${context}"` : `Konteks Tambahan: (Tidak ada)`,
   ].join("\n");
 
-  const response = await groq.chatCompletion([
-    { role: "system", content: ANALYZER_SYSTEM_PROMPT },
-    { role: "user", content: userContent },
-  ], {
-    temperature: 0.1, // deterministik untuk analisis konsisten
-  });
+  let response;
+  try {
+    response = await groq.chatCompletion(
+      [
+        { role: "system", content: ANALYZER_SYSTEM_PROMPT },
+        { role: "user", content: userContent },
+      ],
+      {
+        temperature: 0.1, // deterministik untuk analisis konsisten
+      }
+    );
+  } catch (err: any) {
+    safeLogger.error("Gagal memanggil provider saat analisis prompt", err);
+
+    if (err?.code === "RATE_LIMIT" || err?.statusCode === 429) {
+      throw new ProviderRateLimitError(err.message, err);
+    }
+    if (err?.code === "TIMEOUT" || err?.statusCode === 504) {
+      throw new ProviderTimeoutError(err.message, err);
+    }
+    throw new ProviderUnavailableError(
+      err?.message || "Provider Groq tidak tersedia atau semua key exhausted",
+      err
+    );
+  }
 
   const parsedJson = extractJsonFromText(response.content);
-  const validated = RawAnalyzerOutputSchema.parse(parsedJson);
+
+  let validated;
+  try {
+    validated = RawAnalyzerOutputSchema.parse(parsedJson);
+  } catch (err: any) {
+    safeLogger.error("Validasi skema output Analyzer gagal", err);
+    throw new SchemaValidationError(
+      "Struktur JSON dari Analyzer tidak sesuai dengan skema yang diharapkan",
+      err
+    );
+  }
 
   // Normalisasi findings dengan alias type dan message
   const normalizedFindings: Finding[] = validated.findings.map((f) => ({
@@ -132,10 +180,24 @@ export async function analyzePrompt(
     message: f.recommendation,
   }));
 
+  safeLogger.info("Analisis prompt selesai", {
+    detectedIntent: validated.detectedIntent,
+    findingsCount: normalizedFindings.length,
+    score: validated.score,
+    model: response.model,
+    latencyMs: response.latencyMs,
+  });
+
   return {
     detectedIntent: validated.detectedIntent,
     findings: normalizedFindings,
     score: validated.score,
     status: validated.status,
+    telemetry: {
+      model: response.model,
+      latencyMs: response.latencyMs,
+      usage: response.usage,
+      keyUsed: response.keyUsed,
+    },
   };
 }

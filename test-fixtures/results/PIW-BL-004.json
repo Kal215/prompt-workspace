@@ -1,69 +1,90 @@
 {
   "requestId": "req-PIW-BL-004",
   "originalPrompt": "Kode saya error. Tolong perbaiki sampai jalan.",
-  "detectedIntent": "Pengguna meminta bantuan memperbaiki kode yang mengalami error hingga dapat dijalankan.",
+  "detectedIntent": "Pengguna meminta perbaikan kode yang mengalami error tanpa menyediakan kode, pesan error, atau detail lingkungan pengembangan.",
   "analysis": {
     "findings": [
       {
-        "category": "Bukti",
+        "category": "Tujuan",
         "severity": "critical",
         "evidence": "\"Kode saya error. Tolong perbaiki sampai jalan.\"",
-        "recommendation": "Sertakan cuplikan kode lengkap yang mengalami error, termasuk pesan error atau stack trace yang muncul.",
-        "type": "bukti",
-        "message": "Sertakan cuplikan kode lengkap yang mengalami error, termasuk pesan error atau stack trace yang muncul."
+        "recommendation": "Jelaskan secara spesifik apa yang ingin dicapai (misalnya: memperbaiki fungsi X, menghilangkan exception Y).",
+        "type": "tujuan",
+        "message": "Jelaskan secara spesifik apa yang ingin dicapai (misalnya: memperbaiki fungsi X, menghilangkan exception Y)."
       },
       {
         "category": "Konteks",
-        "severity": "major",
-        "evidence": "Tidak ada informasi tentang bahasa pemrograman, framework, versi, atau lingkungan eksekusi.",
-        "recommendation": "Berikan detail tentang bahasa pemrograman, versi compiler/interpreter, framework/library yang digunakan, serta sistem operasi atau platform tempat kode dijalankan.",
+        "severity": "critical",
+        "evidence": "Tidak ada informasi tentang bahasa pemrograman, framework, versi, atau sistem operasi.",
+        "recommendation": "Sertakan konteks teknis: bahasa, versi, library, platform, dan deskripsi singkat aplikasi.",
         "type": "konteks",
-        "message": "Berikan detail tentang bahasa pemrograman, versi compiler/interpreter, framework/library yang digunakan, serta sistem operasi atau platform tempat kode dijalankan."
+        "message": "Sertakan konteks teknis: bahasa, versi, library, platform, dan deskripsi singkat aplikasi."
+      },
+      {
+        "category": "Bukti",
+        "severity": "critical",
+        "evidence": "Tidak ada kode sumber, log error, atau pesan exception yang dilampirkan.",
+        "recommendation": "Berikan cuplikan kode yang bermasalah serta pesan error lengkap atau stack trace.",
+        "type": "bukti",
+        "message": "Berikan cuplikan kode yang bermasalah serta pesan error lengkap atau stack trace."
+      },
+      {
+        "category": "Batasan",
+        "severity": "major",
+        "evidence": "Prompt tidak menyebutkan batasan apa pun (misalnya: tidak boleh mengubah arsitektur, harus tetap kompatibel dengan versi tertentu).",
+        "recommendation": "Tentukan batasan teknis atau kebijakan yang harus dipatuhi dalam perbaikan.",
+        "type": "batasan",
+        "message": "Tentukan batasan teknis atau kebijakan yang harus dipatuhi dalam perbaikan."
+      },
+      {
+        "category": "Keluaran",
+        "severity": "major",
+        "evidence": "Tidak ada format output yang diminta (misalnya: patch kode, diff, penjelasan langkah demi langkah).",
+        "recommendation": "Spesifikasikan format yang diinginkan untuk hasil perbaikan.",
+        "type": "keluaran",
+        "message": "Spesifikasikan format yang diinginkan untuk hasil perbaikan."
+      },
+      {
+        "category": "Keberhasilan",
+        "severity": "major",
+        "evidence": "Tidak ada kriteria untuk menilai apakah perbaikan berhasil (misalnya: kode dapat dijalankan tanpa error, semua unit test lulus).",
+        "recommendation": "Definisikan metrik atau tes yang akan digunakan untuk memverifikasi perbaikan.",
+        "type": "keberhasilan",
+        "message": "Definisikan metrik atau tes yang akan digunakan untuk memverifikasi perbaikan."
       },
       {
         "category": "Ambiguitas",
         "severity": "minor",
         "evidence": "Kata \"jalan\" bersifat subjektif dan tidak terukur.",
-        "recommendation": "Definisikan secara spesifik apa yang dimaksud dengan \"berjalan\" (misalnya, lulus semua unit test, menghasilkan output tertentu, atau tidak menimbulkan exception).",
+        "recommendation": "Gunakan istilah yang lebih jelas, seperti \"kode dapat dikompilasi tanpa error\" atau \"semua tes unit lulus\".",
         "type": "ambiguitas",
-        "message": "Definisikan secara spesifik apa yang dimaksud dengan \"berjalan\" (misalnya, lulus semua unit test, menghasilkan output tertentu, atau tidak menimbulkan exception)."
-      },
-      {
-        "category": "Keluaran",
-        "severity": "minor",
-        "evidence": "Tidak disebutkan format atau cara penyajian perbaikan (patch, diff, penjelasan langkah demi langkah, dll.).",
-        "recommendation": "Tentukan format output yang diinginkan, misalnya kode yang sudah diperbaiki dalam blok markdown, atau file diff, atau penjelasan terperinci.",
-        "type": "keluaran",
-        "message": "Tentukan format output yang diinginkan, misalnya kode yang sudah diperbaiki dalam blok markdown, atau file diff, atau penjelasan terperinci."
-      },
-      {
-        "category": "Keberhasilan",
-        "severity": "minor",
-        "evidence": "Tidak ada kriteria evaluasi apakah perbaikan sudah memuaskan.",
-        "recommendation": "Sebutkan metrik atau tes yang akan digunakan untuk memverifikasi bahwa kode sudah berfungsi (contoh: semua unit test lulus, tidak ada exception, output sesuai harapan).",
-        "type": "keberhasilan",
-        "message": "Sebutkan metrik atau tes yang akan digunakan untuk memverifikasi bahwa kode sudah berfungsi (contoh: semua unit test lulus, tidak ada exception, output sesuai harapan)."
+        "message": "Gunakan istilah yang lebih jelas, seperti \"kode dapat dikompilasi tanpa error\" atau \"semua tes unit lulus\"."
       }
     ],
     "score": 22,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Role: Software Developer / Code Debugger\nObjective: Identify and fix the error in the user's code so that it operates according to the defined success criteria.\nInput Parameters:\n- Code snippet with error: [MASUKKAN_KODE]\n- Error message / stack trace: [MASUKKAN_PESAN_ERROR]\n- Programming language: [MASUKKAN_BAHASA_PEMROGRAMAN]\n- Language version / compiler or interpreter version: [MASUKKAN_VERSI]\n- Framework or library (if any): [MASUKKAN_FRAMEWORK]\n- Execution environment (OS, platform): [MASUKKAN_PLATFORM]\n- Definition of \"berjalan\" (desired behavior, e.g., passes all unit tests, produces specific output, no exceptions): [DEFINISIKAN_TUJUAN_JALAN]\n- Desired output format (e.g., corrected code block, diff, step‑by‑step explanation): [PILIH_FORMAT_KELUARAN]\n- Success evaluation criteria (tests, expected output, etc.): [TENTUKAN_KRITERIA_EVALUASI]\n\nInstructions:\n1. Reproduce the reported error using the provided code and environment details.\n2. Analyse the root cause of the failure.\n3. Create a fix that satisfies the defined \"berjalan\" criteria.\n4. Present the solution in the requested output format, including:\n   - The corrected code (in a markdown code block).\n   - If a diff format is chosen, show the changes.\n   - A brief explanation of what was changed and why.\n5. Optionally, suggest a minimal test or verification step to confirm the fix meets the success criteria.\n\nOutput Format:\n- Provide the result exactly as specified in the \"Desired output format\" placeholder.\n- Ensure the response contains no placeholder text in the final answer.\n\nConstraints:\n- Do not fabricate any code, libraries, URLs, or external references.\n- Use only the information supplied by the user.\n- Maintain a professional and respectful tone.\n- Follow ethical guidelines and do not provide malicious code.",
+  "optimizedPrompt": "Role: Software Developer / Debugging Assistant\nObjective: Memperbaiki kode yang error sehingga dapat dijalankan sesuai dengan kriteria keberhasilan yang ditentukan.\nInput & Parameters:\n- Bahasa pemrograman: [MASUKKAN_BAHASA_PEMROGRAMAN]\n- Framework / Library (jika ada): [MASUKKAN_FRAMEWORK_DAN_VERSI]\n- Sistem operasi / lingkungan eksekusi: [MASUKKAN_SISTEM_OPERASI]\n- Cuplikan kode yang mengalami error: [MASUKKAN_KODE_YANG_ERROR_DISINI]\n- Pesan error lengkap atau stack trace: [MASUKKAN_PESAN_ERROR_ATAU_TRACE_DISINI]\n- Batasan teknis (misalnya: tidak mengubah arsitektur, tetap kompatibel dengan versi X): [MASUKKAN_BATASAN_TEKNIS]\n- Format keluaran yang diinginkan (patch, diff, penjelasan langkah demi langkah, dll): [MASUKKAN_FORMAT_KELUARAN]\n- Kriteria keberhasilan (misalnya: kode dapat dikompilasi tanpa error, semua unit test lulus): [MASUKKAN_KRITERIA_KEBERHASILAN]\n\nOperational Steps:\n1. Analisis kode dan pesan error yang diberikan.\n2. Identifikasi penyebab utama error (syntax, dependency, incompatibility, dll).\n3. Buat perbaikan yang memenuhi batasan teknis yang telah ditetapkan.\n4. Sajikan perbaikan dalam format yang diminta.\n5. Sertakan penjelasan singkat tentang perubahan dan cara memverifikasi keberhasilan.\n\nOutput Format:\n- Jika diminta patch atau diff, berikan dalam blok kode dengan tanda ```diff```.\n- Jika diminta penjelasan, berikan dalam poin-poin terstruktur.\n- Sertakan contoh perintah atau langkah untuk menguji kode setelah perbaikan.\n\nConstraints:\n- Tidak mengubah arsitektur aplikasi kecuali diminta secara eksplisit.\n- Mematuhi versi bahasa/framework yang ditentukan.\n- Menghindari penambahan dependensi baru tanpa persetujuan.\n- Menjaga keamanan dan privasi data yang mungkin terdapat dalam kode.",
   "changes": [
-    "Menambahkan peran (Role) dan tujuan spesifik (Objective) untuk memperjelas konteks tugas.",
-    "Menyediakan daftar input terstruktur dengan placeholder untuk semua informasi yang belum diberikan.",
-    "Mendefinisikan langkah‑langkah operasional yang harus diikuti untuk memperbaiki kode.",
-    "Menentukan format keluaran yang dapat dipilih pengguna (code block, diff, penjelasan).",
-    "Menambahkan batasan khusus untuk menghindari halusinasi data dan memastikan etika penggunaan."
+    "Menambahkan peran (Role) dan tujuan spesifik (Objective) untuk memperjelas konteks perbaikan kode.",
+    "Menyertakan placeholder terstruktur untuk semua informasi teknis yang belum diberikan (bahasa, framework, kode, pesan error, batasan, format output, kriteria keberhasilan).",
+    "Mendefinisikan langkah operasional (Operational Steps) yang sistematis untuk proses debugging.",
+    "Menetapkan format keluaran yang diharapkan serta batasan teknis yang harus dipatuhi.",
+    "Menyediakan daftar perubahan (changes) yang dilakukan pada prompt asli."
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (misalnya [MASUKKAN_KODE], [MASUKKAN_PESAN_ERROR], dll.) dengan informasi yang sebenarnya sebelum menjalankan prompt.",
-    "Pastikan kode yang diberikan tidak melanggar lisensi atau hak cipta pihak ketiga.",
-    "Verifikasi bahwa definisi \"berjalan\" dan kriteria evaluasi sudah jelas untuk menghindari interpretasi ambigu."
+    "Pengguna wajib mengganti semua placeholder (misalnya: [MASUKKAN_BAHASA_PEMROGRAMAN], [MASUKKAN_KODE_YANG_ERROR_DISINI], dll.) dengan informasi yang relevan sebelum menjalankan prompt.",
+    "Pastikan bahwa kode yang dibagikan tidak melanggar hak cipta, kebijakan privasi, atau peraturan keamanan."
   ],
   "metadata": {
-    "modelTarget": "groq-llama-3.3-70b-versatile",
-    "processingTimeMs": 5076,
+    "modelTarget": "openai/gpt-oss-120b",
+    "processingTimeMs": 4421,
+    "latencyMs": 4421,
+    "tokensUsed": {
+      "promptTokens": 1934,
+      "completionTokens": 1643,
+      "totalTokens": 3577
+    },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"
   }

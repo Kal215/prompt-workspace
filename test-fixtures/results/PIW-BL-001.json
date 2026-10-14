@@ -1,84 +1,76 @@
 {
   "requestId": "req-PIW-BL-001",
   "originalPrompt": "Buatkan saya kode Python untuk web scraping.",
-  "detectedIntent": "User wants a Python script for web scraping, but expects the assistant to request missing details or provide a generic skeleton with placeholders without fabricating URLs or selectors.",
+  "detectedIntent": "User wants a Python web scraping code template that uses placeholders and prompts for missing details, without fabricating URLs or selectors, and expects the system to request necessary information first.",
   "analysis": {
     "findings": [
       {
-        "category": "Tujuan",
-        "severity": "critical",
-        "evidence": "\"Buatkan saya kode Python untuk web scraping.\"",
-        "recommendation": "Specify the exact scraping goal: which website, what data fields, and what the script should do with the extracted data.",
-        "type": "tujuan",
-        "message": "Specify the exact scraping goal: which website, what data fields, and what the script should do with the extracted data."
-      },
-      {
         "category": "Konteks",
         "severity": "critical",
-        "evidence": "Prompt lacks target domain, URL, authentication requirements, rate‑limit considerations, etc.",
-        "recommendation": "Provide the target website (or type of site), any login or pagination details, and any domain‑specific constraints.",
+        "evidence": "\"Buatkan saya kode Python untuk web scraping.\"",
+        "recommendation": "Specify the target website, the data elements to extract, authentication requirements, and any rate‑limiting considerations.",
         "type": "konteks",
-        "message": "Provide the target website (or type of site), any login or pagination details, and any domain‑specific constraints."
-      },
-      {
-        "category": "Ambiguitas",
-        "severity": "major",
-        "evidence": "Terms like \"kode pasti berjalan\" are subjective and unverifiable.",
-        "recommendation": "Replace subjective claims with measurable expectations, e.g., \"code should run without syntax errors given correct inputs\".",
-        "type": "ambiguitas",
-        "message": "Replace subjective claims with measurable expectations, e.g., \"code should run without syntax errors given correct inputs\"."
+        "message": "Specify the target website, the data elements to extract, authentication requirements, and any rate‑limiting considerations."
       },
       {
         "category": "Batasan",
         "severity": "major",
-        "evidence": "No mention of allowed libraries (requests, BeautifulSoup, Selenium, etc.), Python version, or execution environment.",
-        "recommendation": "State which libraries are permissible, any version constraints, and whether headless browsing is allowed.",
+        "evidence": "Prompt does not mention allowed libraries, Python version, or execution environment.",
+        "recommendation": "State which libraries (e.g., requests, BeautifulSoup, Selenium, Playwright) are permissible and any environment constraints such as Python version or headless browser availability.",
         "type": "batasan",
-        "message": "State which libraries are permissible, any version constraints, and whether headless browsing is allowed."
+        "message": "State which libraries (e.g., requests, BeautifulSoup, Selenium, Playwright) are permissible and any environment constraints such as Python version or headless browser availability."
+      },
+      {
+        "category": "Ambiguitas",
+        "severity": "minor",
+        "evidence": "Use of vague terms like \"kode Python untuk web scraping\" without measurable criteria.",
+        "recommendation": "Define what constitutes a successful script (e.g., returns JSON, handles pagination, respects robots.txt).",
+        "type": "ambiguitas",
+        "message": "Define what constitutes a successful script (e.g., returns JSON, handles pagination, respects robots.txt)."
       },
       {
         "category": "Keluaran",
         "severity": "minor",
-        "evidence": "Prompt does not define the desired output format of the script (function, class, CLI tool, Jupyter notebook).",
-        "recommendation": "Indicate the preferred code structure and any documentation or comments required.",
+        "evidence": "No format for the expected output (code file, markdown, etc.) is defined.",
+        "recommendation": "Indicate the desired output format, such as a markdown code block, a .py file content, or a GitHub Gist link.",
         "type": "keluaran",
-        "message": "Indicate the preferred code structure and any documentation or comments required."
+        "message": "Indicate the desired output format, such as a markdown code block, a .py file content, or a GitHub Gist link."
       },
       {
         "category": "Keberhasilan",
-        "severity": "major",
-        "evidence": "No criteria for evaluating success (e.g., data saved to CSV, JSON, database).",
-        "recommendation": "Define clear success metrics such as output file format, handling of errors, or test cases.",
+        "severity": "minor",
+        "evidence": "No criteria for evaluating whether the generated code meets the user's needs.",
+        "recommendation": "Provide success criteria, e.g., code runs without syntax errors, includes placeholder comments, and prompts the user for missing URLs/selectors.",
         "type": "keberhasilan",
-        "message": "Define clear success metrics such as output file format, handling of errors, or test cases."
-      },
-      {
-        "category": "Bukti",
-        "severity": "info",
-        "evidence": "No sample URL, HTML snippet, or selector examples are provided.",
-        "recommendation": "If possible, attach a minimal HTML example or describe the DOM elements to be targeted.",
-        "type": "bukti",
-        "message": "If possible, attach a minimal HTML example or describe the DOM elements to be targeted."
+        "message": "Provide success criteria, e.g., code runs without syntax errors, includes placeholder comments, and prompts the user for missing URLs/selectors."
       }
     ],
-    "score": 28,
+    "score": 30,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Role: Python Developer specialized in web scraping.\nObjective: Create a Python script that scrapes data from a specified website according to given requirements.\nInput & Parameters:\n- Target website URL: [MASUKKAN_URL_TARGET]\n- Data fields to extract: [DAFTAR_DATA_YANG_INGIN_DIAMBIL]\n- Authentication method (if any): [JENIS_AUTENTIKASI]\n- Pagination handling details: [PAGINASI_DETAIL]\n- Allowed libraries (e.g., requests, BeautifulSoup, Selenium): [PERPUSTAKAAN_YANG_DIIZINKAN]\n- Python version: [VERSI_PYTHON]\n- Desired output format for extracted data (CSV, JSON, database, etc.): [FORMAT_KELUARAN_DATA]\n- Sample HTML snippet or CSS/XPath selectors (optional): [CONTOH_HTML_SNIPPET]\n\nInstructions:\n1. Validate inputs and handle missing/invalid parameters gracefully.\n2. Implement scraping logic using the allowed libraries, respecting rate limits and robots.txt.\n3. Extract the specified data fields, handling pagination if required.\n4. Store the extracted data in the requested output format.\n5. Include error handling, logging, and comments explaining each major step.\n6. Provide a brief usage example or function call.\n\nOutput Format:\n- A single Python file (or Jupyter notebook) containing the complete, runnable code.\n- The code should be well‑commented and adhere to PEP‑8 style.\n- Include a short README section within the file describing how to run the script and any prerequisites.\n\nConstraints:\n- Do not use any libraries not listed in [PERPUSTAKAAN_YANG_DIIZINKAN].\n- Ensure compatibility with Python version [VERSI_PYTHON].\n- The script must run without syntax errors given correct inputs.\n- Respect ethical scraping practices (e.g., obey robots.txt, include reasonable request delays).",
+  "optimizedPrompt": "Role: Python developer with expertise in web scraping.\n\nObjective: Create a Python script that scrapes data from a specified website, extracts the listed data elements, handles optional authentication and rate‑limiting, uses only the permitted libraries, complies with the given Python version and execution environment, and returns the code in a clear markdown code block.\n\nInputs & Parameters:\n- Target website URL: [MASUKKAN_URL_TARGET]\n- Data elements to extract (e.g., CSS selectors, XPath): [DAFTAR_DATA_YANG_INGIN_DIAMBIL]\n- Authentication details (if required): [AUTENTIKASI_JIKA_PERLU]\n- Rate‑limiting considerations (requests per second or delay): [BATAS_RATE_LIMIT]\n- Allowed Python libraries (comma‑separated, e.g., requests, BeautifulSoup, Selenium, Playwright): [PERPUSTAKA_YANG_DIIZINKAN]\n- Python version (e.g., 3.9, 3.10): [VERSI_PYTHON]\n- Execution environment constraints (e.g., headless browser available, no internet access): [LINGKUNGAN_EKSEKUSI]\n\nOperational Steps:\n1. Import only the libraries listed in [PERPUSTAKA_YANG_DIIZINKAN].\n2. Configure a session, applying [AUTENTIKASI_JIKA_PERLU] if provided.\n3. Before scraping, check and respect the site’s robots.txt.\n4. Implement rate‑limiting based on [BATAS_RATE_LIMIT].\n5. Send HTTP requests to [MASUKKAN_URL_TARGET] and handle pagination if necessary.\n6. Parse the response using the chosen parser (e.g., BeautifulSoup) and extract the fields defined in [DAFTAR_DATA_YANG_INGIN_DIAMBIL].\n7. Store the extracted data in a JSON structure (or CSV, as preferred) and print or save it.\n8. Include comprehensive error handling and comments indicating where the user must replace placeholders.\n9. Ensure the script runs without syntax errors on the specified [VERSI_PYTHON] and within [LINGKUNGAN_EKSEKUSI].\n\nOutput Format:\n- Provide the complete script inside a markdown code block with syntax highlighting (```python ... ```).\n- At the top of the script, include a brief comment summarizing the purpose and listing required placeholders.\n\nConstraints & Rules:\n- Use only the libraries specified in [PERPUSTAKA_YANG_DIIZINKAN]; do not import any others.\n- Do not hard‑code any URLs, selectors, or credentials beyond the placeholders.\n- The script must be compatible with the indicated [VERSI_PYTHON] and respect the environment limits.\n- Respect ethical scraping practices (robots.txt, rate limiting).\n- No external URLs or resources should be fabricated.",
   "changes": [
-    "Menambahkan peran (Role) dan tujuan spesifik (Objective) untuk memperjelas konteks.",
-    "Menyediakan placeholder terstruktur untuk semua informasi yang belum lengkap (URL, data fields, autentikasi, dll.).",
-    "Menentukan format keluaran yang diharapkan (file Python atau notebook, komentar, README).",
-    "Menetapkan batasan penggunaan pustaka, versi Python, dan praktik etis scraping.",
-    "Menyusun instruksi kerja langkah demi langkah untuk mengurangi ambiguitas."
+    "Added explicit role and objective sections for clarity.",
+    "Introduced structured placeholders for missing critical information (URL, data selectors, auth, rate limiting, libraries, Python version, environment).",
+    "Specified allowed libraries, Python version, and execution environment constraints.",
+    "Defined measurable success criteria (script runs without syntax errors, respects robots.txt, includes placeholders).",
+    "Provided a detailed step‑by‑step operational workflow.",
+    "Stated the expected output format as a markdown code block.",
+    "Listed constraints to prevent hallucination and ensure ethical scraping."
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (misalnya [MASUKKAN_URL_TARGET], [DAFTAR_DATA_YANG_INGIN_DIAMBIL], dll.) dengan nilai yang sesuai sebelum menjalankan prompt.",
-    "Pastikan bahwa scraping yang dilakukan mematuhi kebijakan situs target, hukum setempat, dan etika penggunaan data."
+    "Pengguna wajib mengganti semua placeholder (e.g., [MASUKKAN_URL_TARGET], [DAFTAR_DATA_YANG_INGIN_DIAMBIL]) dengan nilai yang sesuai sebelum menjalankan skrip.",
+    "Pastikan penggunaan data dan scraping mematuhi kebijakan situs target serta peraturan hukum yang berlaku."
   ],
   "metadata": {
-    "modelTarget": "groq-llama-3.3-70b-versatile",
-    "processingTimeMs": 5514,
+    "modelTarget": "openai/gpt-oss-120b",
+    "processingTimeMs": 5203,
+    "latencyMs": 5200,
+    "tokensUsed": {
+      "promptTokens": 1796,
+      "completionTokens": 1865,
+      "totalTokens": 3661
+    },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"
   }
