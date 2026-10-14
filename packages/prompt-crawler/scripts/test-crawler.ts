@@ -3,6 +3,7 @@ import {
   validateTargetUrl,
   normalizeTargetUrl,
   isPrivateOrReservedIp,
+  verifyHostDnsSafe,
   CrawlerSecurityError,
   redactSecrets,
   streamBoundedFetch,
@@ -48,9 +49,13 @@ async function main() {
     (err: any) => err instanceof CrawlerSecurityError && err.code === "DISALLOWED_PORT"
   );
 
-  // Tolak domain di luar allowlist
+  // Tolak domain di luar allowlist (evil.com, localhost)
   assert.throws(
     () => validateTargetUrl("https://evil-site.com/prompt.md"),
+    (err: any) => err instanceof CrawlerSecurityError && err.code === "DOMAIN_NOT_ALLOWED"
+  );
+  assert.throws(
+    () => validateTargetUrl("https://localhost/prompt.md"),
     (err: any) => err instanceof CrawlerSecurityError && err.code === "DOMAIN_NOT_ALLOWED"
   );
 
@@ -68,6 +73,7 @@ async function main() {
   // IPv4 Private & Reserved
   assert.equal(isPrivateOrReservedIp("127.0.0.1"), true, "Loopback must be blocked");
   assert.equal(isPrivateOrReservedIp("127.255.255.255"), true, "Loopback must be blocked");
+  assert.equal(isPrivateOrReservedIp("10.0.0.1"), true, "10.0.0.1 must be blocked");
   assert.equal(isPrivateOrReservedIp("10.0.0.5"), true, "10.0.0.0/8 must be blocked");
   assert.equal(isPrivateOrReservedIp("172.16.0.1"), true, "172.16.0.0/12 must be blocked");
   assert.equal(isPrivateOrReservedIp("172.31.255.255"), true, "172.16.0.0/12 must be blocked");
@@ -95,7 +101,16 @@ async function main() {
   // IPv6 Public
   assert.equal(isPrivateOrReservedIp("2606:4700:4700::1111"), false, "Public Cloudflare IPv6 must be allowed");
 
-  console.log("✅ isPrivateOrReservedIp lolos verifikasi komprehensif.");
+  // [2b] Testing DNS Rebinding Protection
+  console.log("\n[2b] Menguji simulasi pencegahan DNS Rebinding...");
+  await assert.rejects(
+    async () => {
+      // Host 'localhost' resolves ke 127.0.0.1
+      await verifyHostDnsSafe("localhost");
+    },
+    (err: any) => err instanceof CrawlerSecurityError && err.code === "DNS_RESOLVES_TO_PRIVATE_IP"
+  );
+  console.log("✅ verifyHostDnsSafe mendeteksi dan memblokir DNS rebinding ke alamat lokal.");
 
   // [3] Testing Secret Redaction
   console.log("\n[3] Menguji Secret Redaction...");

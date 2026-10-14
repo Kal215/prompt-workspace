@@ -14,5 +14,8 @@
     "@prompt-workspace/domain-rules": "*",
     "@prompt-workspace/prompt-contracts": "*",
     "@prompt-workspace/provider-adapters": "*"
+  },
+  "devDependencies": {
+    "@prompt-workspace/database": "*"
   }
 }

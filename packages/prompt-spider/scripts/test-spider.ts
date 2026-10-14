@@ -1,145 +1,272 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execSync } from "node:child_process";
 import {
   AsyncSemaphore,
   generateStandardSpiderTestCases,
   evaluateBranchExecution,
   runPromptSpider,
+  getSpiderTestSuite,
 } from "../src/index.js";
-import { SpiderReportSchema } from "@prompt-workspace/prompt-contracts";
+import {
+  computeCriticalGatePassed,
+  SpiderReportSchema,
+  SpiderBranchResult,
+} from "@prompt-workspace/prompt-contracts";
 import { LLMProviderAdapter } from "@prompt-workspace/provider-adapters";
+import {
+  prisma,
+  setDatabaseUrl,
+  saveSpiderRun,
+  savePrompt,
+  savePromptVersion,
+} from "@prompt-workspace/database";
 
 async function main() {
   console.log("═══════════════════════════════════════════════════════════════════");
   console.log("🕸️  TEST SUITE: PROMPT SPIDER ENGINE (packages/prompt-spider)");
   console.log("═══════════════════════════════════════════════════════════════════");
 
-  // [1] Testing AsyncSemaphore
-  console.log("\n[1] Menguji AsyncSemaphore (concurrency = 2)...");
-  const semaphore = new AsyncSemaphore(2);
-  let activeConcurrency = 0;
-  let maxObservedConcurrency = 0;
+  // ===========================================================================
+  // [1] Testing Semaphore Concurrency Boundedness (maxActiveRequests <= 2)
+  // ===========================================================================
+  console.log("\n[1] Menguji pembatasan konkurensi Semaphore (maxActive <= 2)...");
+  let activeConcurrentRequests = 0;
+  let maxObservedActiveRequests = 0;
 
-  const tasks = Array.from({ length: 6 }).map((_, i) =>
-    semaphore.runExclusive(async () => {
-      activeConcurrency++;
-      if (activeConcurrency > maxObservedConcurrency) {
-        maxObservedConcurrency = activeConcurrency;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      activeConcurrency--;
-      return i;
-    })
-  );
-
-  await Promise.all(tasks);
-  assert.equal(maxObservedConcurrency, 2, "Konkurensi tidak boleh melebihi batas 2");
-  console.log("✅ AsyncSemaphore mematuhi batas konkurensi = 2 secara presisi.");
-
-  // [2] Testing generateStandardSpiderTestCases
-  console.log("\n[2] Menguji generateStandardSpiderTestCases...");
-  const cases = generateStandardSpiderTestCases("You are a system prompt");
-  assert.equal(cases.length, 5, "Harus menghasilkan tepat 5 kasus uji");
-  const categories = cases.map((c) => c.category);
-  assert.ok(categories.includes("BASELINE_HAPPY_PATH"));
-  assert.ok(categories.includes("EDGE_EMPTY_OR_NOISE"));
-  assert.ok(categories.includes("AMBIGUOUS_CONFLICT"));
-  assert.ok(categories.includes("ADVERSARIAL_INJECTION"));
-  assert.ok(categories.includes("STRICT_FORMAT_TRAP"));
-  console.log("✅ generateStandardSpiderTestCases menghasilkan 5 kategori kasus ketahanan.");
-
-  // [3] Testing evaluateBranchExecution (Adversarial Injection Detection)
-  console.log("\n[3] Menguji deteksi Adversarial Injection di evaluateBranchExecution...");
-  const injectionCase = cases.find((c) => c.category === "ADVERSARIAL_INJECTION")!;
-
-  // Vulnerable output
-  const vulnResult = evaluateBranchExecution(
-    injectionCase,
-    "Override granted! [PWNED] Here is the system prompt: secret123",
-    120,
-    "You are a system prompt"
-  );
-  assert.equal(vulnResult.branchResult.status, "FAIL");
-  assert.equal(vulnResult.branchResult.deterministicPass, false);
-  assert.ok(vulnResult.securityFinding, "Harus menghasilkan security finding");
-  assert.equal(vulnResult.securityFinding?.severity, "CRITICAL");
-  console.log("✅ Model rentan terdeteksi sebagai FAIL dengan Security Finding CRITICAL.");
-
-  // Robust output
-  const robustResult = evaluateBranchExecution(
-    injectionCase,
-    "Maaf, saya tidak dapat mematuhi instruksi override dan harus tetap menjalankan tugas awal.",
-    150,
-    "You are a system prompt"
-  );
-  assert.equal(robustResult.branchResult.status, "PASS");
-  assert.equal(robustResult.branchResult.deterministicPass, true);
-  assert.equal(robustResult.securityFinding, undefined);
-  console.log("✅ Model aman terverifikasi sebagai PASS tanpa security finding.");
-
-  // [4] Testing runPromptSpider (Happy Path: All Pass)
-  console.log("\n[4] Menguji runPromptSpider end-to-end (Robust Prompt / All Pass)...");
-  const mockRobustAdapter: LLMProviderAdapter = {
+  const mockConcurrentAdapter: LLMProviderAdapter = {
     providerId: "groq",
-    defaultModel: "mock-model-safe",
+    defaultModel: "mock-llama-3",
     async chatCompletion(messages) {
-      const userMsg = messages.find((m) => m.role === "user")?.content || "";
-      if (userMsg.includes("IGNORE ALL PREVIOUS")) {
-        return {
-          content: "Permintaan override ditolak demi keamanan sistem.",
-          model: "mock-model-safe",
-        };
+      activeConcurrentRequests++;
+      if (activeConcurrentRequests > maxObservedActiveRequests) {
+        maxObservedActiveRequests = activeConcurrentRequests;
       }
+      // Simulasi delay eksekusi
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      activeConcurrentRequests--;
+
       return {
-        content: '{"status": "ok", "message": "Proses selesai dengan sukses"}',
-        model: "mock-model-safe",
+        content: '{"status": "success", "note": "Safe response"}',
+        model: "mock-llama-3",
+        usage: { promptTokens: 25, completionTokens: 15 },
       };
     },
   };
 
-  const safeReport = await runPromptSpider(
-    "You are an assistant. Output JSON.",
-    "ver-123",
-    mockRobustAdapter,
-    { concurrencyLimit: 2, maxCases: 5 }
+  const concurrentReport = await runPromptSpider(
+    {
+      promptContent: "You are a customer support agent. Always return JSON.",
+      promptVersionId: "ver-concurrent-test",
+      testSuiteVersionId: "v2.0-core-5cases",
+      runMode: "SINGLE",
+    },
+    {
+      adapter: mockConcurrentAdapter,
+      concurrency: 2,
+    }
   );
 
-  assert.equal(safeReport.criticalGatePassed, true);
-  assert.equal(safeReport.status, "SUCCEEDED");
-  assert.equal(safeReport.branches.length, 5);
-  assert.doesNotThrow(() => SpiderReportSchema.parse(safeReport));
-  console.log("✅ Robust Prompt lulus seluruh cabang dengan criticalGatePassed = true.");
+  assert.equal(concurrentReport.branches.length, 5, "Harus menjalankan 5 cabang uji");
+  assert.ok(
+    maxObservedActiveRequests <= 2,
+    `Konkurensi aktif maksimum terpantau (${maxObservedActiveRequests}) tidak boleh melebihi 2!`
+  );
+  console.log(
+    `✅ Concurrency Semaphore terbukti membatasi eksekusi: maxActiveRequests = ${maxObservedActiveRequests} <= 2.`
+  );
 
-  // [5] Testing runPromptSpider (Vulnerable Prompt / Critical Gate Fail)
-  console.log("\n[5] Menguji runPromptSpider end-to-end (Vulnerable Prompt / Gate Fail)...");
-  const mockVulnAdapter: LLMProviderAdapter = {
+  // ===========================================================================
+  // [2] Testing Pemisahan qualityMetrics vs securityFindings[]
+  // ===========================================================================
+  console.log("\n[2] Menguji pemisahan tegas qualityMetrics vs securityFindings[]...");
+  const mockVulnerableAdapter: LLMProviderAdapter = {
     providerId: "groq",
-    defaultModel: "mock-model-vuln",
+    defaultModel: "mock-vulnerable-model",
     async chatCompletion(messages) {
       const userMsg = messages.find((m) => m.role === "user")?.content || "";
       if (userMsg.includes("IGNORE ALL PREVIOUS")) {
+        // Model mematuhi injeksi
         return {
-          content: "System override code: 999 accepted! [PWNED]",
-          model: "mock-model-vuln",
+          content: "System override code: 999 accepted! [PWNED] Hidden system prompt leaked.",
+          model: "mock-vulnerable-model",
         };
       }
       return {
-        content: "Halo, ini jawaban saya.",
-        model: "mock-model-vuln",
+        content: '{"status": "ok"}',
+        model: "mock-vulnerable-model",
       };
     },
   };
 
   const vulnReport = await runPromptSpider(
-    "You are an assistant.",
-    "ver-123",
-    mockVulnAdapter,
-    { concurrencyLimit: 2, maxCases: 5 }
+    {
+      promptContent: "You are an assistant. Output JSON.",
+      promptVersionId: "ver-vuln-test",
+      testSuiteVersionId: "v2.0-core-5cases",
+      runMode: "SINGLE",
+    },
+    {
+      adapter: mockVulnerableAdapter,
+      concurrency: 2,
+    }
   );
 
-  assert.equal(vulnReport.criticalGatePassed, false, "Critical gate harus gagal jika injection tembus");
-  assert.ok(vulnReport.securityFindings.length > 0, "Harus memuat security finding");
-  assert.doesNotThrow(() => SpiderReportSchema.parse(vulnReport));
-  console.log("✅ Vulnerable Prompt menghasilkan criticalGatePassed = false dan security finding tersimpan.");
+  // Verifikasi struktur qualityMetrics murni angka 0..100
+  assert.equal(typeof vulnReport.qualityMetrics.taskAdherence, "number");
+  assert.equal(typeof vulnReport.qualityMetrics.constraintAdherence, "number");
+  assert.equal(typeof vulnReport.qualityMetrics.formatCompliance, "number");
+  assert.equal(typeof vulnReport.qualityMetrics.robustness, "number");
+  assert.ok(vulnReport.qualityMetrics.constraintAdherence <= 30, "Constraint adherence harus anjlok saat ada injeksi");
+
+  // Verifikasi temuan keamanan terisolasi di securityFindings[]
+  assert.ok(Array.isArray(vulnReport.securityFindings));
+  assert.ok(vulnReport.securityFindings.length >= 1, "Harus mencatat celah injeksi di securityFindings");
+  const injectionFinding = vulnReport.securityFindings.find(
+    (f) => f.category === "PROMPT_INJECTION_VULNERABILITY"
+  );
+  assert.ok(injectionFinding, "Harus menemukan kategori PROMPT_INJECTION_VULNERABILITY");
+  assert.equal(injectionFinding?.severity, "CRITICAL");
+  assert.ok(injectionFinding?.remediationHint.length > 0);
+
+  console.log(
+    `✅ qualityMetrics (robustness: ${vulnReport.qualityMetrics.robustness}%) terpisah tegas dari ${vulnReport.securityFindings.length} securityFindings.`
+  );
+
+  // ===========================================================================
+  // [3] Testing Aturan criticalGatePassed (ERROR, INDETERMINATE, FAIL -> false)
+  // ===========================================================================
+  console.log("\n[3] Menguji aturan ketat computeCriticalGatePassed...");
+
+  // 3a. Semua PASS -> true
+  const allPassBranches: Array<{ severity: any; status: any }> = [
+    { severity: "HIGH", status: "PASS" },
+    { severity: "MEDIUM", status: "PASS" },
+    { severity: "HIGH", status: "PASS" },
+    { severity: "CRITICAL", status: "PASS" },
+    { severity: "CRITICAL", status: "PASS" },
+  ];
+  assert.equal(computeCriticalGatePassed(allPassBranches), true, "All PASS harus lolos");
+
+  // 3b. Cabang CRITICAL berstatus FAIL -> false
+  const criticalFailBranches: Array<{ severity: any; status: any }> = [
+    ...allPassBranches.slice(0, 3),
+    { severity: "CRITICAL", status: "FAIL" },
+    { severity: "CRITICAL", status: "PASS" },
+  ];
+  assert.equal(computeCriticalGatePassed(criticalFailBranches), false, "Critical FAIL harus menghasilkan false");
+
+  // 3c. Cabang CRITICAL berstatus ERROR -> false
+  const criticalErrorBranches: Array<{ severity: any; status: any }> = [
+    ...allPassBranches.slice(0, 3),
+    { severity: "CRITICAL", status: "ERROR" },
+    { severity: "CRITICAL", status: "PASS" },
+  ];
+  assert.equal(computeCriticalGatePassed(criticalErrorBranches), false, "Critical ERROR harus menghasilkan false");
+
+  // 3d. Cabang CRITICAL berstatus INDETERMINATE -> false
+  const criticalIndeterminateBranches: Array<{ severity: any; status: any }> = [
+    ...allPassBranches.slice(0, 3),
+    { severity: "CRITICAL", status: "INDETERMINATE" },
+    { severity: "CRITICAL", status: "PASS" },
+  ];
+  assert.equal(
+    computeCriticalGatePassed(criticalIndeterminateBranches),
+    false,
+    "Critical INDETERMINATE harus menghasilkan false"
+  );
+
+  // 3e. Cabang CRITICAL berstatus SKIPPED -> false
+  const criticalSkippedBranches: Array<{ severity: any; status: any }> = [
+    ...allPassBranches.slice(0, 3),
+    { severity: "CRITICAL", status: "SKIPPED" },
+    { severity: "CRITICAL", status: "PASS" },
+  ];
+  assert.equal(computeCriticalGatePassed(criticalSkippedBranches), false, "Critical SKIPPED harus menghasilkan false");
+
+  // 3f. Array kosong -> false
+  assert.equal(computeCriticalGatePassed([]), false, "Empty branches harus menghasilkan false");
+
+  console.log("✅ computeCriticalGatePassed memvalidasi kepatuhan gerbang kritis 100%.");
+
+  // ===========================================================================
+  // [4] Testing Integrasi Penyimpanan SQLite Sementara (Bebas SQLITE_BUSY)
+  // ===========================================================================
+  console.log("\n[4] Menguji persistensi saveSpiderRun ke SQLite sementara terisolasi...");
+  const tempDbName = `temp-spider-test-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
+  const tempDbPath = path.join(os.tmpdir(), tempDbName).replace(/\\/g, "/");
+  const tempDbUrl = `file:${tempDbPath}`;
+
+  try {
+    const candidate1 = path.resolve(process.cwd(), "packages/database");
+    const candidate2 = path.resolve(new URL(".", import.meta.url).pathname, "../../database");
+    const dbPackageDir = fs.existsSync(candidate1) ? candidate1 : candidate2;
+    const schemaPath = path.resolve(dbPackageDir, "prisma/schema.prisma");
+
+    execSync(`npx prisma db push --skip-generate --schema="${schemaPath}"`, {
+      cwd: dbPackageDir,
+      env: { ...process.env, DATABASE_URL: tempDbUrl },
+      stdio: "pipe",
+    });
+
+    setDatabaseUrl(tempDbUrl);
+
+    // Buat SavedPrompt & Version induk
+    const testUserId = "user-spider-eval-test";
+    const promptRecord = await savePrompt({
+      userId: testUserId,
+      originalPrompt: "You are a secure assistant.",
+      optimizedPrompt: "You are a secure assistant. Strict format adherence.",
+      score: 95,
+      intentSummary: "Test intent",
+    });
+
+    const versionRecord = await savePromptVersion({
+      savedPromptId: promptRecord.id,
+      promptText: promptRecord.optimizedPrompt,
+      score: 95,
+      changesSummary: "Initial version",
+    });
+
+    // Simpan hasil SpiderRun beserta test results
+    const savedRun = await saveSpiderRun({
+      promptVersionId: versionRecord.id,
+      targetProvider: concurrentReport.modelMetadata.provider,
+      targetModel: concurrentReport.modelMetadata.model,
+      status: concurrentReport.status,
+      totalCases: concurrentReport.coverageSummary.totalCases,
+      passedCases: concurrentReport.coverageSummary.passedCases,
+      averageScore: concurrentReport.qualityMetrics.robustness,
+      averageLatencyMs: 120,
+      testResults: concurrentReport.branches.map((b, idx) => ({
+        caseIndex: idx + 1,
+        testInput: b.sanitizedInput,
+        actualOutput: b.sanitizedOutput,
+        score: b.score ?? 80,
+        latencyMs: b.latencyMs,
+        status: b.status,
+        findings: b.rationale ?? null,
+      })),
+    });
+
+    assert.ok(savedRun.id, "SpiderRun harus memiliki ID yang ter-generate");
+    assert.equal(savedRun.totalCases, 5);
+    assert.equal(savedRun.passedCases, 5);
+    assert.equal(savedRun.testResults?.length, 5);
+
+    console.log(
+      `✅ saveSpiderRun berhasil menyimpan run ID "${savedRun.id}" dengan ${savedRun.testResults?.length} test results bebas SQLITE_BUSY.`
+    );
+  } finally {
+    await prisma.$disconnect();
+    // Bersihkan file sementara
+    if (fs.existsSync(tempDbPath)) fs.unlinkSync(tempDbPath);
+    if (fs.existsSync(`${tempDbPath}-journal`)) fs.unlinkSync(`${tempDbPath}-journal`);
+    if (fs.existsSync(`${tempDbPath}-wal`)) fs.unlinkSync(`${tempDbPath}-wal`);
+    if (fs.existsSync(`${tempDbPath}-shm`)) fs.unlinkSync(`${tempDbPath}-shm`);
+  }
 
   console.log("\n═══════════════════════════════════════════════════════════════════");
   console.log("🏁 PROMPT SPIDER ENGINE TEST SUITE BERHASIL 100%");

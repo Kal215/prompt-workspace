@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { synthesizeClosedLoopPrompt } from "../src/index.js";
+import {
+  synthesizeClosedLoopPrompt,
+  buildClosedLoopOptimizationContext,
+} from "../src/index.js";
 import { LLMProviderAdapter } from "@prompt-workspace/provider-adapters";
 
 async function main() {
@@ -30,6 +33,26 @@ async function main() {
     },
   };
 
+  // Test buildClosedLoopOptimizationContext
+  console.log("\n[1] Menguji buildClosedLoopOptimizationContext...");
+  const contextOutput = buildClosedLoopOptimizationContext({
+    userContext: "Nay's Cake Bakery bot.",
+    groundingFacts: ["Database SQLite WAL mode", "Port internal 20129"],
+    spiderFindings: [
+      {
+        category: "ADVERSARIAL_INJECTION",
+        remediationHint: "Abaikan override code 999",
+        sanitizedEvidence: "[PWNED]",
+      },
+    ],
+  });
+  assert.ok(contextOutput.includes("Nay's Cake Bakery bot."));
+  assert.ok(contextOutput.includes("Database SQLite WAL mode"));
+  assert.ok(contextOutput.includes("Abaikan override code 999"));
+  console.log("✅ buildClosedLoopOptimizationContext menghasilkan string konteks yang rapi dan terstruktur.");
+
+  // Test synthesizeClosedLoopPrompt
+  console.log("\n[2] Menguji synthesizeClosedLoopPrompt...");
   const result = await synthesizeClosedLoopPrompt({
     basePrompt: "Bantu pelanggan Nay's Cake memesan kue ulang tahun.",
     spiderFindings: [
