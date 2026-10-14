@@ -22,6 +22,7 @@ import {
   RotateCcw,
   Sparkles,
   FileDown,
+  Loader2,
 } from "lucide-react";
 
 interface PromptDiffViewerProps {
@@ -30,6 +31,7 @@ interface PromptDiffViewerProps {
   onRegenerate?: () => void;
   onExportMarkdown?: () => void;
   onAcceptAndSave?: () => void;
+  isSaving?: boolean;
 }
 
 export function PromptDiffViewer({
@@ -38,6 +40,7 @@ export function PromptDiffViewer({
   onRegenerate,
   onExportMarkdown,
   onAcceptAndSave,
+  isSaving = false,
 }: PromptDiffViewerProps) {
   const [copied, setCopied] = useState(false);
   const [accepted, setAccepted] = useState(false);
@@ -115,10 +118,16 @@ export function PromptDiffViewer({
 
             <Button
               size="sm"
+              disabled={isSaving}
               onClick={handleAcceptClick}
               className="h-8 text-xs gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              {accepted ? (
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Menyimpan ke DB...
+                </>
+              ) : accepted ? (
                 <>
                   <BookmarkCheck className="h-3.5 w-3.5 text-emerald-300" />
                   Diterima & Tersimpan!
