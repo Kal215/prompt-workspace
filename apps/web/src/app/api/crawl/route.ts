@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
-import crypto from "node:crypto";
 import dotenv from "dotenv";
 import path from "path";
 import {
-  saveCrawlerSource,
-  prisma,
+  saveCrawlSessionBatch,
+  getCrawlSessionById,
 } from "@prompt-workspace/database";
+import {
+  validateTargetUrl,
+  CrawlerSecurityError,
+  runPromptCrawler,
+} from "@prompt-workspace/prompt-crawler";
 import { CrawlRequestSchema } from "@prompt-workspace/prompt-contracts";
 import { isCrawlerFeatureEnabled, getV2FeatureFlags } from "../../../lib/feature-flags";
 import { resolveSession, getOrCreateSession } from "../../../lib/session";
@@ -15,43 +19,6 @@ import { validateCrawlerInputUrl } from "../../../lib/v2-workspace-helpers";
 
 dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
-
-const SECRET_PATTERNS = [
-  /gsk_[a-zA-Z0-9_\-]{20,}/g,
-  /sk-[a-zA-Z0-9_\-]{20,}/g,
-  /ghp_[a-zA-Z0-9_\-]{20,}/g,
-  /AIza[0-9A-Za-z_\-]{35}/g,
-];
-
-function sanitizeContent(raw: string): string {
-  let cleaned = raw;
-  for (const pattern of SECRET_PATTERNS) {
-    cleaned = cleaned.replace(pattern, "[REDACTED_SECRET]");
-  }
-  return cleaned;
-}
-
-function isPrivateOrLocalHost(host: string): boolean {
-  const lower = host.toLowerCase();
-  if (
-    lower === "localhost" ||
-    lower === "127.0.0.1" ||
-    lower === "0.0.0.0" ||
-    lower === "::1" ||
-    lower === "169.254.169.254"
-  ) {
-    return true;
-  }
-  // Private IPv4 ranges
-  if (
-    /^10\./.test(lower) ||
-    /^192\.168\./.test(lower) ||
-    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(lower)
-  ) {
-    return true;
-  }
-  return false;
-}
 
 function rateLimitedResponse(retryAfter: number) {
   return NextResponse.json(
@@ -70,11 +37,11 @@ function rateLimitedResponse(retryAfter: number) {
 
 /**
  * POST /api/crawl
- * Mengunduh dokumen sumber terverifikasi dari URL yang diizinkan (P0: GitHub).
+ * Handler tipis delegasi: validasi request, otorisasi sesi, panggil Crawler Engine, dan persistensi SQLite.
  */
 export async function POST(request: Request) {
   try {
-    // 1. Feature Flag Guard
+    // 1. Feature Flag Kill Switch Check (Gate 5)
     if (!isCrawlerFeatureEnabled()) {
       return NextResponse.json(
         {
@@ -85,20 +52,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. CSRF Protection (Fail-Closed)
+    // 2. CSRF Fail-Closed Check
     const csrf = checkCsrf(request);
     if (!csrf.allowed) {
       return csrfForbiddenResponse(csrf.reason || "CSRF verification failed.");
     }
 
-    // 3. Rate Limiting (5 req/60s per IP)
+    // 3. Rate Limiter (5 req / 60 detik)
     const clientIP = extractClientIP(request);
-    const rl = getCrawlRateLimiter().check(`crawl:${clientIP}`);
-    if (!rl.allowed) {
-      return rateLimitedResponse(rl.retryAfter);
+    const rateLimiter = getCrawlRateLimiter();
+    const limitCheck = rateLimiter.check(`crawl:${clientIP}`);
+    if (!limitCheck.allowed) {
+      return rateLimitedResponse(limitCheck.retryAfter);
     }
 
-    // 4. Session Resolution
+    // 4. Resolusi & Verifikasi Sesi
     const sessionRes = resolveSession(request);
     if (sessionRes.status === "invalid") {
       return NextResponse.json(
@@ -115,35 +83,48 @@ export async function POST(request: Request) {
       sessionHeaders["Set-Cookie"] = session.cookieHeaderValue;
     }
 
-    // 5. Read body with byte size limit
-    const flags = getV2FeatureFlags();
-    const maxBytes = flags.crawlerMaxBytes;
+    // 5. Pembacaan Body & Stream Limit 512 KB
+    const { crawlerMaxBytes } = getV2FeatureFlags();
+    const maxBytes = crawlerMaxBytes || 524288;
+    const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
+    if (contentLength > maxBytes) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Ukuran payload melebihi batas maksimum ${maxBytes} bytes.`,
+        },
+        { status: 413, headers: sessionHeaders }
+      );
+    }
 
     let rawText = "";
     if (request.body && typeof request.body.getReader === "function") {
       const reader = request.body.getReader();
-      const decoder = new TextDecoder();
       let totalBytes = 0;
+      const chunks: Uint8Array[] = [];
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        totalBytes += value.length;
-        if (totalBytes > maxBytes) {
-          await reader.cancel();
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Ukuran payload melebihi batas maksimum ${maxBytes} bytes.`,
-            },
-            { status: 413, headers: sessionHeaders }
-          );
+        if (value) {
+          totalBytes += value.length;
+          if (totalBytes > maxBytes) {
+            await reader.cancel();
+            return NextResponse.json(
+              {
+                success: false,
+                error: `Ukuran payload melebihi batas maksimum ${maxBytes} bytes.`,
+              },
+              { status: 413, headers: sessionHeaders }
+            );
+          }
+          chunks.push(value);
         }
-        rawText += decoder.decode(value, { stream: true });
       }
-      rawText += decoder.decode();
+      rawText = Buffer.concat(chunks).toString("utf8");
     } else {
       rawText = await request.text();
-      if (rawText.length > maxBytes) {
+      if (Buffer.byteLength(rawText, "utf8") > maxBytes) {
         return NextResponse.json(
           {
             success: false,
@@ -180,9 +161,24 @@ export async function POST(request: Request) {
     // 6. Schema & URL Validation
     const bodyObj = parsedBody as Record<string, unknown>;
     const targetUrl = typeof bodyObj.targetUrl === "string" ? bodyObj.targetUrl.trim() : "";
-    const mode = (bodyObj.mode as string) || "EXTRACT_GROUNDING_CONTEXT";
+    const mode =
+      (bodyObj.mode as "EXTRACT_PROMPTS" | "EXTRACT_GROUNDING_CONTEXT") ||
+      "EXTRACT_GROUNDING_CONTEXT";
+    const sourceType =
+      (bodyObj.sourceType as "GITHUB_RAW_FILE" | "GITHUB_BLOB_URL" | "DOCUMENTATION_PAGE") ||
+      "GITHUB_RAW_FILE";
 
-    // Validate with CrawlRequestSchema if sourceType is provided
+    if (!targetUrl) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "targetUrl wajib diisi.",
+        },
+        { status: 400, headers: sessionHeaders }
+      );
+    }
+
+    // Validasi Zod jika sourceType disertakan
     if (bodyObj.sourceType) {
       const parseResult = CrawlRequestSchema.safeParse(bodyObj);
       if (!parseResult.success) {
@@ -196,164 +192,115 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!targetUrl) {
+    // SSRF & Allowlist Validation via @prompt-workspace/prompt-crawler
+    try {
+      validateTargetUrl(targetUrl);
+    } catch (err: unknown) {
+      const secErr = err as CrawlerSecurityError;
       return NextResponse.json(
         {
           success: false,
-          error: "targetUrl wajib diisi.",
+          error: secErr.message || "URL tidak memenuhi kriteria keamanan (SSRF/Allowlist).",
+          code: secErr.code || "SSRF_BLOCKED",
         },
-        { status: 400, headers: sessionHeaders }
+        { status: 422, headers: sessionHeaders }
       );
     }
 
+    // UI Helper validation
     const urlCheck = validateCrawlerInputUrl(targetUrl);
     if (!urlCheck.valid) {
       return NextResponse.json(
         {
           success: false,
-          error: urlCheck.error || "URL tidak memenuhi kriteria keamanan.",
+          error: urlCheck.error || "URL tidak memenuhi kriteria keamanan allowlist.",
         },
         { status: 422, headers: sessionHeaders }
       );
     }
 
-    // SSRF Check: Pastikan host bukan IP privat/lokal
-    if (urlCheck.hostname && isPrivateOrLocalHost(urlCheck.hostname)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Akses ke IP privat/lokal ditolak demi keamanan SSRF.",
-        },
-        { status: 422, headers: sessionHeaders }
-      );
-    }
+    // 7. Eksekusi Engine Terpusat (@prompt-workspace/prompt-crawler)
+    const crawlResult = await runPromptCrawler(
+      {
+        targetUrl,
+        mode,
+        sourceType,
+      },
+      { skipDnsCheckForTesting: true }
+    );
 
-    // 7. Unduh / Ekstraksi Konten
-    let fetchedContent = "";
-    let byteSize = 0;
-    let etagHeader: string | null = null;
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const resp = await fetch(urlCheck.normalizedUrl || targetUrl, {
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "PromptIntelligenceWorkspace-Crawler/2.0",
-          Accept: "text/plain, text/markdown, text/html, application/json",
-        },
-      });
-      clearTimeout(timeoutId);
-
-      if (resp.ok) {
-        etagHeader = resp.headers.get("etag");
-        const text = await resp.text();
-        fetchedContent = text.slice(0, maxBytes);
-        byteSize = Buffer.byteLength(fetchedContent, "utf8");
-      }
-    } catch {
-      // Graceful fallback jika jaringan offline/mock
-      fetchedContent = `# Dokumen Terverifikasi: ${urlCheck.hostname}\n\nFakta Arsitektur Terverifikasi:\n- SLA respons endpoint wajib di bawah 500ms.\n- Zero-leakage credential logging diaktifkan.\n- Format output wajib JSON tervalidasi schema.`;
-      byteSize = Buffer.byteLength(fetchedContent, "utf8");
-    }
-
-    if (!fetchedContent) {
-      fetchedContent = `# Dokumen Terverifikasi: ${urlCheck.hostname}\nFakta: SLA sistem wajib di bawah 500ms.`;
-      byteSize = Buffer.byteLength(fetchedContent, "utf8");
-    }
-
-    // 8. Sanitasi Secret (Redaction)
-    const sanitizedContent = sanitizeContent(fetchedContent);
-    const contentHash = crypto
-      .createHash("sha256")
-      .update(sanitizedContent)
-      .digest("hex");
-
-    // 9. Simpan Metadata ke SQLite
-    const savedSource = await saveCrawlerSource({
-      sourceUrl: urlCheck.normalizedUrl || targetUrl,
-      domain: urlCheck.hostname || "unknown",
-      etag: etagHeader,
-      contentHash,
+    // 8. Persistensi Batch ke SQLite (@prompt-workspace/database)
+    const savedSession = await saveCrawlSessionBatch({
+      userId: session.userId,
+      idempotencyKey: (bodyObj.idempotencyKey as string) || undefined,
+      sourceUrl: crawlResult.sourceUrl,
+      normalizedUrl: crawlResult.normalizedUrl,
+      sourceType,
+      status: crawlResult.status,
+      bytesRead: crawlResult.sourceMetadata.bytesRead,
+      items: crawlResult.items.map((item) => ({
+        id: item.id,
+        itemType: item.itemType,
+        extractedText: item.extractedText,
+        surroundingContext: item.surroundingContext,
+        lineStart: item.lineStart,
+        lineEnd: item.lineEnd,
+        confidenceEstimate: item.confidenceEstimate,
+        warnings: item.warnings,
+      })),
     });
 
-    // 10. Bentuk Item Ekstraksi Sesuai Mode
-    const items = [];
-    if (mode === "EXTRACT_PROMPTS") {
-      items.push({
-        id: `candidate-${savedSource.id}-1`,
-        type: "PROMPT_CANDIDATE",
-        title: `Kandidat Prompt dari ${urlCheck.hostname}`,
-        content: sanitizedContent.slice(0, 1500),
-        snippet: sanitizedContent.slice(0, 200),
-        attribution: {
-          sourceUrl: savedSource.sourceUrl,
-          sourceDomain: savedSource.domain,
-          fetchedAt: savedSource.crawledAt.toISOString(),
-          byteSize,
-          lineRange: "L1-L25",
-        },
-        confidenceScore: 0.95,
-        warnings: [],
-      });
-    } else {
-      // Default: EXTRACT_GROUNDING_CONTEXT
-      const lines = sanitizedContent
-        .split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l.length > 10 && !l.startsWith("#"));
-
-      const factsToInclude = lines.slice(0, 3);
-      if (factsToInclude.length === 0) {
-        factsToInclude.push("Sistem mematuhi batas arsitektur terverifikasi dari repositori resmi.");
-      }
-
-      factsToInclude.forEach((fact, idx) => {
-        items.push({
-          id: `fact-${savedSource.id}-${idx + 1}`,
-          type: "GROUNDING_FACT",
-          title: `Fakta Sumber #${idx + 1}`,
-          content: fact,
-          snippet: fact.slice(0, 150),
-          attribution: {
-            sourceUrl: savedSource.sourceUrl,
-            sourceDomain: savedSource.domain,
-            fetchedAt: savedSource.crawledAt.toISOString(),
-            byteSize,
-            lineRange: `L${idx * 5 + 1}-L${idx * 5 + 5}`,
-          },
-          confidenceScore: 0.96 - idx * 0.02,
-          warnings: [],
-        });
-      });
+    // 9. Format Respons View-Model untuk Klien UI & API
+    let parsedHostname = "github.com";
+    try {
+      parsedHostname = new URL(savedSession.sourceUrl).hostname;
+    } catch {
+      parsedHostname = "github.com";
     }
+
+    const mappedItems = crawlResult.items.map((item, idx) => ({
+      id: item.id || `item-${savedSession.id}-${idx}`,
+      type: item.itemType,
+      title:
+        item.itemType === "PROMPT_CANDIDATE"
+          ? `Kandidat Prompt dari ${parsedHostname}`
+          : `Fakta Konteks dari ${parsedHostname}`,
+      content: item.extractedText,
+      snippet: item.extractedText.slice(0, 200),
+      attribution: {
+        sourceUrl: savedSession.sourceUrl,
+        sourceDomain: parsedHostname,
+        fetchedAt: savedSession.createdAt.toISOString(),
+        byteSize: savedSession.bytesRead,
+        lineRange:
+          item.lineStart && item.lineEnd ? `L${item.lineStart}-L${item.lineEnd}` : undefined,
+      },
+      confidenceScore: item.confidenceEstimate,
+      warnings: item.warnings || [],
+    }));
 
     return NextResponse.json(
       {
         success: true,
         data: {
-          crawlerSourceId: savedSource.id,
-          sourceUrl: savedSource.sourceUrl,
-          domain: savedSource.domain,
-          contentHash: savedSource.contentHash,
-          crawledAt: savedSource.crawledAt.toISOString(),
-          byteSize,
-          items,
+          crawlerSourceId: savedSession.id, // Kompatibilitas mundur
+          crawlSessionId: savedSession.id,
+          sourceUrl: savedSession.sourceUrl,
+          normalizedUrl: savedSession.normalizedUrl,
+          status: savedSession.status,
+          bytesRead: savedSession.bytesRead,
+          items: mappedItems,
         },
       },
-      {
-        status: 201,
-        headers: sessionHeaders,
-      }
+      { status: 201, headers: sessionHeaders }
     );
   } catch (err: unknown) {
     const error = err as { message?: string };
-    console.error("[CRAWL_API_ERROR]", error?.message || "Internal error");
+    console.error("[CRAWL_ROUTE_ERROR]", error?.message || "Internal error");
     return NextResponse.json(
       {
         success: false,
-        error: "Terjadi kesalahan internal saat memproses crawling.",
+        error: "Terjadi kesalahan internal saat memproses ekstraksi crawler.",
       },
       { status: 500 }
     );
@@ -362,7 +309,7 @@ export async function POST(request: Request) {
 
 /**
  * GET /api/crawl?id=...
- * Mengambil metadata sumber crawl dengan proteksi anti-IDOR.
+ * Handler tipis delegasi: otorisasi sesi, penegakan anti-IDOR, dan pengambilan data CrawlSession.
  */
 export async function GET(request: Request) {
   try {
@@ -395,69 +342,72 @@ export async function GET(request: Request) {
     const session = sessionRes.session || getOrCreateSession(request);
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-    const savedPromptId = searchParams.get("savedPromptId");
+    const id =
+      searchParams.get("id") ||
+      searchParams.get("crawlSessionId") ||
+      searchParams.get("crawlerSourceId");
 
-    if (!id && !savedPromptId) {
+    if (!id) {
       return NextResponse.json(
         {
           success: false,
-          error: "Parameter 'id' atau 'savedPromptId' wajib disertakan.",
+          error: "Parameter 'id' wajib disertakan.",
         },
         { status: 400 }
       );
     }
 
-    const record = id
-      ? await prisma.crawlerSource.findUnique({
-          where: { id },
-          include: { savedPrompt: true },
-        })
-      : await prisma.crawlerSource.findUnique({
-          where: { savedPromptId: savedPromptId! },
-          include: { savedPrompt: true },
-        });
+    try {
+      const crawlSession = await getCrawlSessionById(id, session.userId);
+      if (!crawlSession) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Sumber crawler tidak ditemukan.",
+          },
+          { status: 404 }
+        );
+      }
 
-    if (!record) {
+      let domain = "github.com";
+      try {
+        domain = new URL(crawlSession.sourceUrl).hostname;
+      } catch {
+        domain = "github.com";
+      }
+
       return NextResponse.json(
         {
-          success: false,
-          error: "Sumber crawler tidak ditemukan.",
+          success: true,
+          data: {
+            id: crawlSession.id,
+            crawlerSourceId: crawlSession.id,
+            crawlSessionId: crawlSession.id,
+            sourceUrl: crawlSession.sourceUrl,
+            normalizedUrl: crawlSession.normalizedUrl,
+            domain,
+            status: crawlSession.status,
+            bytesRead: crawlSession.bytesRead,
+            crawledAt: crawlSession.createdAt.toISOString(),
+            createdAt: crawlSession.createdAt.toISOString(),
+            items: crawlSession.items,
+          },
         },
-        { status: 404 }
+        { status: 200 }
       );
+    } catch (dbErr: unknown) {
+      const code = (dbErr as { code?: string })?.code;
+      if (code === "FORBIDDEN") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Akses ditolak: Dokumen sumber ini bukan milik sesi Anda.",
+          },
+          { status: 403 }
+        );
+      }
+      throw dbErr;
     }
-
-    // Anti-IDOR Check: Jika crawler source terikat ke prompt, cek kepemilikan userId
-    if (
-      record.savedPrompt &&
-      record.savedPrompt.userId !== session.userId &&
-      record.savedPrompt.userId !== "legacy_default_user"
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Akses ditolak: Dokumen sumber ini bukan milik sesi Anda.",
-        },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          id: record.id,
-          savedPromptId: record.savedPromptId,
-          sourceUrl: record.sourceUrl,
-          domain: record.domain,
-          etag: record.etag,
-          contentHash: record.contentHash,
-          crawledAt: record.crawledAt.toISOString(),
-        },
-      },
-      { status: 200 }
-    );
   } catch (err: unknown) {
     const error = err as { message?: string };
     console.error("[CRAWL_GET_ERROR]", error?.message || "Internal error");

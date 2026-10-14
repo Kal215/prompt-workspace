@@ -6,8 +6,67 @@ import {
   PromptChange,
 } from "@/types/prompt";
 
+export interface V2ExportMetadata {
+  versionNumber?: number;
+  sourceRole?: string;
+  versions?: Array<{
+    versionNumber: number;
+    sourceRole?: string;
+    createdAt?: string;
+    changeSummary?: string;
+    criticalGatePassed?: boolean;
+    qualityScore?: number;
+  }>;
+  crawlerSources?: Array<{
+    sourceUrl: string;
+    sourceDomain: string;
+    sourceTitle?: string;
+    authorOrOrg?: string;
+    fetchedAt: string;
+    byteSize: number;
+    lineRange?: string;
+  }>;
+  spiderReport?: {
+    jobId?: string;
+    promptVersionId?: string;
+    status?: string;
+    criticalGatePassed: boolean;
+    qualityMetrics?: {
+      robustness?: number;
+      taskAdherence?: number;
+      constraintAdherence?: number;
+      formatCompliance?: number;
+      robustnessScore?: number;
+      passRate?: number;
+      averageLatencyMs?: number;
+    };
+    securityFindings?: Array<{
+      id?: string;
+      category: string;
+      severity: string;
+      title?: string;
+      description?: string;
+      evidenceSnippet?: string;
+      recommendation?: string;
+    }>;
+    testCases?: Array<{
+      id?: string;
+      name?: string;
+      category?: string;
+      status: string;
+      score?: number;
+      latencyMs?: number;
+      inputPrompt?: string;
+      modelOutputSnippet?: string;
+      errorReason?: string;
+    }>;
+    evaluatedAt?: string;
+    durationMs?: number;
+  };
+}
+
 export interface SafeExportPayload {
-  schemaVersion: "1.0.0";
+  schemaVersion: "1.0.0" | "2.0.0";
   requestId: string;
   metadata: {
     engineVersion: string;
@@ -67,7 +126,13 @@ export interface SafeExportPayload {
     reproducibilityGuaranteed: boolean;
     zeroSecretsConfirmed: boolean;
   };
+  v2Metadata?: V2ExportMetadata & {
+    disclaimer: string;
+  };
 }
+
+export const SPIDER_BENCHMARK_DISCLAIMER =
+  "Peringatan: Evaluasi ketahanan dan skor pengujian Spider Matrix merupakan hasil pengujian terbatas pada test suite berversi tertentu dan bukan jaminan keamanan mutlak atau garansi di semua kondisi dan variasi model target.";
 
 /**
  * Membersihkan ID untuk penamaan file yang aman dan bebas path traversal.
@@ -83,11 +148,12 @@ export function sanitizeExportFilename(
 }
 
 /**
- * Blueprint v1.0 Bagian 11 Rencana Kerja #6 & Bagian 15.2:
- * Membangun payload JSON terverifikasi dan bebas dari data sensitif / kredensial internal.
+ * Blueprint v1.0 Bagian 11 Rencana Kerja #6 & Bagian 15.2 (Diperluas untuk v2.0):
+ * Membangun payload JSON terverifikasi, bebas data sensitif, dengan metadata v2.0 opsional.
  */
 export function buildSafeExportPayload(
-  result: PromptOptimizationResult
+  result: PromptOptimizationResult,
+  v2Metadata?: V2ExportMetadata
 ): SafeExportPayload {
   const isIntentString = typeof result.detectedIntent === "string";
   const intentObj: DetectedIntent | null =
@@ -224,8 +290,8 @@ export function buildSafeExportPayload(
     createdAt,
   };
 
-  return {
-    schemaVersion: "1.0.0",
+  const payload: SafeExportPayload = {
+    schemaVersion: v2Metadata ? "2.0.0" : "1.0.0",
     requestId: result.requestId || `req-${Date.now()}`,
     metadata: metadataInfo,
     reproducibility: metadataInfo,
@@ -283,14 +349,27 @@ export function buildSafeExportPayload(
       zeroSecretsConfirmed: true,
     },
   };
+
+  if (v2Metadata) {
+    payload.v2Metadata = {
+      ...v2Metadata,
+      disclaimer: SPIDER_BENCHMARK_DISCLAIMER,
+    };
+  }
+
+  return payload;
 }
 
 /**
- * Blueprint v1.0 Bagian 11 Rencana Kerja #6:
- * Membangun dokumen laporan Markdown (.md) berbahasa Indonesia yang rapi dan terverifikasi.
+ * Blueprint v1.0 Bagian 11 Rencana Kerja #6 & v2.0 Gate 4/5:
+ * Membangun dokumen laporan Markdown (.md) berbahasa Indonesia yang rapi dan terverifikasi,
+ * lengkap dengan metadata v2.0 (Riwayat Versi, Atribusi Grounding Crawler, & Spider Scorecard).
  */
-export function buildMarkdownReport(result: PromptOptimizationResult): string {
-  const payload = buildSafeExportPayload(result);
+export function buildMarkdownReport(
+  result: PromptOptimizationResult,
+  v2Metadata?: V2ExportMetadata
+): string {
+  const payload = buildSafeExportPayload(result, v2Metadata);
   const formattedDate = new Date(payload.reproducibility.createdAt).toLocaleString(
     "id-ID",
     { dateStyle: "long", timeStyle: "medium" }
@@ -325,6 +404,118 @@ export function buildMarkdownReport(result: PromptOptimizationResult): string {
           .map((u) => `- ⚠️ ${u}`)
           .join("\n")
       : "*Semua instruksi dan batasan telah terdefinisi secara eksplisit.*";
+
+  let v2Sections = "";
+  if (v2Metadata) {
+    const versionNum = v2Metadata.versionNumber || 1;
+    const sourceRole = v2Metadata.sourceRole || "OPTIMIZER";
+
+    let versionHistoryText = `- **Versi Aktif:** \`v${versionNum}\`\n- **Peran Pembuatan (Source Role):** \`${sourceRole}\``;
+    if (v2Metadata.versions && v2Metadata.versions.length > 0) {
+      const vRows = v2Metadata.versions
+        .map(
+          (v) =>
+            `- **v${v.versionNumber}** (${v.sourceRole || "OPTIMIZER"})${
+              v.changeSummary ? `: ${v.changeSummary}` : ""
+            }${
+              typeof v.criticalGatePassed === "boolean"
+                ? ` — Status Spider: ${
+                    v.criticalGatePassed ? "✅ Lulus" : "❌ Gagal"
+                  }`
+                : ""
+            }`
+        )
+        .join("\n");
+      versionHistoryText += `\n\n**Riwayat Linimasa Versi:**\n${vRows}`;
+    }
+
+    let crawlerText = "*Tidak ada sumber grounding eksternal yang diimpor.*";
+    if (v2Metadata.crawlerSources && v2Metadata.crawlerSources.length > 0) {
+      crawlerText = v2Metadata.crawlerSources
+        .map((src, idx) => {
+          let line = `${idx + 1}. **${src.sourceDomain}** — [${src.sourceUrl}](${src.sourceUrl})`;
+          line += `\n   - *Ukuran Data:* ${(src.byteSize / 1024).toFixed(1)} KB | *Diambil:* ${src.fetchedAt}`;
+          if (src.lineRange) {
+            line += ` | *Rentang Baris:* \`${src.lineRange}\``;
+          }
+          return line;
+        })
+        .join("\n\n");
+    }
+
+    let spiderText = "*Belum ada uji ketahanan adversarial yang dijalankan pada versi ini.*";
+    if (v2Metadata.spiderReport) {
+      const rep = v2Metadata.spiderReport;
+      const gateStatus = rep.criticalGatePassed
+        ? "✅ **LULUS (CRITICAL_GATE_PASSED)**"
+        : "❌ **GAGAL (CRITICAL_GATE_FAILED)**";
+      const robustness =
+        rep.qualityMetrics?.robustness ??
+        rep.qualityMetrics?.robustnessScore ??
+        0;
+      const taskAdherence = rep.qualityMetrics?.taskAdherence ?? 0;
+      const constraintAdherence = rep.qualityMetrics?.constraintAdherence ?? 0;
+      const formatCompliance = rep.qualityMetrics?.formatCompliance ?? 0;
+
+      let testCasesRows = "";
+      if (rep.testCases && rep.testCases.length > 0) {
+        testCasesRows =
+          "\n\n##### Matriks Kasus Uji Adversarial\n" +
+          "| No | Kasus Uji | Kategori | Keparahan | Status | Skor |\n" +
+          "|:---|:---|:---|:---:|:---:|:---:|\n" +
+          rep.testCases
+            .map((tc, idx) => {
+              const statusBadge =
+                tc.status === "PASS"
+                  ? "✅ PASS"
+                  : tc.status === "FAIL"
+                  ? "❌ FAIL"
+                  : tc.status;
+              return `| ${idx + 1} | ${tc.name || tc.id} | \`${tc.category || "GENERAL"}\` | ${
+                tc.errorReason ? "CRITICAL" : "STANDARD"
+              } | ${statusBadge} | ${tc.score ?? "-"} |`;
+            })
+            .join("\n");
+      }
+
+      let findingsList = "";
+      if (rep.securityFindings && rep.securityFindings.length > 0) {
+        findingsList =
+          "\n\n##### Temuan Keamanan & Rekomendasi Remediasi\n" +
+          rep.securityFindings
+            .map((sf, idx) => {
+              return `${idx + 1}. **[${(sf.severity || "CRITICAL").toUpperCase()}] ${sf.category}**\n   - *Temuan:* ${
+                sf.description || sf.title || "Kerentanan adversarial terdeteksi"
+              }\n   - *Rekomendasi:* ${sf.recommendation || "Sematkan batasan pertahanan eksplisit"}`;
+            })
+            .join("\n");
+      }
+
+      spiderText = `- **Status Gerbang Kritis:** ${gateStatus}\n- **Skor Ketahanan (Robustness):** ${robustness}%\n- **Kepatuhan Batasan (Constraint Adherence):** ${constraintAdherence}%\n- **Kepatuhan Format (Format Compliance):** ${formatCompliance}%\n- **Kesesuaian Tugas (Task Adherence):** ${taskAdherence}%${testCasesRows}${findingsList}`;
+    }
+
+    v2Sections = `
+---
+
+## 7. Metadata Ekosistem v2.0 (Closed-Loop & Keamanan)
+
+### A. Riwayat Versi Prompt
+${versionHistoryText}
+
+---
+
+### B. Atribusi Sumber Grounding (Web Crawler)
+${crawlerText}
+
+---
+
+### C. Ringkasan Uji Ketahanan (Spider Matrix Scorecard)
+${spiderText}
+
+> ⚠️ **Disclaimer Pengujian Ketahanan (Spider Benchmark):**
+> ${SPIDER_BENCHMARK_DISCLAIMER}
+`;
+  }
 
   return `# Laporan Analisis & Rekayasa Prompt Terverifikasi
 *Dihasilkan secara otomatis oleh **Prompt Intelligence Workspace (v${payload.reproducibility.engineVersion})** pada ${formattedDate}.*
@@ -400,7 +591,7 @@ ${
 
 > **Catatan Transparansi & Sifat Non-Deterministik (Blueprint Bagian 5.6 & 23):**
 > ${payload.evaluation.staticEvaluationNotice}
-`;
+${v2Sections}`;
 }
 
 /**
