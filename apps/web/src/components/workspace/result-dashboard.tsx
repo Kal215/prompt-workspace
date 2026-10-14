@@ -5,6 +5,13 @@ import { FindingsPanel } from "./findings-panel";
 import { PromptDiffViewer } from "./prompt-diff-viewer";
 import { ChangesTracker } from "./changes-tracker";
 import { PlaygroundCard } from "./playground-card";
+import { PromptVersionBar } from "./prompt-version-bar";
+import { SpiderMatrixPanel } from "./spider-matrix-panel";
+import {
+  PromptVersionRecord,
+  SpiderReportSummary,
+  SpiderSecurityFinding,
+} from "@/types/v2-workspace";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +41,13 @@ interface ResultDashboardProps {
   onAccept?: (result: PromptOptimizationResult) => void;
   onRefreshHistory?: () => void;
   onTelemetryAction?: (actionType: "export" | "feedback_helpful" | "feedback_issue") => void;
+  versions?: PromptVersionRecord[];
+  activeVersionId?: string;
+  onSelectVersion?: (versionId: string) => void;
+  spiderReport?: SpiderReportSummary | null;
+  isSpiderLoading?: boolean;
+  onRunSpider?: () => void;
+  onRequestRefinement?: (findings: SpiderSecurityFinding[]) => void;
 }
 
 export function ResultDashboard({
@@ -42,6 +56,13 @@ export function ResultDashboard({
   onAccept,
   onRefreshHistory,
   onTelemetryAction,
+  versions,
+  activeVersionId,
+  onSelectVersion,
+  spiderReport,
+  isSpiderLoading,
+  onRunSpider,
+  onRequestRefinement,
 }: ResultDashboardProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
@@ -166,6 +187,15 @@ export function ResultDashboard({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Silsilah Versi Prompt v2.0 */}
+      {versions && versions.length > 0 && activeVersionId && onSelectVersion && (
+        <PromptVersionBar
+          versions={versions}
+          activeVersionId={activeVersionId}
+          onSelectVersion={onSelectVersion}
+        />
+      )}
+
       {/* Metrics Strip */}
       <Card className="border-border/60 bg-muted/30 shadow-none">
         <CardContent className="p-3">
@@ -280,6 +310,16 @@ export function ResultDashboard({
           "llama-3.3-70b-versatile"
         }
       />
+
+      {/* 4B. Prompt Spider Matrix & Robustness Evaluation (v2.0) */}
+      <div data-testid="spider-matrix-section">
+        <SpiderMatrixPanel
+          report={spiderReport}
+          isLoading={isSpiderLoading}
+          onRunSpider={onRunSpider}
+          onRequestRefinement={onRequestRefinement}
+        />
+      </div>
 
       {/* 5. Verified Export & Human Utility Rating (Tahap 7 - Task #32) */}
       <Card className="border-border/80 shadow-xs overflow-hidden">
