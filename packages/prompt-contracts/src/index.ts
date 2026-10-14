@@ -317,3 +317,10 @@ export type PromptExecutionResult = z.infer<
   typeof PromptExecutionResultSchema
 >;
 
+// ──────────────────────────────────────────────
+// Blueprint v2.0 (ADR-002) — Crawler & Spider Contracts
+// ──────────────────────────────────────────────
+export * from "./crawler.js";
+export * from "./spider.js";
+
+

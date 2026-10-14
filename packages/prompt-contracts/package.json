@@ -7,7 +7,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npx tsx scripts/test-contracts-v2.ts"
   },
   "dependencies": {
     "zod": "^3.23.0"
