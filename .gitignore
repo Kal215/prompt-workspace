@@ -9,6 +9,4 @@ dist/
 *.db
 *.db-journal
 dev.db
-prisma/migrations/
-**/prisma/migrations/
 
