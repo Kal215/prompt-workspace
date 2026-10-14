@@ -1,0 +1,17 @@
+{
+  "name": "@prompt-workspace/prompt-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Core prompt analysis, optimization, and evaluation engine",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prompt-workspace/prompt-contracts": "*",
+    "@prompt-workspace/provider-adapters": "*",
+    "dotenv": "^16.4.7"
+  }
+}

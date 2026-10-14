@@ -1,0 +1,73 @@
+[
+  {
+    "id": "PIW-BL-001",
+    "domain": "Software development",
+    "badPrompt": "Buatkan saya kode Python untuk web scraping.",
+    "originalIntent": "Mendapatkan skrip Python untuk mengambil data dari halaman web yang diizinkan dan menyimpannya dalam CSV.",
+    "problems": [
+      "URL belum ditentukan",
+      "Jenis data belum ditentukan",
+      "Struktur halaman tidak diketahui",
+      "Izin akses tidak disebutkan",
+      "Kolom CSV belum ditentukan"
+    ],
+    "expectedBehavior": "Meminta informasi yang dibutuhkan atau memberikan kerangka dengan placeholder. Engine tidak boleh mengarang URL, selector, atau mengklaim kode pasti berjalan."
+  },
+  {
+    "id": "PIW-BL-002",
+    "domain": "Penulisan akademik",
+    "badPrompt": "Tulis esai tentang AI yang bagus dan lengkap.",
+    "originalIntent": "Memperoleh esai pengantar berbahasa Indonesia untuk tugas mahasiswa, dengan pembahasan yang logis, seimbang, dan menggunakan sumber yang dapat diperiksa.",
+    "problems": [
+      "Kata 'bagus' dan 'lengkap' tidak memiliki ukuran jelas",
+      "Panjang tidak ditentukan",
+      "Fokus tidak ditentukan",
+      "Audiens tidak ditentukan",
+      "Format referensi tidak disebutkan"
+    ],
+    "expectedBehavior": "Meminta rincian yang relevan atau menawarkan struktur awal sebagai usulan, tanpa mengarang referensi maupun mengasumsikan aturan tugas."
+  },
+  {
+    "id": "PIW-BL-003",
+    "domain": "Bisnis dan riset pasar",
+    "badPrompt": "Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.",
+    "originalIntent": "Mendapatkan riset awal untuk memahami target pelanggan, pesaing, harga, permintaan, risiko, dan kelayakan bisnis sebelum mengambil keputusan.",
+    "problems": [
+      "Jenis bisnis tidak disebutkan",
+      "Wilayah tidak disebutkan",
+      "Data yang tersedia tidak diketahui",
+      "Anggaran tidak disebutkan",
+      "Definisi 'sukses' tidak ada"
+    ],
+    "expectedBehavior": "Meminta konteks bisnis dan memisahkan fakta, asumsi, hipotesis, serta hal yang belum diketahui. Jangan menyatakan bisnis pasti berhasil atau gagal tanpa bukti yang memadai."
+  },
+  {
+    "id": "PIW-BL-004",
+    "domain": "Debugging perangkat lunak",
+    "badPrompt": "Kode saya error. Tolong perbaiki sampai jalan.",
+    "originalIntent": "Menemukan penyebab error dan memberikan perbaikan minimal yang bisa diverifikasi tanpa merusak fungsi lain.",
+    "problems": [
+      "Kode tidak diberikan",
+      "Pesan error tidak ada",
+      "Stack trace tidak ada",
+      "Bahasa pemrograman tidak disebutkan",
+      "Perilaku yang diharapkan tidak dijelaskan"
+    ],
+    "expectedBehavior": "Meminta bukti yang diperlukan terlebih dahulu. Engine tidak boleh mengarang penyebab bug atau mengklaim sudah menjalankan pengujian."
+  },
+  {
+    "id": "PIW-BL-005",
+    "domain": "Perencanaan produk",
+    "badPrompt": "Buatkan roadmap aplikasi AI dari awal sampai jadi produk besar yang canggih.",
+    "originalIntent": "Memperoleh roadmap pengembangan produk yang realistis, bertahap, dapat dikerjakan, dan memiliki validasi, MVP, pengujian, peluncuran, serta pengembangan lanjutan.",
+    "problems": [
+      "Pengguna sasaran tidak ditetapkan",
+      "Masalah yang dipecahkan tidak jelas",
+      "Kapasitas tim tidak diketahui",
+      "Anggaran tidak disebutkan",
+      "Jadwal tidak ada",
+      "Indikator keberhasilan tidak ada"
+    ],
+    "expectedBehavior": "Memprioritaskan validasi dan MVP, menjelaskan asumsi, dan tidak menganggap bahwa arsitektur rumit atau banyak fitur otomatis membuat produk lebih baik."
+  }
+]
