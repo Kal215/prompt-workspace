@@ -149,6 +149,17 @@ const executeLimiter = new InMemorySlidingWindowLimiter(
   60 // per 60 seconds
 );
 
+// V2.0 Rate Limiters (Gate 0 prep: 5 requests / 60 seconds per IP)
+const crawlLimiter = new InMemorySlidingWindowLimiter(
+  5, // 5 requests
+  60 // per 60 seconds
+);
+
+const spiderLimiter = new InMemorySlidingWindowLimiter(
+  5, // 5 requests
+  60 // per 60 seconds
+);
+
 export function getHistoryRateLimiter(): InMemorySlidingWindowLimiter {
   return historyLimiter;
 }
@@ -159,6 +170,14 @@ export function getOptimizeRateLimiter(): InMemorySlidingWindowLimiter {
 
 export function getExecuteRateLimiter(): InMemorySlidingWindowLimiter {
   return executeLimiter;
+}
+
+export function getCrawlRateLimiter(): InMemorySlidingWindowLimiter {
+  return crawlLimiter;
+}
+
+export function getSpiderRateLimiter(): InMemorySlidingWindowLimiter {
+  return spiderLimiter;
 }
 
 /**
