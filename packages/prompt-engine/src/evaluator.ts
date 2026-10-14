@@ -39,8 +39,9 @@ Tugas Anda adalah menilai secara kritis dan objektif apakah hasil rekonstruksi p
 Anda WAJIB mengevaluasi 3 kriteria utama:
 1. Intent Preservation (Bobot 35%):
    - Apakah maksud dan tujuan asli pengguna tetap terjaga seutuhnya?
-   - Apakah ada tujuan baru yang dipaksakan di luar kehendak pengguna?
-   - Jika intent diubah secara sewenang-wenang -> GAGAL (passed: false, skor maksimal 50).
+   - Apakah tugas inti tetap sama (misal: meminta esai tetap esai, minta scraping tetap scraping)?
+   - CATATAN: Meminta rincian spesifikasi yang belum lengkap (seperti target audiens, panjang kata, format) melalui placeholder terstruktur adalah PRAKTIK TERBAIK dan BUKAN pelanggaran intent.
+   - Hanya anggap intent melanggar jika tugas pokok diubah menjadi hal lain sama sekali (misal: minta esai diubah jadi skrip kode).
 
 2. Deceptive Certainty & Anti-Hallucination (Bobot 40%):
    - Apakah Optimizer MENGARANG fakta, data palsu, URL spesifik, nama tabel, kolom, kode sumber, atau library tanpa ada di prompt asli?

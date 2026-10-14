@@ -4,3 +4,11 @@ node_modules/
 .DS_Store
 dist/
 .next/
+
+# Database & Prisma
+*.db
+*.db-journal
+dev.db
+prisma/migrations/
+**/prisma/migrations/
+
