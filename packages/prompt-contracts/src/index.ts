@@ -216,3 +216,104 @@ export const PromptOptimizationResultSchema = z.object({
 export type PromptOptimizationResult = z.infer<
   typeof PromptOptimizationResultSchema
 >;
+
+// ──────────────────────────────────────────────
+// Blueprint v1.0 Bagian 5.6 & 11.2 — Fitur C3: Target Model Execution Playground
+// ──────────────────────────────────────────────
+
+export const PromptPlaceholderValuesSchema = z
+  .record(z.string(), z.string())
+  .optional()
+  .default({});
+export type PromptPlaceholderValues = z.infer<
+  typeof PromptPlaceholderValuesSchema
+>;
+
+export const PromptExecutionParametersSchema = z.object({
+  /** Tingkat kreativitas/keacakan output (default: 0.3 untuk menekan nondeterminism) */
+  temperature: z.number().min(0).max(2).default(0.3),
+
+  /** Batas maksimum token output (biaya & batas komputasi) */
+  maxOutputTokens: z.number().int().min(64).max(2048).default(1024),
+});
+export type PromptExecutionParameters = z.input<
+  typeof PromptExecutionParametersSchema
+>;
+
+export const PromptExecutionRequestSchema = z.object({
+  /** Teks prompt yang akan dijalankan (biasanya optimizedPrompt) */
+  prompt: z
+    .string()
+    .min(1, "Prompt is required")
+    .max(12000, "Prompt exceeds 12000 characters limit"),
+
+  /** Prompt asli sebelum optimasi (opsional, untuk perbandingan) */
+  originalPrompt: z.string().max(12000).optional().nullable(),
+
+  /** Pemetaan nilai variabel placeholder ([KEY] atau {{key}}) */
+  placeholderValues: PromptPlaceholderValuesSchema,
+
+  /** Contoh input / kasus uji tambahan (test case input) */
+  testInput: z.string().max(4000).optional().nullable(),
+
+  /** ID provider LLM target (groq, gemini, openrouter, ollama) */
+  providerId: ProviderIdSchema.optional().default("groq"),
+
+  /** Model spesifik target eksekusi */
+  targetModel: z.string().optional().nullable(),
+
+  /** Parameter eksekusi (temperature, maxOutputTokens) */
+  parameters: PromptExecutionParametersSchema.optional(),
+});
+export type PromptExecutionRequest = z.input<
+  typeof PromptExecutionRequestSchema
+>;
+export type PromptExecutionRequestOutput = z.infer<
+  typeof PromptExecutionRequestSchema
+>;
+
+export const PromptExecutionResultSchema = z.object({
+  /** ID unik sesi eksekusi */
+  executionId: z.string().min(1),
+
+  /** Prompt final setelah resolusi placeholder & penggabungan testInput */
+  resolvedPrompt: z.string(),
+
+  /** Daftar placeholder yang belum diisi nilainya oleh pengguna */
+  unresolvedPlaceholders: z.array(z.string()),
+
+  /** Teks respons nyata dari model target */
+  output: z.string(),
+
+  /** Provider yang mengeksekusi prompt */
+  providerId: ProviderIdSchema,
+
+  /** Nama model yang mengeksekusi prompt */
+  model: z.string(),
+
+  /** Parameter yang digunakan pada eksekusi */
+  parameters: z.object({
+    temperature: z.number(),
+    maxOutputTokens: z.number(),
+  }),
+
+  /** Waktu respons dalam milidetik */
+  latencyMs: z.number(),
+
+  /** Rincian token yang dikonsumsi */
+  usage: z.object({
+    promptTokens: z.number().optional(),
+    completionTokens: z.number().optional(),
+    totalTokens: z.number().optional(),
+  }),
+
+  /** Catatan transparansi bahwa keluaran LLM probabilistik */
+  nondeterminismNotice: z.string(),
+
+  /** Timestamp waktu eksekusi ISO 8601 */
+  createdAt: z.string(),
+});
+export type PromptExecutionResult = z.infer<
+  typeof PromptExecutionResultSchema
+>;
+

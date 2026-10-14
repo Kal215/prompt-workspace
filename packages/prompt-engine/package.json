@@ -7,7 +7,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npx tsx scripts/test-playground.ts"
   },
   "dependencies": {
     "@prompt-workspace/domain-rules": "*",

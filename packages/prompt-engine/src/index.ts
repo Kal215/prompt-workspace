@@ -30,6 +30,7 @@ export * from "./optimizer.js";
 export * from "./evaluator.js";
 export * from "./logger.js";
 export * from "./errors.js";
+export * from "./playground.js";
 
 /**
  * Orchestrator Pipeline: Menjalankan pipeline lengkap analisis dan optimasi prompt.
