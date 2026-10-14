@@ -1,18 +1,29 @@
 # Prompt Intelligence Engineering Workspace (PIEW)
-**Versi: v1.1.0 (General Availability)**
+**Versi: v1.1.0 (General Availability & Stage 7 Platform Evolution)**
 
 Prompt Intelligence Engineering Workspace (PIEW) adalah platform rekayasa prompt tingkat lanjut (*advanced prompt engineering*) yang mengimplementasikan metodologi **Preserve Intent**, **Analyze Before Optimize**, dan **Evidence Over Claims**. 
 
-Platform ini mendiagnosis kelemahan prompt mentah pengguna secara terstruktur berdasarkan taksonomi 8 kategori celah, menginjeksi aturan domain terstandarisasi (5 Domain Packs), merekonstruksi prompt dengan teknik scaffolding profesional, mendukung multi-penyedia model AI (Groq, Gemini, OpenRouter, Ollama lokal), serta menyediakan **Target Model Execution Playground** untuk menguji prompt secara nyata sebelum digunakan di lingkungan produksi.
+Platform ini mendiagnosis kelemahan prompt mentah pengguna secara terstruktur berdasarkan taksonomi 8 kategori celah, menginjeksi aturan domain terstandarisasi (5 Domain Packs), merekonstruksi prompt dengan teknik scaffolding profesional, mendukung multi-penyedia model AI (Groq, Gemini, OpenRouter, Ollama lokal), menyediakan **Target Model Execution Playground** untuk menguji prompt secara nyata sebelum digunakan di lingkungan produksi, serta dilengkapi tata kelola platform jangka panjang (*Stage 7 Governance*).
 
 ---
 
 ## 📚 Dokumentasi Cepat (Quick Links)
 
+### Panduan Pengguna & Operasi
 - 📖 [Panduan Pengguna Lengkap & FAQ (User Guide & FAQ)](docs/product/USER-GUIDE-AND-FAQ.md)
 - 📋 [Checklist Kesiapan Rilis v1.1.0 (Release Checklist)](docs/operations/RELEASE-CHECKLIST-v1.1.0.md)
 - 🚨 [Panduan Operasional & Penanganan Insiden (Runbook SOP)](docs/operations/RUNBOOK.md)
 - 📝 [Catatan Rilis v1.1.0 (Release Notes)](docs/product/RELEASE-NOTES-v1.1.0.md)
+
+### Tata Kelola Platform & Kontribusi (Tahap 7)
+- 📐 [Kebijakan Kompatibilitas, Versioning & Deprikasi](docs/architecture/COMPATIBILITY-AND-VERSIONING-POLICY.md)
+- 🤝 [Panduan Kontribusi Developer (CONTRIBUTING.md)](CONTRIBUTING.md)
+- 🔒 [Kebijakan Keamanan & Rotasi Rahasia (SECURITY.md)](SECURITY.md)
+- 📊 [Tinjauan Arsitektur & Utang Teknis Q4 2026](docs/architecture/ARCHITECTURE-AND-DEBT-REVIEW-2026-Q4.md)
+- 🗺️ [Metric-Informed Roadmap & Tata Kelola Tahap 7](docs/product/ROADMAP-AND-METRICS-STAGE7.md)
+- 📜 [Blueprint Realization Changelog (G0 - G7)](docs/product/BLUEPRINT-CHANGELOG.md)
+
+### Arsitektur & Decision Memos
 - 🏛️ [Keputusan Arsitektur Sistem (ADR-001: Modular Monolith)](docs/architecture/ADR-001-modular-monolith-and-security.md)
 - 📑 Decision Memos: [PDR-001 (Domain Packs)](docs/product/PDR-001-domain-packs-c1.md) | [PDR-002 (Multi-Provider)](docs/product/PDR-002-multi-provider-adapters-c2.md) | [PDR-003 (Target Model Playground)](docs/product/PDR-003-target-model-playground-c3.md)
 
@@ -26,7 +37,7 @@ Repositori ini menggunakan arsitektur **Modular Monolith** berbasis `npm workspa
 prompt-workspace/
 ├── apps/
 │   └── web/                         # Next.js 16 (Turbopack, App Router, Tailwind CSS, shadcn/ui)
-│       ├── src/app/api/             # Route handlers (/api/optimize, /api/history, /api/providers)
+│       ├── src/app/api/             # Route handlers (/api/optimize, /api/history, /api/providers, /api/execute)
 │       ├── src/components/workspace/# Komponen UI (Domain Selector, Provider Selector, Playground, Diff)
 │       ├── src/lib/                 # Helper keamanan (session HMAC-SHA256, csrf, rate-limiter)
 │       ├── scripts/                 # Suite pengujian integrasi & browser E2E (test-api.ts, test-e2e.ts)
@@ -41,9 +52,11 @@ prompt-workspace/
 │       ├── prisma/                  # schema.prisma, dev.db aktif, dan migration history
 │       └── scripts/                 # Otomasi backup, restore, dan test persistence terisolasi
 │
-├── docs/                            # Dokumentasi arsitektur, SOP operasional, PDR, dan release notes
-├── scripts/                         # Otomasi audit kesiapan rilis (release-readiness-check.mjs)
+├── docs/                            # Dokumentasi arsitektur, SOP operasional, PDR, tata kelola, dan changelog
+├── scripts/                         # Otomasi audit kesiapan rilis & tata kelola (release-readiness-check.mjs)
 ├── test-fixtures/                   # Fixture baseline prompt terstandarisasi (PIW-BL-001 s/d 005)
+├── CONTRIBUTING.md                  # Standar kontribusi, DoR, DoD, dan aturan PR
+├── SECURITY.md                      # Kebijakan pelaporan kerentanan & SOP rotasi rahasia
 ├── .env.example                     # Templat konfigurasi environment multi-provider
 └── package.json                     # Konfigurasi root monorepo workspaces
 ```
@@ -136,11 +149,11 @@ prompt-workspace/
 | `npm run test --workspace=@prompt-workspace/domain-rules` | Menjalankan 155 asersi pengujian 5 domain rule packs berversi |
 | `npm run test --workspace=@prompt-workspace/database` | Menjalankan uji persistensi database & otorisasi multi-user pada temp DB |
 | `npm run test:unit --workspace=web` | Menjalankan 22 pengujian unit route handler via native `node:test` |
-| `npm run test:api --workspace=web` | Menjalankan 50 asersi pengujian API nyata pada database SQLite terisolasi |
+| `npm run test:api --workspace=web` | Menjalankan 57 asersi pengujian API nyata pada database SQLite terisolasi (termasuk `/api/execute`) |
 | `npm run test:e2e --workspace=web` | Menjalankan browser E2E headless nyata (Chrome/Edge) dengan mock deterministik |
 | `npm run db:backup` | Membuat backup terenkapsulasi dari database aktif ke folder `backups/` |
 | `npm run db:restore` | Memulihkan database dari file backup (mendukung flag `--target`) |
-| `node scripts/release-readiness-check.mjs` | Menjalankan skrip audit kesiapan rilis otomatis publik v1.1.0 |
+| `node scripts/release-readiness-check.mjs` | Menjalankan skrip audit kesiapan rilis otomatis & tata kelola Tahap 0 s/d Tahap 7 |
 
 ---
 
@@ -160,7 +173,7 @@ prompt-workspace/
    - Validasi ketat membandingkan origin dengan host aplikasi yang sah.
 
 4. **Rate Limiting Modular (Sliding Window)**:
-   - Terpasang pada `/api/optimize` dan `/api/history` untuk mencegah flooding database dan pengurasan kuota LLM.
+   - Terpasang pada `/api/optimize`, `/api/history`, dan `/api/execute` untuk mencegah flooding database dan pengurasan kuota LLM.
    - Mengembalikan status **HTTP 429 Too Many Requests**, header `Retry-After: <detik>`, serta payload error bersih tanpa kebocoran memori.
 
 5. **Penanganan Konkurensi & Idempotensi (Prisma P2002)**:
@@ -173,5 +186,5 @@ prompt-workspace/
 
 ---
 
-## 📄 7. Lisensi
-Hak Cipta © 2026 Prompt Intelligence Engineering Workspace. Seluruh hak cipta dilindungi undang-undang.
+## 📄 7. Lisensi & Tata Kelola
+Proyek ini dikembangkan di bawah lisensi resmi PIEW. Untuk kontribusi dan pelaporan celah keamanan, silakan merujuk ke [CONTRIBUTING.md](CONTRIBUTING.md) dan [SECURITY.md](SECURITY.md).
