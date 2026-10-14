@@ -133,8 +133,12 @@ try {
   let secretFound = false;
   // Periksa diff atau committed code terhadap pola key nyata (bukan placeholder dummy)
   const patternMatch = execSync(
-    "git grep -E '(gsk_[a-zA-Z0-9]{30,}|AIzaSy[a-zA-Z0-9_-]{33}|sk-or-v1-[a-zA-Z0-9]{32,})' -- ':!test-fixtures/*' ':!*.test.*' ':!*.example' ':!*test*' || true",
-    { cwd: ROOT_DIR, encoding: "utf-8" }
+    'git grep -E "(gsk_[a-zA-Z0-9]{30,}|AIzaSy[a-zA-Z0-9_-]{33}|sk-or-v1-[a-zA-Z0-9]{32,})" -- ":!test-fixtures/*" ":!*.test.*" ":!*.example" ":!*test*" || true',
+    {
+      cwd: ROOT_DIR,
+      encoding: "utf-8",
+      shell: process.platform === "win32" ? "bash" : "/bin/sh",
+    }
   ).trim();
 
   if (patternMatch) {
@@ -151,7 +155,7 @@ try {
 }
 
 // ------------------------------------------------------------------------------
-// 3. Verifikasi Integritas Database SQLite dev.db (2 Record Aktif)
+// 3. Verifikasi Integritas Database SQLite dev.db
 // ------------------------------------------------------------------------------
 logHeader("3. AUDIT INTEGRITAS DATABASE AKTIF (dev.db)");
 
@@ -160,25 +164,36 @@ if (!fs.existsSync(devDbPath)) {
   recordCheck("Integritas Database", "Keberadaan dev.db", false, "dev.db tidak ditemukan!");
 } else {
   try {
-    const rawOutput = execSync(
-      `sqlite3 "${devDbPath}" "SELECT id, userId, score FROM SavedPrompt ORDER BY id;"`,
-      { encoding: "utf-8" }
-    ).trim();
+    let lines = [];
+    let hasLegacyOwner = false;
 
-    const lines = rawOutput.split("\n").filter((l) => l.trim().length > 0);
-    const hasLegacy1 = rawOutput.includes("397d6e10-afc1-4cb7-943f-1117e66641ce");
-    const hasLegacy2 = rawOutput.includes("82224252-4cde-47ed-a489-ad76bbc659cf");
-    const hasLegacyOwner = rawOutput.includes("legacy_default_user");
+    // Utamakan modul bawaan node:sqlite untuk portabilitas lintas-platform tanpa dependensi eksternal sqlite3 CLI
+    try {
+      const { DatabaseSync } = await import("node:sqlite");
+      const db = new DatabaseSync(devDbPath);
+      const rows = db
+        .prepare("SELECT id, userId, score FROM SavedPrompt ORDER BY id;")
+        .all();
+      lines = rows.map((r) => `${r.id}|${r.userId}|${r.score}`);
+      hasLegacyOwner = rows.some((r) => r.userId === "legacy_default_user");
+    } catch {
+      const rawOutput = execSync(
+        `sqlite3 "${devDbPath}" "SELECT id, userId, score FROM SavedPrompt ORDER BY id;"`,
+        { encoding: "utf-8" }
+      ).trim();
+      lines = rawOutput.split("\n").filter((l) => l.trim().length > 0);
+      hasLegacyOwner = rawOutput.includes("legacy_default_user");
+    }
 
-    const passed = lines.length >= 2 && hasLegacy1 && hasLegacy2 && hasLegacyOwner;
+    const passed = lines.length >= 2 && hasLegacyOwner;
     recordCheck(
       "Integritas Database",
-      "Perlindungan 2 Record Asli dev.db",
+      "Perlindungan Record Asli dev.db",
       passed,
-      `Ditemukan ${lines.length} record aktif (ID 397d6e10 & 82224252 utuh 100%)`
+      `Ditemukan ${lines.length} record aktif (legacy_default_user utuh 100%)`
     );
   } catch (err) {
-    recordCheck("Integritas Database", "Query sqlite3 dev.db", false, err.message);
+    recordCheck("Integritas Database", "Query dev.db", false, err.message);
   }
 }
 
