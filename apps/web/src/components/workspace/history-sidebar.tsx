@@ -170,7 +170,7 @@ export function HistorySidebar({
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Database SQLite (@prompt-workspace/database)
+                Database SQLite • Terikat sesi browser aktif
               </p>
             </div>
           </div>
@@ -358,10 +358,13 @@ export function HistorySidebar({
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-border/60 bg-muted/20 text-center">
-          <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1.5">
-            <BookmarkCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-            Terhubung ke Prisma SQLite Client
+        <div className="p-3 border-t border-border/60 bg-muted/20 space-y-1.5 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
+            <BookmarkCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>Terhubung ke Prisma SQLite Client</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground/90 leading-tight">
+            Data riwayat diisolasi berdasarkan sesi browser (<span className="font-mono text-[9px]">HttpOnly</span>). Item bawaan sistem (<span className="italic">legacy baseline</span>) bersifat <span className="font-medium text-foreground/80">read-only</span> dan terlindungi.
           </p>
         </div>
       </div>

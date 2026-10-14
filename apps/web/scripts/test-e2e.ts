@@ -258,6 +258,24 @@ async function runE2ESuite() {
       "Header aplikasi memuat judul 'Prompt Intelligence Workspace'"
     );
 
+    // Verifikasi Keberadaan Disclosure Privasi & Retensi Data (Task #24)
+    const privacyNoticeExists = await page.evaluate(() => {
+      const el =
+        document.querySelector('[data-testid="privacy-disclosure"]') ||
+        document.body;
+      const text = el.textContent || "";
+      return (
+        text.includes("Kebijakan Privasi") &&
+        text.includes("Groq API") &&
+        text.includes("Zero Raw-Prompt Logging") &&
+        text.includes("Terima & Simpan")
+      );
+    });
+    assert(
+      privacyNoticeExists,
+      "Panel informasi transparansi privasi, pemrosesan Groq API, & retensi sesi ter-render di DOM"
+    );
+
     const getBadgeCount = async (): Promise<number> => {
       return await page.evaluate(() => {
         const header = document.querySelector("header");
