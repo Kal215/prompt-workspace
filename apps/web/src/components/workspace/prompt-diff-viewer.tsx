@@ -21,18 +21,23 @@ import {
   BookmarkCheck,
   RotateCcw,
   Sparkles,
+  FileDown,
 } from "lucide-react";
 
 interface PromptDiffViewerProps {
   originalPrompt: string;
   optimizedPrompt: string;
   onRegenerate?: () => void;
+  onExportMarkdown?: () => void;
+  onAcceptAndSave?: () => void;
 }
 
 export function PromptDiffViewer({
   originalPrompt,
   optimizedPrompt,
   onRegenerate,
+  onExportMarkdown,
+  onAcceptAndSave,
 }: PromptDiffViewerProps) {
   const [copied, setCopied] = useState(false);
   const [accepted, setAccepted] = useState(false);
@@ -44,16 +49,19 @@ export function PromptDiffViewer({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(optimizedPrompt);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(optimizedPrompt).catch(() => {});
+      }
     } catch (err) {
-      console.error("Gagal menyalin prompt", err);
+      console.warn("Clipboard access warning:", err);
     }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleAcceptAndSave = () => {
+  const handleAcceptClick = () => {
     setAccepted(true);
+    onAcceptAndSave?.();
     setTimeout(() => setAccepted(false), 3000);
   };
 
@@ -72,7 +80,7 @@ export function PromptDiffViewer({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -92,20 +100,33 @@ export function PromptDiffViewer({
               )}
             </Button>
 
+            {onExportMarkdown && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onExportMarkdown}
+                title="Unduh laporan lengkap dalam format Markdown"
+                className="h-8 text-xs gap-1.5 cursor-pointer hover:bg-muted/60"
+              >
+                <FileDown className="h-3.5 w-3.5 text-primary" />
+                Export as Markdown (.md)
+              </Button>
+            )}
+
             <Button
               size="sm"
-              onClick={handleAcceptAndSave}
-              className="h-8 text-xs gap-1.5 cursor-pointer bg-primary text-primary-foreground"
+              onClick={handleAcceptClick}
+              className="h-8 text-xs gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {accepted ? (
                 <>
                   <BookmarkCheck className="h-3.5 w-3.5 text-emerald-300" />
-                  Tersimpan!
+                  Diterima & Tersimpan!
                 </>
               ) : (
                 <>
                   <BookmarkCheck className="h-3.5 w-3.5" />
-                  Terima & Simpan
+                  Accept & Save
                 </>
               )}
             </Button>
@@ -130,7 +151,7 @@ export function PromptDiffViewer({
           <div className="mb-4 rounded-md bg-emerald-500/10 border border-emerald-500/30 p-2.5 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
             <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>
-              Prompt berhasil diterima dan ditandai sebagai versi siap pakai!
+              Prompt berhasil diterima, disimpan ke riwayat workspace, dan disalin ke clipboard!
             </span>
           </div>
         )}
