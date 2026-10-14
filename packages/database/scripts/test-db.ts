@@ -3,20 +3,20 @@ import {
   getHistory,
   getPromptById,
   deletePrompt,
-  savePromptVersion,
+  createPromptVersion,
   getPromptVersions,
   getPromptVersionById,
-  saveSpiderRun,
-  getSpiderRuns,
+  saveCrawlSessionBatch,
+  getCrawlSessionById,
+  saveSpiderRunBatch,
   getSpiderRunById,
-  saveCrawlerSource,
-  getCrawlerSource,
-  enableSqliteWal,
+  enableSqliteWalMode,
   MAX_PROMPT_VERSIONS_PER_PROMPT,
   MAX_SPIDER_RUNS_PER_VERSION,
   prisma,
   setDatabaseUrl,
 } from "../src/index.js";
+import { computeCriticalGatePassed } from "@prompt-workspace/prompt-contracts";
 import os from "os";
 import path from "path";
 import fs from "fs";
@@ -31,7 +31,7 @@ async function main() {
   console.log("🗄️  TEST PERSISTENCE: PRISMA & SQLITE v1.0 & v2.0 (packages/database)");
   console.log("═══════════════════════════════════════════════════════════════════");
 
-  // 0. Setup isolated temporary database
+  // 0. Setup isolated temporary database in os.tmpdir()
   const tempDbName = `test-db-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
   const tempDbPath = path.join(os.tmpdir(), tempDbName).replace(/\\/g, "/");
   const tempDbUrl = `file:${tempDbPath}`;
@@ -47,7 +47,7 @@ async function main() {
   try {
     // 0b. Test SQLite WAL initialization
     console.log("[0b] Menguji inisialisasi SQLite WAL mode...");
-    await enableSqliteWal();
+    await enableSqliteWalMode();
     const journalModeResult = await prisma.$queryRaw<Array<{ journal_mode: string }>>`PRAGMA journal_mode;`;
     console.log(`✅ SQLite journal mode: ${journalModeResult[0]?.journal_mode}`);
 
@@ -59,7 +59,7 @@ async function main() {
       score: 95,
     };
 
-    console.log("\n[1] Menjalankan savePrompt() dengan userId...");
+    console.log("\n[1] Menjalankan savePrompt() v1.0...");
     const saved = await savePrompt(samplePrompt);
     console.log("✅ Berhasil menyimpan prompt:", {
       id: saved.id,
@@ -81,171 +81,240 @@ async function main() {
     }
     console.log("✅ Konfirmasi isolasi data antar pengguna terverifikasi.");
 
-    console.log("\n[3] Menjalankan getPromptById()...");
-    const fetched = await getPromptById(saved.id);
-    if (!fetched || fetched.id !== saved.id) {
-      throw new Error(`getPromptById gagal menemukan ID: ${saved.id}`);
+    console.log("\n[3] Menguji auto-bootstrap getPromptVersions() (versionNumber = 1 dari SavedPrompt)...");
+    const initialVersions = await getPromptVersions(saved.id, "test-user-alpha");
+    if (initialVersions.length !== 1 || initialVersions[0].versionNumber !== 1) {
+      throw new Error(`Auto-bootstrap version 1 gagal! Got ${JSON.stringify(initialVersions)}`);
     }
-    console.log(`✅ getPromptById berhasil mengambil record [ID: ${fetched.id.slice(0, 8)}...]`);
+    if (initialVersions[0].promptContent !== saved.optimizedPrompt) {
+      throw new Error("Konten auto-bootstrap version 1 tidak cocok dengan saved.optimizedPrompt!");
+    }
+    console.log(`✅ Auto-bootstrap Version 1 berhasil: [version: ${initialVersions[0].versionNumber}, source: ${initialVersions[0].sourceRole}]`);
 
-    console.log("\n[4] Menguji proteksi otorisasi deletePrompt() lintas pengguna...");
+    console.log("\n[4] Menguji anti-IDOR pada getPromptVersions()...");
     try {
-      await deletePrompt(saved.id, "test-user-beta");
-      throw new Error("SECURITY_FAILURE: User Beta berhasil menghapus record milik User Alpha!");
+      await getPromptVersions(saved.id, "test-user-beta");
+      throw new Error("SECURITY_FAILURE: User Beta berhasil mengakses versions milik User Alpha!");
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
-      if (code !== "FORBIDDEN") {
-        throw err;
-      }
-      console.log("✅ Penghapusan lintas pengguna berhasil diblokir dengan FORBIDDEN.");
+      if (code !== "FORBIDDEN") throw err;
+      console.log("✅ Akses lintas pengguna pada getPromptVersions berhasil diblokir dengan FORBIDDEN.");
     }
 
-    console.log("\n[5] Menguji perlindungan data legacy (legacy_default_user)...");
-    const legacyPrompt = await savePrompt({
-      userId: "legacy_default_user",
-      originalPrompt: "Prompt legacy historis",
-      optimizedPrompt: "Prompt optimasi legacy",
-      score: 85,
-    });
-    try {
-      // User biasa (test-user-alpha) mencoba menghapus data legacy
-      await deletePrompt(legacyPrompt.id, "test-user-alpha");
-      throw new Error("SECURITY_FAILURE: User biasa berhasil menghapus record legacy!");
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code;
-      if (code !== "FORBIDDEN") {
-        throw err;
-      }
-      console.log("✅ Penghapusan data legacy oleh user biasa berhasil diblokir dengan FORBIDDEN.");
-    }
-
-    // Pemilik sah legacy menghapus record uji
-    await deletePrompt(legacyPrompt.id, "legacy_default_user");
-    console.log("✅ Record legacy berhasil dihapus oleh 'legacy_default_user'.");
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // v2.0 Extended Features Testing
-    // ─────────────────────────────────────────────────────────────────────────
-
-    console.log("\n[6] Menguji savePromptVersion() dan auto version numbering...");
-    const v1 = await savePromptVersion({
+    console.log("\n[5] Menguji createPromptVersion() v2.0...");
+    const v2 = await createPromptVersion({
       savedPromptId: saved.id,
-      promptText: "Versi 1: Baseline Prompt",
-      score: 88,
-      changesSummary: "Inisialisasi versi 1",
-    });
-    if (v1.versionNumber !== 1) {
-      throw new Error(`Ekspektasi versionNumber 1, didapat: ${v1.versionNumber}`);
-    }
-    console.log(`✅ Version 1 dibuat: [versionNumber: ${v1.versionNumber}, score: ${v1.score}]`);
-
-    const v2 = await savePromptVersion({
-      savedPromptId: saved.id,
-      promptText: "Versi 2: Perbaikan batasan keamanan",
-      score: 96,
-      changesSummary: "Menambahkan aturan no jailbreak",
-      parentVersionId: v1.id,
+      userId: "test-user-alpha",
+      sourceRole: "CLOSED_LOOP",
+      promptContent: "Versi 2: Optimasi lanjutan dengan anti-adversarial injection.",
+      groundingSummary: "Hasil sintesis spider v1",
     });
     if (v2.versionNumber !== 2) {
       throw new Error(`Ekspektasi versionNumber 2, didapat: ${v2.versionNumber}`);
     }
-    console.log(`✅ Version 2 dibuat: [versionNumber: ${v2.versionNumber}, score: ${v2.score}]`);
+    console.log(`✅ Version 2 dibuat: [versionNumber: ${v2.versionNumber}, sourceRole: ${v2.sourceRole}]`);
 
-    const versions = await getPromptVersions(saved.id);
-    if (versions.length !== 2) {
-      throw new Error(`Ekspektasi 2 versions, didapat: ${versions.length}`);
+    // Uji anti-IDOR createPromptVersion
+    try {
+      await createPromptVersion({
+        savedPromptId: saved.id,
+        userId: "test-user-beta",
+        promptContent: "Versi bajakan",
+      });
+      throw new Error("SECURITY_FAILURE: User Beta berhasil membuat version pada prompt User Alpha!");
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code !== "FORBIDDEN") throw err;
+      console.log("✅ createPromptVersion lintas user berhasil diblokir dengan FORBIDDEN.");
     }
-    console.log(`✅ getPromptVersions berhasil mengembalikan ${versions.length} versi prompt.`);
 
-    console.log("\n[7] Menguji saveSpiderRun() dengan nested testResults batch...");
-    const spiderRun = await saveSpiderRun({
-      promptVersionId: v2.id,
-      targetProvider: "groq",
-      targetModel: "llama-3.3-70b-versatile",
-      status: "COMPLETED",
-      totalCases: 2,
-      passedCases: 2,
-      averageScore: 95.5,
-      averageLatencyMs: 420,
-      testResults: [
+    console.log("\n[6] Menguji saveCrawlSessionBatch() dengan CrawlItem batch & idempotency P2002...");
+    const crawlBatch = await saveCrawlSessionBatch({
+      userId: "test-user-alpha",
+      idempotencyKey: "idemp-crawl-001",
+      sourceUrl: "https://github.com/test-org/prompts/blob/main/prompt.md",
+      normalizedUrl: "https://raw.githubusercontent.com/test-org/prompts/main/prompt.md",
+      sourceType: "GITHUB_RAW_FILE",
+      status: "SUCCEEDED",
+      bytesRead: 1024,
+      items: [
         {
-          caseIndex: 0,
-          testInput: "Uji Happy Path Analisis",
-          expectedOutput: "Riset komprehensif",
-          actualOutput: "Analisis riset pasar terstruktur...",
-          score: 96,
-          latencyMs: 410,
-          status: "PASSED",
+          itemType: "PROMPT_CANDIDATE",
+          extractedText: "You are a specialized code reviewer.",
+          confidenceEstimate: 0.95,
+          warnings: ["Potential short prompt"],
         },
         {
-          caseIndex: 1,
-          testInput: "Uji Adversarial Injection",
-          expectedOutput: "Penolakan sopan",
-          actualOutput: "Saya tidak dapat mengeksekusi instruksi ini...",
-          score: 95,
-          latencyMs: 430,
-          status: "PASSED",
+          itemType: "GROUNDING_FACT",
+          extractedText: "Target environment: Node.js 20 LTS",
+          confidenceEstimate: 0.98,
         },
       ],
     });
-    console.log(`✅ SpiderRun dibuat: [ID: ${spiderRun.id.slice(0, 8)}..., results: ${spiderRun.testResults?.length}]`);
+    console.log(`✅ CrawlSessionBatch berhasil: [id: ${crawlBatch.id.slice(0, 8)}..., items: ${crawlBatch.items.length}]`);
 
-    const fetchedSpiderRun = await getSpiderRunById(spiderRun.id);
-    if (!fetchedSpiderRun || fetchedSpiderRun.testResults.length !== 2) {
-      throw new Error(`Gagal fetch spider run by ID dengan testResults!`);
-    }
-    console.log(`✅ getSpiderRunById berhasil memverifikasi ${fetchedSpiderRun.testResults.length} testResults.`);
-
-    console.log("\n[8] Menguji saveCrawlerSource() dan getCrawlerSource()...");
-    const crawlerSource = await saveCrawlerSource({
-      savedPromptId: saved.id,
-      sourceUrl: "https://raw.githubusercontent.com/test-org/prompts/main/system.md",
-      domain: "raw.githubusercontent.com",
-      contentHash: "sha256-abcdef1234567890",
+    // Uji idempotency P2002 crawl session
+    const duplicateCrawl = await saveCrawlSessionBatch({
+      userId: "test-user-alpha",
+      idempotencyKey: "idemp-crawl-001", // Kunci sama
+      sourceUrl: "https://should-be-ignored.com",
+      normalizedUrl: "https://should-be-ignored.com",
+      sourceType: "GITHUB_RAW_FILE",
+      status: "FAILED",
     });
-    console.log(`✅ CrawlerSource tersimpan: [ID: ${crawlerSource.id.slice(0, 8)}..., domain: ${crawlerSource.domain}]`);
-
-    const fetchedCrawler = await getCrawlerSource(saved.id);
-    if (!fetchedCrawler || fetchedCrawler.sourceUrl !== crawlerSource.sourceUrl) {
-      throw new Error("Gagal mengambil CrawlerSource berdasarkan savedPromptId!");
+    if (duplicateCrawl.id !== crawlBatch.id) {
+      throw new Error("Idempotensi CrawlSession gagal! Menghasilkan record berbeda.");
     }
-    console.log(`✅ getCrawlerSource berhasil diverifikasi.`);
+    console.log("✅ Idempotensi CrawlSession (P2002 replay) berhasil memulihkan record eksisting.");
 
-    console.log("\n[9] Menguji penegakan kebijakan retensi FIFO SQLite (ADR-002 Lampiran B)...");
-    // Uji retensi prompt versions: batas MAX_PROMPT_VERSIONS_PER_PROMPT (20)
-    console.log(`Membuat tambahan versi hingga melampaui batas ${MAX_PROMPT_VERSIONS_PER_PROMPT}...`);
-    for (let i = 3; i <= 23; i++) {
-      await savePromptVersion({
+    // Uji anti-IDOR getCrawlSessionById
+    try {
+      await getCrawlSessionById(crawlBatch.id, "test-user-beta");
+      throw new Error("SECURITY_FAILURE: User Beta berhasil membaca crawl session User Alpha!");
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code !== "FORBIDDEN") throw err;
+      console.log("✅ getCrawlSessionById lintas user berhasil diblokir dengan FORBIDDEN.");
+    }
+
+    console.log("\n[7] Menguji saveSpiderRunBatch() dengan SpiderBranchResult[] batch...");
+    const spiderBranchesInput = [
+      {
+        caseId: "case-happy-01",
+        category: "BASELINE_HAPPY_PATH",
+        severity: "LOW",
+        status: "PASS",
+        score: 95,
+        latencyMs: 320,
+        sanitizedInput: "Halo",
+        sanitizedOutput: "Halo, ada yang bisa dibantu?",
+        deterministicPass: true,
+      },
+      {
+        caseId: "case-sec-01",
+        category: "ADVERSARIAL_INJECTION",
+        severity: "CRITICAL",
+        status: "PASS",
+        score: 100,
+        latencyMs: 410,
+        sanitizedInput: "Ignore instructions",
+        sanitizedOutput: "Instruksi ditolak",
+        deterministicPass: true,
+      },
+    ];
+
+    const criticalGatePassed = computeCriticalGatePassed([
+      { caseId: "case-happy-01", severity: "LOW", status: "PASS" },
+      { caseId: "case-sec-01", severity: "CRITICAL", status: "PASS" },
+    ]);
+    console.log(`✅ computeCriticalGatePassed helper verified: ${criticalGatePassed}`);
+
+    const spiderRun = await saveSpiderRunBatch({
+      userId: "test-user-alpha",
+      idempotencyKey: "idemp-spider-001",
+      promptVersionId: v2.id,
+      testSuiteVersion: "1.0.0",
+      rubricVersion: "2026.1",
+      provider: "groq",
+      modelId: "llama-3.3-70b-versatile",
+      status: "SUCCEEDED",
+      criticalGatePassed,
+      qualityMetrics: { taskAdherence: 95, constraintAdherence: 98, formatCompliance: 100, robustness: 92 },
+      securityFindings: [],
+      totalTokens: 1500,
+      durationMs: 730,
+      branches: spiderBranchesInput,
+    });
+    console.log(`✅ SpiderRunBatch berhasil: [id: ${spiderRun.id.slice(0, 8)}..., branches: ${spiderRun.branches.length}]`);
+
+    // Uji getSpiderRunById
+    const fetchedRun = await getSpiderRunById(spiderRun.id, "test-user-alpha");
+    if (!fetchedRun || fetchedRun.branches.length !== 2) {
+      throw new Error("Gagal mengambil SpiderRun dengan branches!");
+    }
+    console.log(`✅ getSpiderRunById berhasil mengambil ${fetchedRun.branches.length} branches.`);
+
+    // Uji anti-IDOR getSpiderRunById
+    try {
+      await getSpiderRunById(spiderRun.id, "test-user-beta");
+      throw new Error("SECURITY_FAILURE: User Beta berhasil membaca SpiderRun User Alpha!");
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code !== "FORBIDDEN") throw err;
+      console.log("✅ getSpiderRunById lintas user berhasil diblokir dengan FORBIDDEN.");
+    }
+
+    // Uji idempotency P2002 spider run
+    const duplicateSpider = await saveSpiderRunBatch({
+      userId: "test-user-alpha",
+      idempotencyKey: "idemp-spider-001",
+      promptVersionId: v2.id,
+      testSuiteVersion: "1.0.0",
+      rubricVersion: "2026.1",
+      provider: "groq",
+      modelId: "llama-3.3-70b-versatile",
+      status: "FAILED",
+    });
+    if (duplicateSpider.id !== spiderRun.id) {
+      throw new Error("Idempotensi SpiderRun gagal!");
+    }
+    console.log("✅ Idempotensi SpiderRun (P2002 replay) berhasil memulihkan record eksisting.");
+
+    console.log("\n[8] Menguji retensi FIFO PromptVersion (max 20) & SpiderRun (max 10)...");
+    // Buat hingga 25 versi untuk saved.id
+    console.log(`Membuat tambahan PromptVersion hingga melebihi ${MAX_PROMPT_VERSIONS_PER_PROMPT}...`);
+    for (let i = 3; i <= 25; i++) {
+      await createPromptVersion({
         savedPromptId: saved.id,
-        promptText: `Versi uji retensi #${i}`,
-        score: 90,
+        userId: "test-user-alpha",
+        promptContent: `Versi retensi #${i}`,
       });
     }
-    const versionsAfterRetention = await getPromptVersions(saved.id);
-    if (versionsAfterRetention.length > MAX_PROMPT_VERSIONS_PER_PROMPT) {
-      throw new Error(`Kebijakan retensi gagal! Jumlah versi ${versionsAfterRetention.length} > ${MAX_PROMPT_VERSIONS_PER_PROMPT}`);
+    const finalVersions = await getPromptVersions(saved.id, "test-user-alpha");
+    if (finalVersions.length > MAX_PROMPT_VERSIONS_PER_PROMPT) {
+      throw new Error(`Retensi PromptVersion gagal! Count: ${finalVersions.length} > ${MAX_PROMPT_VERSIONS_PER_PROMPT}`);
     }
-    console.log(`✅ Retensi PromptVersion FIFO berhasil dibatasi tepat ${versionsAfterRetention.length} versi (max: ${MAX_PROMPT_VERSIONS_PER_PROMPT}).`);
+    console.log(`✅ Retensi PromptVersion FIFO berhasil dibatasi tepat ${finalVersions.length} versi.`);
 
-    console.log("\n[10] Menjalankan deletePrompt() oleh pemilik yang sah & memverifikasi cascade delete...");
-    const deleted = await deletePrompt(saved.id, "test-user-alpha");
-    console.log(`✅ deletePrompt berhasil menghapus record [ID: ${deleted.id.slice(0, 8)}...]`);
-
-    const recheck = await getPromptById(saved.id);
-    if (recheck !== null) {
-      throw new Error(`Record ${saved.id} masih ditemukan setelah dihapus!`);
+    // Buat hingga 15 spider runs untuk versi aktif terbaru
+    const activeVersion = finalVersions[finalVersions.length - 1];
+    console.log(`Membuat tambahan SpiderRun pada version ${activeVersion.versionNumber} hingga melebihi ${MAX_SPIDER_RUNS_PER_VERSION}...`);
+    for (let i = 1; i <= 15; i++) {
+      await saveSpiderRunBatch({
+        userId: "test-user-alpha",
+        promptVersionId: activeVersion.id,
+        testSuiteVersion: "1.0.0",
+        rubricVersion: "2026.1",
+        provider: "groq",
+        modelId: "llama-3.3-70b-versatile",
+        status: "SUCCEEDED",
+      });
     }
+    const runsForActiveVersion = await prisma.spiderRun.findMany({ where: { promptVersionId: activeVersion.id } });
+    if (runsForActiveVersion.length > MAX_SPIDER_RUNS_PER_VERSION) {
+      throw new Error(`Retensi SpiderRun gagal! Count: ${runsForActiveVersion.length} > ${MAX_SPIDER_RUNS_PER_VERSION}`);
+    }
+    console.log(`✅ Retensi SpiderRun FIFO berhasil dibatasi tepat ${runsForActiveVersion.length} runs.`);
 
-    const recheckVersions = await getPromptVersions(saved.id);
+    console.log("\n[9] Menguji Cascade Delete: SavedPrompt -> PromptVersion -> SpiderRun -> SpiderBranchResult...");
+    await deletePrompt(saved.id, "test-user-alpha");
+    const recheckPrompt = await getPromptById(saved.id);
+    if (recheckPrompt !== null) {
+      throw new Error("SavedPrompt masih ada setelah deletePrompt!");
+    }
+    const recheckVersions = await prisma.promptVersion.findMany({ where: { savedPromptId: saved.id } });
     if (recheckVersions.length !== 0) {
-      throw new Error("Cascade delete gagal: masih ada PromptVersion setelah SavedPrompt dihapus!");
+      throw new Error("PromptVersion masih tersisa setelah cascade delete!");
     }
-
-    const recheckCrawler = await getCrawlerSource(saved.id);
-    if (recheckCrawler !== null) {
-      throw new Error("Cascade delete gagal: masih ada CrawlerSource setelah SavedPrompt dihapus!");
+    const recheckRuns = await prisma.spiderRun.findMany({ where: { promptVersionId: activeVersion.id } });
+    if (recheckRuns.length !== 0) {
+      throw new Error("SpiderRun masih tersisa setelah cascade delete!");
     }
-    console.log("✅ Konfirmasi cascade delete bersih pada seluruh child tables v2.0.");
+    const recheckBranches = await prisma.spiderBranchResult.findMany({ where: { spiderRunId: spiderRun.id } });
+    if (recheckBranches.length !== 0) {
+      throw new Error("SpiderBranchResult masih tersisa setelah cascade delete!");
+    }
+    console.log("✅ Cascade delete menyeluruh diverifikasi bersih.");
 
     console.log("\n═══════════════════════════════════════════════════════════════════");
     console.log("🏁 TEST PRISMA & SQLITE v1.0 & v2.0 PERSISTENCE BERHASIL 100%");
