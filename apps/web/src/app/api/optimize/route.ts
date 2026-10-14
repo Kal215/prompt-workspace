@@ -1,13 +1,36 @@
 import { NextResponse } from "next/server";
 import { PromptOptimizationRequestSchema } from "@prompt-workspace/prompt-contracts";
+import { runOptimizationPipeline } from "@prompt-workspace/prompt-engine";
+import { GroqAdapter } from "@prompt-workspace/provider-adapters";
 import crypto from "crypto";
-import { PromptOptimizationResult } from "@/types/prompt";
+import path from "path";
+import fs from "fs";
+import dotenv from "dotenv";
+
+// Pastikan environment variables (GROQ_API_KEY_1..6) ter-load di server Next.js
+if (!process.env.GROQ_API_KEY_1) {
+  const rootEnv = path.resolve(process.cwd(), "../../.env");
+  const localEnv = path.resolve(process.cwd(), ".env");
+  if (fs.existsSync(rootEnv)) {
+    dotenv.config({ path: rootEnv });
+  } else if (fs.existsSync(localEnv)) {
+    dotenv.config({ path: localEnv });
+  }
+}
+
+// Module-level adapter instance to share key rotation pool across API invocations
+let groqAdapterInstance: GroqAdapter | null = null;
+function getGroqAdapter(): GroqAdapter {
+  if (!groqAdapterInstance) {
+    groqAdapterInstance = new GroqAdapter();
+  }
+  return groqAdapterInstance;
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Normalisasi payload untuk validasi sesuai kontrak Zod
     const payload = {
       prompt: typeof body.prompt === "string" ? body.prompt.trim() : body.prompt,
       context:
@@ -19,12 +42,11 @@ export async function POST(request: Request) {
       requestId: body.requestId || crypto.randomUUID(),
     };
 
-    // Validasi input dengan Zod schema dari packages/prompt-contracts
     const validationResult = PromptOptimizationRequestSchema.safeParse(payload);
     if (!validationResult.success) {
       return NextResponse.json(
         {
-          error: "Validation failed",
+          error: "Validasi gagal: prompt wajib diisi.",
           details: validationResult.error.flatten(),
         },
         { status: 400 }
@@ -32,153 +54,36 @@ export async function POST(request: Request) {
     }
 
     const validatedData = validationResult.data;
+    const adapter = getGroqAdapter();
 
-    // Simulasi jeda komputasi engine (1 detik) agar transisi UI natural
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Jalankan pipeline nyata (Analyzer -> Optimizer) via Groq LLM
+    const engineResult = await runOptimizationPipeline(validatedData, adapter);
 
-    // Mock response komprehensif mengikuti PromptOptimizationResult
-    const mockResult: PromptOptimizationResult = {
-      requestId: validatedData.requestId,
-      originalPrompt: validatedData.prompt,
-      detectedIntent: {
-        summary:
-          "User memerlukan panduan instruksi teknis terstruktur dengan spesifikasi peran yang tegas, penanganan skenario batas, dan format keluaran modular.",
-        confidence: 0.91,
-        uncertainties: [
-          "Format penanganan kesalahan (error handling) belum didefinisikan secara eksplisit.",
-          "Apakah kode yang dihasilkan memerlukan dukungan backward compatibility atau target runtime spesifik?",
-          "Ekspektasi tingkat kedalaman dokumentasi (inline comments vs architectural overview) belum ditentukan.",
-        ],
-        targetAudience: "LLM Produksi / Autonomous AI Agent",
-        outputFormat: "Blok kode beranotasi lengkap disertai walkthrough skenario pengujian",
-      },
-      analysis: {
-        overallScore: 74,
-        status: "needs_optimization",
-        findings: [
-          {
-            id: "f-critical-1",
-            type: "missing_boundary",
-            severity: "critical",
-            message:
-              "Batasan eksekusi edge cases dan penanganan kegagalan runtime belum didefinisikan sama sekali.",
-            evidence: `"${validatedData.prompt.slice(0, 60)}${
-              validatedData.prompt.length > 60 ? "..." : ""
-            }"`,
-            recommendation:
-              "Definisikan secara eksplisit bagaimana sistem harus merespons input invalid, kondisi null/undefined, atau timeout.",
-          },
-          {
-            id: "f-warning-1",
-            type: "ambiguity",
-            severity: "warning",
-            message:
-              "Instruksi menyisakan ambiguitas semantik pada ekspektasi keluaran dan kedalaman penjelasan.",
-            evidence:
-              "Tidak ditemukan kata kunci pembeda format (misal: 'hanya kode' vs 'penjelasan mendalam').",
-            recommendation:
-              "Tentukan format keluaran modular: Pisahkan Ringkasan Eksekutif, Blok Kode Utama, dan Verifikasi Uji.",
-          },
-          {
-            id: "f-info-1",
-            type: "context_enrichment",
-            severity: "info",
-            message: validatedData.context
-              ? "Konteks operasional tambahan berhasil diintegrasikan ke dalam direktif guardrails."
-              : "Prompt berjalan pada asumsi generik karena tidak ada batasan konteks tambahan yang disediakan.",
-            evidence: validatedData.context
-              ? `Konteks: "${validatedData.context}"`
-              : "Field konteks bernilai null.",
-            recommendation:
-              "Menyertakan target runtime, versi pustaka, atau batasan performa dapat mempertajam hasil penalaran model.",
-          },
-          {
-            id: "f-success-1",
-            type: "role_clarity",
-            severity: "success",
-            message:
-              "Intent fungsional inti berhasil diidentifikasi dengan polaritas instruksi yang positif dan terarah.",
-            evidence:
-              "Akar kalimat imperatif pada prompt asli dapat dipetakan secara akurat ke domain engineering.",
-            recommendation:
-              "Pertahankan kejelasan target fungsional saat menambahkan constraint sekunder.",
-          },
-        ],
-      },
-      changes: [
-        {
-          type: "role_anchoring",
-          description: "Pemberian Persona Senior Staff Engineer",
-          reason:
-            "Memandu LLM untuk menerapkan standar kode enterprise, type safety ketat, dan idiom pemrograman mutakhir.",
-        },
-        {
-          type: "added_constraint",
-          description: "Penyisipan Guardrails Edge Cases & Zero Implicit Any",
-          reason:
-            "Mencegah halusinasi model dan kegagalan kompilasi pada boundary conditions.",
-        },
-        {
-          type: "structured_output",
-          description: "Penetapan 4 Bagian Format Output Modular",
-          reason:
-            "Memudahkan parsing otomatis oleh sistem downstream serta inspeksi manual oleh pengembang.",
-        },
-        {
-          type: "chain_of_thought",
-          description: "Direktif Verifikasi Eksplisit Sebelum Respons Akhir",
-          reason:
-            "Meningkatkan akurasi algoritma dengan mewajibkan validasi asumsi secara eksplisit.",
-        },
-      ],
-      optimizedPrompt: `Anda adalah Senior Staff Software Engineer dan pakar Prompt Intelligence tingkat lanjut.
-
-### 1. Peran & Objektif Utama:
-Eksekusi instruksi di bawah ini dengan standar produksi, zero-defect mindset, dan presisi arsitektural:
-"${validatedData.prompt}"
-
-### 2. Konteks & Parameter Operasional:
-${
-  validatedData.context
-    ? `- Konteks Pengguna: ${validatedData.context}\n`
-    : ""
-}- Lingkungan: Modern TypeScript / ECMAScript (Strict Mode, no implicit any).
-- Paradigma: Functional-declarative, performa optimal, dan mudah dirawat (maintainable).
-- Gaya Penulisan: Lugas, teknis, to-the-point, tanpa pembuka/penutup basa-basi.
-
-### 3. Batasan Wajib (Guardrails):
-1. **Handling Edge Cases**: Tangani secara defensif kondisi input kosong, null, tipe tidak terduga, atau batas memori.
-2. **Eksplisitkan Asumsi**: Jika terdapat ambiguitas domain, tuliskan asumsi kunci yang Anda gunakan sebelum blok kode.
-3. **Clean Implementation**: Jangan gunakan pustaka pihak ketiga eksternal kecuali benar-benar diperlukan.
-4. **Alasan Arsitektur**: Berikan 1 kalimat penjelasan teknis untuk setiap keputusan desain krusial.
-
-### 4. Format Keluaran Terstruktur:
-Sajikan respons Anda dalam format berikut secara konsisten:
-- **[A] Ringkasan Arsitektural**: Inti solusi dan trade-off kompleksitas (waktu & ruang).
-- **[B] Implementasi Lengkap**: Kode produksi beranotasi types lengkap.
-- **[C] Skenario Verifikasi**: Contoh pengujian kasus sukses (happy path) dan kasus batas (edge case).`,
-      metrics: {
-        clarityScore: 92,
-        constraintCoverage: 88,
-        estimatedTokenDelta: "+24% precision yield",
-        latencyMs: 1045,
-      },
-      metadata: {
-        modelTarget: "generic-production-llm",
-        engineVersion: "v1.0-preview (modular-monolith)",
-        timestamp: new Date().toISOString(),
-      },
-    };
-
-    return NextResponse.json(mockResult, { status: 200 });
+    return NextResponse.json(engineResult, { status: 200 });
   } catch (error) {
+    console.error("[API /api/optimize] Kesalahan pada pipeline engine:", error);
+
+    // Sanitasi pesan error agar tidak membocorkan stack trace atau API key
+    let safeMessage =
+      "Engine sedang sibuk atau gagal menganalisis. Coba lagi atau sederhanakan prompt.";
+
+    if (error instanceof Error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes("rate limit") || msg.includes("429")) {
+        safeMessage =
+          "Batas kuota request (rate limit) tercapai pada provider LLM. Silakan tunggu beberapa saat dan coba lagi.";
+      } else if (msg.includes("timeout") || msg.includes("timed out")) {
+        safeMessage =
+          "Waktu tunggu analisis engine melebihi batas. Coba perpendek prompt asli Anda.";
+      } else if (msg.includes("api key") || msg.includes("authentication")) {
+        safeMessage =
+          "Koneksi provider LLM bermasalah. Kunci API tidak dapat digunakan.";
+      }
+    }
+
     return NextResponse.json(
       {
-        error: "Internal Server Error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Terjadi kesalahan saat memproses request.",
+        error: safeMessage,
       },
       { status: 500 }
     );

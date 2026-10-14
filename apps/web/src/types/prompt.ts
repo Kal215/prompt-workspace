@@ -1,24 +1,32 @@
-export type FindingSeverity = "critical" | "warning" | "info" | "success";
+export type FindingSeverity =
+  | "critical"
+  | "major"
+  | "warning"
+  | "minor"
+  | "info"
+  | "success"
+  | "pass";
 
 export interface AnalysisFinding {
-  id: string;
-  type: string;
-  severity: FindingSeverity;
-  message: string;
+  id?: string;
+  category?: string;
+  type?: string;
+  severity: FindingSeverity | string;
+  message?: string;
   evidence?: string;
   recommendation?: string;
 }
 
 export interface PromptChange {
-  type: string;
+  type?: string;
   description: string;
-  reason: string;
+  reason?: string;
 }
 
 export interface DetectedIntent {
   summary: string;
-  confidence: number; // 0.0 - 1.0
-  uncertainties: string[];
+  confidence?: number; // 0.0 - 1.0
+  uncertainties?: string[];
   targetAudience?: string;
   outputFormat?: string;
 }
@@ -27,22 +35,28 @@ export interface PromptOptimizationResult {
   requestId: string;
   originalPrompt: string;
   optimizedPrompt: string;
-  detectedIntent: DetectedIntent;
+  detectedIntent: string | DetectedIntent;
   analysis: {
-    overallScore: number;
-    status: "ready" | "needs_optimization" | "acceptable";
+    score?: number;
+    overallScore?: number;
+    status?: string;
     findings: AnalysisFinding[];
   };
-  changes: PromptChange[];
-  metrics: {
-    clarityScore: number;
-    constraintCoverage: number;
+  changes: (string | PromptChange)[];
+  warnings?: string[];
+  metrics?: {
+    clarityScore?: number;
+    constraintCoverage?: number;
     estimatedTokenDelta?: string;
     latencyMs?: number;
   };
-  metadata: {
-    modelTarget: string;
-    engineVersion: string;
-    timestamp: string;
+  metadata?: {
+    modelTarget?: string;
+    engineVersion?: string;
+    timestamp?: string;
+    processingTimeMs?: number;
+    confidenceScore?: number;
+    estimatedTokenSavings?: string;
+    [key: string]: any;
   };
 }

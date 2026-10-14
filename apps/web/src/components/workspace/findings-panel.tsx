@@ -25,8 +25,9 @@ interface FindingsPanelProps {
 }
 
 export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
-  const getSeverityBadge = (severity: FindingSeverity) => {
-    switch (severity) {
+  const getSeverityBadge = (severity: FindingSeverity | string) => {
+    const s = String(severity).toLowerCase();
+    switch (s) {
       case "critical":
         return (
           <Badge
@@ -37,6 +38,7 @@ export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
             Critical
           </Badge>
         );
+      case "major":
       case "warning":
         return (
           <Badge
@@ -44,9 +46,10 @@ export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
             className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[11px] font-semibold uppercase tracking-wider"
           >
             <AlertTriangle className="h-3 w-3 mr-1" />
-            Warning
+            {s === "major" ? "Major" : "Warning"}
           </Badge>
         );
+      case "minor":
       case "info":
         return (
           <Badge
@@ -54,10 +57,12 @@ export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
             className="bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30 text-[11px] font-semibold uppercase tracking-wider"
           >
             <Info className="h-3 w-3 mr-1" />
-            Info
+            {s === "minor" ? "Minor" : "Info"}
           </Badge>
         );
+      case "pass":
       case "success":
+      default:
         return (
           <Badge
             variant="outline"
@@ -71,8 +76,8 @@ export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
   };
 
   const getScoreColor = (val: number) => {
-    if (val >= 85) return "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-    if (val >= 70) return "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20";
+    if (val >= 80) return "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+    if (val >= 60) return "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20";
     return "text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20";
   };
 
@@ -95,7 +100,7 @@ export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Kualitas Prompt:</span>
+            <span className="text-xs text-muted-foreground">Kesehatan Prompt:</span>
             <span
               className={`text-xs font-bold px-2.5 py-1 rounded-full border ${getScoreColor(
                 score
@@ -108,23 +113,30 @@ export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
       </CardHeader>
 
       <CardContent className="pt-4 space-y-3.5">
-        {findings.map((finding) => {
+        {findings.map((finding, idx) => {
+          const typeLabel = finding.type || finding.category || "analisis";
+          const messageText =
+            finding.message ||
+            finding.recommendation ||
+            finding.evidence ||
+            `Temuan pada aspek ${finding.category || "prompt"}`;
+
           return (
             <div
-              key={finding.id}
+              key={finding.id || `finding-${idx}`}
               className="rounded-lg border border-border/60 bg-card p-3.5 space-y-2.5 transition-colors hover:border-border"
             >
               {/* Finding Header */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground font-semibold">
-                  Tipe: {finding.type.replace(/_/g, " ")}
+                  Kategori: {typeLabel.replace(/_/g, " ")}
                 </span>
                 {getSeverityBadge(finding.severity)}
               </div>
 
               {/* Message */}
               <p className="text-sm text-foreground font-medium leading-relaxed">
-                {finding.message}
+                {messageText}
               </p>
 
               {/* Evidence if present */}
