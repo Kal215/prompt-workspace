@@ -21,7 +21,7 @@ import { NextResponse } from "next/server";
  * Mendapatkan daftar origin yang diizinkan.
  * Sumber: env var ALLOWED_ORIGINS (comma-separated) atau default dari host request.
  */
-function getAllowedOrigins(requestUrl: string): Set<string> {
+function getAllowedOrigins(request: Request): Set<string> {
   const origins = new Set<string>();
 
   // 1. Dari env var
@@ -35,19 +35,28 @@ function getAllowedOrigins(requestUrl: string): Set<string> {
 
   // 2. Dari request URL sendiri (self-origin)
   try {
-    const url = new URL(requestUrl);
+    const url = new URL(request.url);
     origins.add(url.origin);
   } catch {
     // URL tidak valid, skip
   }
 
-  // 3. Development fallback
-  if (process.env.NODE_ENV !== "production") {
-    origins.add("http://localhost:3000");
-    origins.add("http://localhost:3124");
-    origins.add("http://127.0.0.1:3000");
-    origins.add("http://127.0.0.1:3124");
+  // 3. Dari Host header request (self-origin fallback)
+  try {
+    const host = request.headers.get("host");
+    if (host) {
+      const proto = request.headers.get("x-forwarded-proto") || "http";
+      origins.add(`${proto}://${host}`);
+    }
+  } catch {
+    // skip
   }
+
+  // 4. Default loopback origins untuk testing / dev lokal
+  origins.add("http://localhost:3000");
+  origins.add("http://localhost:3124");
+  origins.add("http://127.0.0.1:3000");
+  origins.add("http://127.0.0.1:3124");
 
   return origins;
 }
@@ -86,7 +95,7 @@ export function checkCsrf(request: Request): CsrfCheckResult {
   // 2. Origin validation
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
-  const allowedOrigins = getAllowedOrigins(request.url);
+  const allowedOrigins = getAllowedOrigins(request);
 
   // Cek Origin header terlebih dahulu (lebih reliabel)
   if (origin) {
@@ -115,12 +124,14 @@ export function checkCsrf(request: Request): CsrfCheckResult {
     };
   }
 
-  // Tidak ada Origin atau Referer header:
-  // Ini bisa terjadi pada request programmatic (curl, Postman, server-to-server).
-  // Pada MVP, kita izinkan request tanpa origin header untuk kompatibilitas testing
-  // dan penggunaan API langsung, tetapi catat sebagai risiko.
-  // Untuk hardening produksi: ubah ke { allowed: false } dan tambahkan API token auth.
-  return { allowed: true };
+  // 3. Tidak ada Origin atau Referer header pada request mutasi:
+  // Terapkan Fail-Closed: Tolak dengan 403 Forbidden secara default.
+  // Request mutasi wajib menyertakan header Origin atau Referer yang valid.
+  return {
+    allowed: false,
+    reason:
+      "Request mutasi wajib menyertakan header Origin atau Referer yang valid.",
+  };
 }
 
 /**

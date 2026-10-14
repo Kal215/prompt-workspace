@@ -14,10 +14,17 @@ export const SESSION_COOKIE_NAME = "piw_session";
 
 // Secret untuk HMAC signing: gunakan SESSION_SECRET dari env atau server default stabil
 function getSessionSecret(): string {
-  return (
-    process.env.SESSION_SECRET ||
-    "prompt-workspace-piw-session-internal-hmac-secret-v1"
-  );
+  const secret = process.env.SESSION_SECRET;
+  const isProd = process.env.NODE_ENV === "production";
+  if (isProd) {
+    if (!secret || secret.trim().length < 32) {
+      throw new Error(
+        "CRITICAL_SECURITY_ERROR: SESSION_SECRET wajib disetel di environment produksi dengan panjang minimal 32 karakter."
+      );
+    }
+    return secret.trim();
+  }
+  return secret || "prompt-workspace-piw-session-internal-hmac-secret-v1";
 }
 
 /**
@@ -180,5 +187,43 @@ export function getAuthenticatedSession(request?: Request): SessionData | null {
     isNew: false,
     token: rawToken,
     cookieHeaderValue: formatSessionCookie(rawToken),
+  };
+}
+
+export interface SessionResolution {
+  status: "authenticated" | "anonymous" | "invalid";
+  session?: SessionData;
+  error?: string;
+}
+
+/**
+ * Menyelesaikan status sesi dari Request:
+ * - 'authenticated': Cookie/Bearer valid terverifikasi.
+ * - 'anonymous': Tidak ada cookie atau token.
+ * - 'invalid': Token dikirim namun signature palsu / rusak.
+ */
+export function resolveSession(request?: Request): SessionResolution {
+  const rawToken = extractSessionToken(request);
+  if (!rawToken) {
+    return { status: "anonymous" };
+  }
+
+  const verification = verifySessionToken(rawToken);
+  if (!verification.valid || !verification.userId || !verification.createdAt) {
+    return {
+      status: "invalid",
+      error: "Token sesi tidak valid atau tanda tangan HMAC telah dimanipulasi.",
+    };
+  }
+
+  return {
+    status: "authenticated",
+    session: {
+      userId: verification.userId,
+      createdAt: verification.createdAt,
+      isNew: false,
+      token: rawToken,
+      cookieHeaderValue: formatSessionCookie(rawToken),
+    },
   };
 }

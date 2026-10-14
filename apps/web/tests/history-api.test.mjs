@@ -1,15 +1,44 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import os from "node:os";
+import path from "node:path";
+import fs from "node:fs";
+import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { GET, POST, DELETE } from "../src/app/api/history/route.ts";
-import { getPromptById } from "@prompt-workspace/database";
+import { getPromptById, savePrompt, prisma, setDatabaseUrl } from "@prompt-workspace/database";
 import { signSession } from "../src/lib/session.ts";
 import crypto from "node:crypto";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 test("API History Suite (node:test runner)", async (t) => {
+  // 0. Setup isolated temporary database
+  const tempDbName = `test-unit-api-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
+  const tempDbPath = path.join(os.tmpdir(), tempDbName).replace(/\\/g, "/");
+  const tempDbUrl = `file:${tempDbPath}`;
+  const schemaPath = path.resolve(__dirname, "../../../packages/database/prisma/schema.prisma");
+
+  execSync(`npx prisma migrate deploy --schema="${schemaPath}"`, {
+    env: { ...process.env, DATABASE_URL: tempDbUrl },
+    stdio: "ignore",
+  });
+  setDatabaseUrl(tempDbUrl);
+
+  t.after(async () => {
+    await prisma.$disconnect();
+    try {
+      if (fs.existsSync(tempDbPath)) fs.unlinkSync(tempDbPath);
+      if (fs.existsSync(`${tempDbPath}-journal`)) fs.unlinkSync(`${tempDbPath}-journal`);
+    } catch {}
+  });
+
   const userIdA = `usr_test_a_${crypto.randomUUID().slice(0, 8)}`;
   const sessionTokenA = signSession(userIdA);
   const authHeadersA = {
     "Content-Type": "application/json",
+    Origin: "http://localhost:3000",
     Cookie: `piw_session=${sessionTokenA}`,
   };
 
@@ -17,6 +46,7 @@ test("API History Suite (node:test runner)", async (t) => {
   const sessionTokenB = signSession(userIdB);
   const authHeadersB = {
     "Content-Type": "application/json",
+    Origin: "http://localhost:3000",
     Cookie: `piw_session=${sessionTokenB}`,
   };
 
@@ -281,6 +311,116 @@ test("API History Suite (node:test runner)", async (t) => {
         headers: authHeadersA,
       })
     );
+  });
+
+  await t.test("CSRF: POST /api/history without Origin/Referer is rejected (403 Forbidden)", async () => {
+    const req = new Request("http://localhost:3000/api/history", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: `piw_session=${sessionTokenA}`,
+      },
+      body: JSON.stringify(validPayload),
+    });
+    const res = await POST(req);
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.match(body.error, /CSRF|Origin/i);
+  });
+
+  await t.test("Session: DELETE /api/history without session cookie is rejected (401 Unauthorized)", async () => {
+    const req = new Request(`http://localhost:3000/api/history?id=${testId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+    });
+    const res = await DELETE(req);
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.match(body.error, /Unauthorized/i);
+  });
+
+  await t.test("Session: DELETE /api/history with tampered session cookie is rejected (401 Unauthorized)", async () => {
+    const req = new Request(`http://localhost:3000/api/history?id=${testId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+        Cookie: "piw_session=tampered.fake.token",
+      },
+    });
+    const res = await DELETE(req);
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.match(body.error, /Unauthorized/i);
+  });
+
+  await t.test("Session: POST /api/history with tampered session cookie is rejected (401 Unauthorized)", async () => {
+    const req = new Request("http://localhost:3000/api/history", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+        Cookie: "piw_session=fake_user:12345678:fake_signature",
+      },
+      body: JSON.stringify({
+        originalPrompt: "Prompt with forged session",
+        optimizedPrompt: "Optimized prompt",
+      }),
+    });
+    const res = await POST(req);
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.match(body.error, /Unauthorized/i);
+  });
+
+  await t.test("Session: POST /api/history without cookie issues Set-Cookie header", async () => {
+    const freshPayload = {
+      originalPrompt: "Prompt dari pengguna anonim baru",
+      optimizedPrompt: "Prompt teroptimasi pengguna baru",
+      score: 88,
+    };
+    const req = new Request("http://localhost:3000/api/history", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify(freshPayload),
+    });
+    const res = await POST(req);
+    assert.equal(res.status, 201);
+    const setCookie = res.headers.get("Set-Cookie");
+    assert.ok(setCookie, "Set-Cookie header harus ada pada response POST sesi baru");
+    assert.match(setCookie, /piw_session=/);
+  });
+
+  await t.test("AuthZ: Regular user cannot delete legacy_default_user record (403 Forbidden)", async () => {
+    const legacyRecord = await savePrompt({
+      userId: "legacy_default_user",
+      originalPrompt: "Prompt legacy historis",
+      optimizedPrompt: "Optimasi legacy historis",
+      score: 90,
+    });
+    const req = new Request(`http://localhost:3000/api/history?id=${legacyRecord.id}`, {
+      method: "DELETE",
+      headers: authHeadersA,
+    });
+    const res = await DELETE(req);
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.match(body.error, /pengguna lain/i);
+
+    // Pastikan record legacy masih utuh di DB
+    const check = await getPromptById(legacyRecord.id);
+    assert.ok(check);
   });
 
   await t.test("Responses and logs do not leak raw secrets or stack traces", async () => {
