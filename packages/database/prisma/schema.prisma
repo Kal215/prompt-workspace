@@ -7,14 +7,97 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// -----------------------------------------------------------------------------
+// MODEL EKSISTING v1.0 (100% PERSISTEN & PRESERVED)
+// -----------------------------------------------------------------------------
 model SavedPrompt {
   id              String   @id @default(uuid())
   userId          String   @default("legacy_default_user")
-  originalPrompt  String
-  optimizedPrompt String
-  intentSummary   String?
-  score           Int
+  originalPrompt  String   // Nama kolom kanonis aktual (BUKAN rawPrompt)
+  optimizedPrompt String   // Nama kolom kanonis aktual
+  intentSummary   String?  // Ringkasan maksud kanonis aktual
+  score           Int      // Skor kesehatan kanonis aktual (BUKAN overallScore)
   createdAt       DateTime @default(now())
 
+  // Relasi Baru v2.0 (Additive-Only)
+  versions        PromptVersion[]
+  crawlerSource   CrawlerSource?
+
   @@index([userId])
+}
+
+// -----------------------------------------------------------------------------
+// MODEL BARU v2.0: VERSIONING PROMPT (CLOSED-LOOP ITERATION)
+// -----------------------------------------------------------------------------
+model PromptVersion {
+  id              String       @id @default(uuid())
+  savedPromptId   String
+  savedPrompt     SavedPrompt  @relation(fields: [savedPromptId], references: [id], onDelete: Cascade)
+  versionNumber   Int          // 1, 2, 3, dst.
+  promptText      String       // Teks prompt spesifik versi ini
+  score           Int          // Skor evaluasi versi ini (0 - 100)
+  changesSummary  String?      // Ringkasan perbaikan dari versi sebelumnya
+  parentVersionId String?      // Referensi ke versi sebelumnya jika hasil iterasi
+  createdAt       DateTime     @default(now())
+
+  spiderRuns      SpiderRun[]
+
+  @@unique([savedPromptId, versionNumber])
+  @@index([savedPromptId])
+}
+
+// -----------------------------------------------------------------------------
+// MODEL BARU v2.0: PROMPT SPIDER BENCHMARK RUN
+// -----------------------------------------------------------------------------
+model SpiderRun {
+  id               String            @id @default(uuid())
+  promptVersionId  String
+  promptVersion    PromptVersion     @relation(fields: [promptVersionId], references: [id], onDelete: Cascade)
+  targetProvider   String            // groq, gemini, openrouter, ollama
+  targetModel      String            // e.g. llama-3.3-70b-versatile
+  status           String            // PENDING, RUNNING, COMPLETED, FAILED
+  totalCases       Int               // Jumlah kasus uji yang dieksekusi
+  passedCases      Int               // Kasus uji yang memenuhi rubrik
+  averageScore     Float             // Rata-rata skor kasus uji (0 - 100)
+  averageLatencyMs Int               // Rata-rata latensi per eksekusi
+  errorMessage     String?           // Pesan kegagalan jika status FAILED
+  createdAt        DateTime          @default(now())
+
+  testResults      SpiderTestResult[]
+
+  @@index([promptVersionId])
+}
+
+// -----------------------------------------------------------------------------
+// MODEL BARU v2.0: HASIL INDIVIDUAL KASUS UJI SPIDER
+// -----------------------------------------------------------------------------
+model SpiderTestResult {
+  id             String    @id @default(uuid())
+  spiderRunId    String
+  spiderRun      SpiderRun @relation(fields: [spiderRunId], references: [id], onDelete: Cascade)
+  caseIndex      Int       // Urutan kasus uji (0 - 4 pada P0)
+  testInput      String    // Data masukan kasus uji
+  expectedOutput String?   // Ekspektasi perilaku/keluaran
+  actualOutput   String    // Respons nyata dari model tujuan
+  score          Int       // Skor evaluasi kasus ini (0 - 100)
+  latencyMs      Int       // Waktu respons pemanggilan LLM
+  status         String    // PASSED, FAILED
+  findings       String?   // JSON stringified kelemahan/evaluasi
+  createdAt      DateTime  @default(now())
+
+  @@index([spiderRunId])
+}
+
+// -----------------------------------------------------------------------------
+// MODEL BARU v2.0: METADATA PROMPT CRAWLER
+// -----------------------------------------------------------------------------
+model CrawlerSource {
+  id            String       @id @default(uuid())
+  savedPromptId String?      @unique
+  savedPrompt   SavedPrompt? @relation(fields: [savedPromptId], references: [id], onDelete: Cascade)
+  sourceUrl     String       // URL asal pengunduhan prompt
+  domain        String       // Domain sumber (e.g. raw.githubusercontent.com)
+  etag          String?      // HTTP ETag untuk deduplikasi
+  contentHash   String       // SHA-256 hash dari konten asli
+  crawledAt     DateTime     @default(now())
 }
