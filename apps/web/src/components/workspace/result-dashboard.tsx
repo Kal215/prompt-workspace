@@ -6,15 +6,34 @@ import { PromptDiffViewer } from "./prompt-diff-viewer";
 import { ChangesTracker } from "./changes-tracker";
 import { PlaygroundCard } from "./playground-card";
 import { Card, CardContent } from "@/components/ui/card";
-import { exportOptimizationResultToMarkdown } from "@/lib/export";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  buildMarkdownReport,
+  buildSafeExportPayload,
+  sanitizeExportFilename,
+  downloadTextFile,
+} from "@/lib/export-utils";
 import { toast } from "sonner";
-import { Activity, Clock, Zap, Cpu } from "lucide-react";
+import {
+  Activity,
+  Clock,
+  Zap,
+  Cpu,
+  FileDown,
+  FileCode,
+  ThumbsUp,
+  AlertTriangle,
+  CheckCircle2,
+  Share2,
+} from "lucide-react";
 
 interface ResultDashboardProps {
   result: PromptOptimizationResult;
   onRegenerate: () => void;
   onAccept?: (result: PromptOptimizationResult) => void;
   onRefreshHistory?: () => void;
+  onTelemetryAction?: (actionType: "export" | "feedback_helpful" | "feedback_issue") => void;
 }
 
 export function ResultDashboard({
@@ -22,8 +41,11 @@ export function ResultDashboard({
   onRegenerate,
   onAccept,
   onRefreshHistory,
+  onTelemetryAction,
 }: ResultDashboardProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [utilityFeedback, setUtilityFeedback] = useState<"helpful" | "issue" | null>(null);
 
   // Defensive fallbacks to gracefully handle both raw Engine results and enhanced mocks
   const score =
@@ -46,13 +68,45 @@ export function ResultDashboard({
 
   const handleExportMarkdown = () => {
     try {
-      const filename = exportOptimizationResultToMarkdown(result);
-      toast.info("Laporan Markdown berhasil diunduh!", {
+      const content = buildMarkdownReport(result);
+      const filename = sanitizeExportFilename(result.requestId, "md");
+      downloadTextFile(filename, content, "text/markdown;charset=utf-8");
+      setExportStatus(`Laporan Markdown berhasil diekspor: ${filename}`);
+      toast.success("Laporan Markdown (.md) berhasil diunduh!", {
         description: `Disimpan sebagai ${filename}`,
       });
+      onTelemetryAction?.("export");
     } catch (err) {
       console.error("Gagal mengekspor Markdown:", err);
       toast.error("Gagal mengekspor laporan Markdown.");
+    }
+  };
+
+  const handleExportJson = () => {
+    try {
+      const payload = buildSafeExportPayload(result);
+      const content = JSON.stringify(payload, null, 2);
+      const filename = sanitizeExportFilename(result.requestId, "json");
+      downloadTextFile(filename, content, "application/json;charset=utf-8");
+      setExportStatus(`Laporan JSON berhasil diekspor: ${filename}`);
+      toast.success("Laporan JSON (.json) berhasil diunduh!", {
+        description: `Disimpan sebagai ${filename}`,
+      });
+      onTelemetryAction?.("export");
+    } catch (err) {
+      console.error("Gagal mengekspor JSON:", err);
+      toast.error("Gagal mengekspor data JSON.");
+    }
+  };
+
+  const handleUtilityFeedback = (type: "helpful" | "issue") => {
+    setUtilityFeedback(type);
+    if (type === "helpful") {
+      toast.success("Terima kasih! Feedback tercatat (Perbaikan ini dinilai membantu).");
+      onTelemetryAction?.("feedback_helpful");
+    } else {
+      toast.warning("Laporan risiko makna tercatat untuk peninjauan rubrik.");
+      onTelemetryAction?.("feedback_issue");
     }
   };
 
@@ -226,6 +280,98 @@ export function ResultDashboard({
           "llama-3.3-70b-versatile"
         }
       />
+
+      {/* 5. Verified Export & Human Utility Rating (Tahap 7 - Task #32) */}
+      <Card className="border-border/80 shadow-xs overflow-hidden">
+        <CardContent className="p-4 sm:p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/50 pb-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Share2 className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">
+                  Ekspor Laporan Terverifikasi &amp; Penilaian Kualitas (Tahap 7)
+                </span>
+                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
+                  Reproducible
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Unduh dokumentasi lengkap audit semantik (Markdown/JSON) atau berikan rating kualitas untuk kalibrasi rubrik lokal.
+              </p>
+            </div>
+
+            {/* Export Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="export-markdown-btn"
+                onClick={handleExportMarkdown}
+                className="h-8 text-xs gap-1.5 cursor-pointer hover:bg-muted/60"
+              >
+                <FileDown className="h-3.5 w-3.5 text-primary" />
+                <span>Ekspor Markdown (.md)</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="export-json-btn"
+                onClick={handleExportJson}
+                className="h-8 text-xs gap-1.5 cursor-pointer hover:bg-muted/60"
+              >
+                <FileCode className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Ekspor JSON (.json)</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Export Success Status Message */}
+          {exportStatus && (
+            <div
+              data-testid="export-status-msg"
+              className="p-2.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              <span>{exportStatus}</span>
+            </div>
+          )}
+
+          {/* Human Utility Rating (Blueprint Bagian 12 #8 & 18.1) */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-1">
+            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <span>Evaluasi Manusia:</span>
+              <span className="font-medium text-foreground">
+                Apakah hasil rekayasa ini meningkatkan kualitas instruksi Anda?
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant={utilityFeedback === "helpful" ? "default" : "outline"}
+                size="sm"
+                data-testid="utility-feedback-helpful"
+                onClick={() => handleUtilityFeedback("helpful")}
+                className="h-7 text-xs gap-1.5 cursor-pointer"
+              >
+                <ThumbsUp className="h-3 w-3" />
+                <span>Perbaikan Ini Membantu</span>
+              </Button>
+
+              <Button
+                variant={utilityFeedback === "issue" ? "destructive" : "outline"}
+                size="sm"
+                data-testid="utility-feedback-intent-issue"
+                onClick={() => handleUtilityFeedback("issue")}
+                className="h-7 text-xs gap-1.5 cursor-pointer text-muted-foreground hover:text-destructive"
+              >
+                <AlertTriangle className="h-3 w-3" />
+                <span>Laporkan Risiko Makna</span>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

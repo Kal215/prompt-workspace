@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --import tsx --test tests/history-api.test.mjs",
+    "test:unit": "node --import tsx --test tests/history-api.test.mjs tests/export-utils.test.mjs",
     "test:api": "npx tsx scripts/test-api.ts",
     "test:e2e": "npx tsx scripts/test-e2e.ts",
     "test": "npm run test:unit && npm run test:api && npm run test:e2e"
