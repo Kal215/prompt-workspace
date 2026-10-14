@@ -1,10 +1,12 @@
 import {
   PrismaClient,
+  Prisma,
   type SavedPrompt,
   type PromptVersion,
+  type CrawlSession,
+  type CrawlItem,
   type SpiderRun,
-  type SpiderTestResult,
-  type CrawlerSource,
+  type SpiderBranchResult,
 } from "@prisma/client";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,11 +14,15 @@ import { fileURLToPath } from "node:url";
 export type {
   SavedPrompt,
   PromptVersion,
+  CrawlSession,
+  CrawlItem,
   SpiderRun,
-  SpiderTestResult,
-  CrawlerSource,
+  SpiderBranchResult,
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// v1.0 Interfaces (Preserved 100%)
+// ─────────────────────────────────────────────────────────────────────────────
 export interface SavePromptInput {
   id?: string;
   userId?: string;
@@ -26,58 +32,79 @@ export interface SavePromptInput {
   score: number;
 }
 
-export interface SavePromptVersionInput {
+// ─────────────────────────────────────────────────────────────────────────────
+// v2.0 Interfaces
+// ─────────────────────────────────────────────────────────────────────────────
+export interface CreatePromptVersionInput {
   id?: string;
   savedPromptId: string;
-  versionNumber?: number;
-  promptText: string;
-  score: number;
-  changesSummary?: string | null;
-  parentVersionId?: string | null;
+  userId: string;
+  sourceRole?: string; // "OPTIMIZER" | "CRAWLER" | "CLOSED_LOOP" | "MANUAL"
+  promptContent: string;
+  groundingSummary?: string | null;
 }
 
-export interface SpiderTestResultInput {
+export interface SaveCrawlItemInput {
   id?: string;
-  caseIndex: number;
-  testInput: string;
-  expectedOutput?: string | null;
-  actualOutput: string;
-  score: number;
-  latencyMs: number;
-  status: string;
-  findings?: string | null;
+  itemType: string;
+  extractedText: string;
+  surroundingContext?: string | null;
+  lineStart?: number | null;
+  lineEnd?: number | null;
+  confidenceEstimate: number;
+  warnings?: string[];
 }
 
-export interface SaveSpiderRunInput {
+export interface SaveCrawlSessionBatchInput {
   id?: string;
-  promptVersionId: string;
-  targetProvider: string;
-  targetModel: string;
-  status: string;
-  totalCases: number;
-  passedCases: number;
-  averageScore: number;
-  averageLatencyMs: number;
-  errorMessage?: string | null;
-  testResults?: SpiderTestResultInput[];
-}
-
-export interface SaveCrawlerSourceInput {
-  id?: string;
-  savedPromptId?: string | null;
+  userId: string;
+  idempotencyKey?: string | null;
   sourceUrl: string;
-  domain: string;
-  etag?: string | null;
-  contentHash: string;
+  normalizedUrl: string;
+  sourceType: string;
+  status: string;
+  bytesRead?: number;
+  errorCode?: string | null;
+  items?: SaveCrawlItemInput[];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+export interface SaveSpiderBranchInput {
+  id?: string;
+  caseId: string;
+  category: string;
+  severity: string;
+  status: string;
+  score?: number | null;
+  latencyMs: number;
+  sanitizedInput: string;
+  sanitizedOutput: string;
+  rationale?: string | null;
+  deterministicPass?: boolean;
+}
+
+export interface SaveSpiderRunBatchInput {
+  id?: string;
+  userId: string;
+  idempotencyKey?: string | null;
+  promptVersionId: string;
+  testSuiteVersion: string;
+  rubricVersion: string;
+  provider: string;
+  modelId: string;
+  status: string;
+  criticalGatePassed?: boolean;
+  qualityMetrics?: Record<string, unknown>;
+  securityFindings?: Array<Record<string, unknown>>;
+  totalTokens?: number;
+  durationMs?: number;
+  branches?: SaveSpiderBranchInput[];
+}
+
 // Retention Constants (ADR-002 Lampiran B)
-// ─────────────────────────────────────────────────────────────────────────────
 export const MAX_PROMPT_VERSIONS_PER_PROMPT = 20;
 export const MAX_SPIDER_RUNS_PER_VERSION = 10;
 
-// In ESM / Node environments, resolve the absolute path to prisma/dev.db or custom DATABASE_URL
+// Resolve Database URL
 export const getDatabaseUrl = (): string => {
   const envUrl = process.env.DATABASE_URL;
   const currentDir =
@@ -90,22 +117,18 @@ export const getDatabaseUrl = (): string => {
     return `file:${fallbackDbPath}`;
   }
 
-  // 1. In-memory SQLite
   if (envUrl === "file::memory:" || envUrl.startsWith("file::memory:?")) {
     return envUrl;
   }
 
-  // 2. Windows absolute path: file:C:/... or file:D:\...
   if (/^file:[a-zA-Z]:[\\/]/i.test(envUrl)) {
     return envUrl;
   }
 
-  // 3. Unix absolute path or standard file protocol: file:/... or file:///...
   if (envUrl.startsWith("file:/")) {
     return envUrl;
   }
 
-  // 4. Jika berupa path dev.db relatif eksplisit, arahkan ke dev.db kanonis
   if (
     envUrl === "file:./dev.db" ||
     envUrl === "file:dev.db" ||
@@ -116,10 +139,9 @@ export const getDatabaseUrl = (): string => {
     return `file:${fallbackDbPath}`;
   }
 
-  // 5. Jika relative file test lain (misal "file:./test-temp.db"), resolve absolut terhadap process.cwd()
   if (envUrl.startsWith("file:")) {
     const rawPath = envUrl.slice(5);
-    return `file:${resolve(/* turbopackIgnore: true */ process.cwd(), rawPath)}`;
+    return `file:${resolve(process.cwd(), rawPath)}`;
   }
 
   return envUrl;
@@ -128,18 +150,19 @@ export const getDatabaseUrl = (): string => {
 /**
  * Mengaktifkan konfigurasi performa SQLite WAL sesuai ADR-002 Lampiran B:
  * - PRAGMA journal_mode = WAL;
- * - PRAGMA synchronous = NORMAL;
  * - PRAGMA busy_timeout = 5000;
  */
-export async function enableSqliteWal(client: PrismaClient = prisma): Promise<void> {
+export async function enableSqliteWalMode(client: PrismaClient = prisma): Promise<void> {
   try {
     await client.$executeRawUnsafe("PRAGMA journal_mode = WAL;");
-    await client.$executeRawUnsafe("PRAGMA synchronous = NORMAL;");
     await client.$executeRawUnsafe("PRAGMA busy_timeout = 5000;");
   } catch {
     // Non-fatal jika berjalan pada in-memory SQLite atau provider non-SQLite
   }
 }
+
+// Alias backward compatibility
+export const enableSqliteWal = enableSqliteWalMode;
 
 let currentUrl = getDatabaseUrl();
 let activePrisma = new PrismaClient({
@@ -184,9 +207,6 @@ export const prisma = new Proxy({} as PrismaClient, {
 // v1.0 Core Database Operations (100% Backward Compatible)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Menyimpan riwayat prompt yang di-"Accept" oleh pengguna.
- */
 export async function savePrompt(data: SavePromptInput): Promise<SavedPrompt> {
   return await prisma.savedPrompt.create({
     data: {
@@ -200,10 +220,6 @@ export async function savePrompt(data: SavePromptInput): Promise<SavedPrompt> {
   });
 }
 
-/**
- * Mengambil riwayat prompt tersimpan, terurut dari yang paling baru.
- * Jika userId disediakan, hanya mengembalikan prompt milik user tersebut serta prompt legacy.
- */
 export async function getHistory(
   limit: number = 20,
   userId?: string
@@ -223,20 +239,12 @@ export async function getHistory(
   });
 }
 
-/**
- * Mengambil prompt tersimpan berdasarkan ID.
- */
 export async function getPromptById(id: string): Promise<SavedPrompt | null> {
   return await prisma.savedPrompt.findUnique({
     where: { id },
   });
 }
 
-/**
- * Menghapus prompt tersimpan berdasarkan ID.
- * Jika userId diberikan, pastikan record yang dihapus adalah milik user tersebut.
- * Record 'legacy_default_user' bersifat read-only dan dilarang dihapus kecuali oleh 'legacy_default_user'.
- */
 export async function deletePrompt(
   id: string,
   userId?: string
@@ -268,37 +276,51 @@ export async function deletePrompt(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// v2.0 Versioning Operations (PromptVersion) & FIFO Retention
+// v2.0 Versioning Operations (PromptVersion) & Anti-IDOR & FIFO Retention
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Menyimpan versi baru dari prompt (Closed-Loop iteration).
- * Secara otomatis menghitung versionNumber jika tidak diberikan.
- * Menegakkan kebijakan retensi FIFO: maks 20 versi per SavedPrompt (ADR-002 Lampiran B).
+ * Membuat versi prompt baru dengan penegakan kepemilikan anti-IDOR dan retensi FIFO.
  */
-export async function savePromptVersion(
-  data: SavePromptVersionInput
+export async function createPromptVersion(
+  input: CreatePromptVersionInput
 ): Promise<PromptVersion> {
-  let nextVersionNumber = data.versionNumber;
-
-  if (nextVersionNumber === undefined) {
-    const latest = await prisma.promptVersion.findFirst({
-      where: { savedPromptId: data.savedPromptId },
-      orderBy: { versionNumber: "desc" },
-    });
-    nextVersionNumber = latest ? latest.versionNumber + 1 : 1;
+  // 1. Verifikasi kepemilikan SavedPrompt (Anti-IDOR)
+  const savedPrompt = await prisma.savedPrompt.findUnique({
+    where: { id: input.savedPromptId },
+  });
+  if (!savedPrompt) {
+    const err = new Error("SavedPrompt tidak ditemukan.");
+    (err as unknown as { code: string }).code = "NOT_FOUND";
+    throw err;
   }
 
-  // Penegakan retensi FIFO: jika versi saat ini >= MAX_PROMPT_VERSIONS_PER_PROMPT,
-  // hapus versi tertua (kecuali jika hanya 1).
-  const currentVersions = await prisma.promptVersion.findMany({
-    where: { savedPromptId: data.savedPromptId },
+  // Jika SavedPrompt bukan milik input.userId (dan bukan legacy yang sedang diakses legacy), lempar FORBIDDEN
+  if (
+    savedPrompt.userId !== input.userId &&
+    savedPrompt.userId !== "legacy_default_user"
+  ) {
+    const err = new Error("Forbidden: Tidak berhak membuat versi pada prompt pengguna lain.");
+    (err as unknown as { code: string }).code = "FORBIDDEN";
+    throw err;
+  }
+
+  // 2. Tentukan nomor versi berikutnya
+  const latest = await prisma.promptVersion.findFirst({
+    where: { savedPromptId: input.savedPromptId },
+    orderBy: { versionNumber: "desc" },
+  });
+  const nextVersionNumber = latest ? latest.versionNumber + 1 : 1;
+
+  // 3. Terapkan retensi FIFO (Maksimal MAX_PROMPT_VERSIONS_PER_PROMPT)
+  const existingVersions = await prisma.promptVersion.findMany({
+    where: { savedPromptId: input.savedPromptId },
     orderBy: { versionNumber: "asc" },
   });
 
-  if (currentVersions.length >= MAX_PROMPT_VERSIONS_PER_PROMPT) {
-    const excessCount = currentVersions.length - MAX_PROMPT_VERSIONS_PER_PROMPT + 1;
-    const toDelete = currentVersions.slice(0, excessCount);
+  if (existingVersions.length >= MAX_PROMPT_VERSIONS_PER_PROMPT) {
+    const excess = existingVersions.length - MAX_PROMPT_VERSIONS_PER_PROMPT + 1;
+    const toDelete = existingVersions.slice(0, excess);
     for (const v of toDelete) {
       await prisma.promptVersion.delete({ where: { id: v.id } });
     }
@@ -306,157 +328,300 @@ export async function savePromptVersion(
 
   return await prisma.promptVersion.create({
     data: {
-      id: data.id,
-      savedPromptId: data.savedPromptId,
+      id: input.id,
+      savedPromptId: input.savedPromptId,
+      userId: input.userId,
       versionNumber: nextVersionNumber,
-      promptText: data.promptText,
-      score: data.score,
-      changesSummary: data.changesSummary ?? null,
-      parentVersionId: data.parentVersionId ?? null,
+      sourceRole: input.sourceRole ?? "OPTIMIZER",
+      promptContent: input.promptContent,
+      groundingSummary: input.groundingSummary ?? null,
     },
   });
 }
 
 /**
- * Mengambil semua versi dari SavedPrompt tertentu, terurut dari versi 1 ke atas.
+ * Mengambil daftar versi prompt untuk SavedPrompt tertentu.
+ * Jika belum ada versi sama sekali, OTOMATIS membuat version 1 dari SavedPrompt.optimizedPrompt.
+ * Menegakkan proteksi kepemilikan userId.
  */
 export async function getPromptVersions(
-  savedPromptId: string
+  savedPromptId: string,
+  userId: string
 ): Promise<PromptVersion[]> {
-  return await prisma.promptVersion.findMany({
+  const savedPrompt = await prisma.savedPrompt.findUnique({
+    where: { id: savedPromptId },
+  });
+  if (!savedPrompt) {
+    const err = new Error("SavedPrompt tidak ditemukan.");
+    (err as unknown as { code: string }).code = "NOT_FOUND";
+    throw err;
+  }
+
+  if (
+    savedPrompt.userId !== userId &&
+    savedPrompt.userId !== "legacy_default_user"
+  ) {
+    const err = new Error("Forbidden: Akses ditolak.");
+    (err as unknown as { code: string }).code = "FORBIDDEN";
+    throw err;
+  }
+
+  let versions = await prisma.promptVersion.findMany({
     where: { savedPromptId },
     orderBy: { versionNumber: "asc" },
   });
-}
 
-/**
- * Mengambil PromptVersion berdasarkan ID spesifik.
- */
-export async function getPromptVersionById(
-  id: string
-): Promise<PromptVersion | null> {
-  return await prisma.promptVersion.findUnique({
-    where: { id },
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// v2.0 Spider Benchmark Operations (SpiderRun & SpiderTestResult) & FIFO Retention
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Menyimpan hasil eksekusi Prompt Spider Benchmark Run beserta hasil test cases.
- * Menegakkan kebijakan retensi FIFO: maks 10 SpiderRun per PromptVersion (ADR-002 Lampiran B).
- */
-export async function saveSpiderRun(
-  data: SaveSpiderRunInput
-): Promise<SpiderRun & { testResults?: SpiderTestResult[] }> {
-  // Penegakan retensi FIFO: jika run saat ini >= MAX_SPIDER_RUNS_PER_VERSION,
-  // hapus run tertua untuk version tersebut.
-  const existingRuns = await prisma.spiderRun.findMany({
-    where: { promptVersionId: data.promptVersionId },
-    orderBy: { createdAt: "asc" },
-  });
-
-  if (existingRuns.length >= MAX_SPIDER_RUNS_PER_VERSION) {
-    const excessCount = existingRuns.length - MAX_SPIDER_RUNS_PER_VERSION + 1;
-    const toDelete = existingRuns.slice(0, excessCount);
-    for (const r of toDelete) {
-      await prisma.spiderRun.delete({ where: { id: r.id } });
-    }
+  // Otomatis bootstrap Versi 1 dari SavedPrompt.optimizedPrompt jika belum pernah ada
+  if (versions.length === 0) {
+    const v1 = await prisma.promptVersion.create({
+      data: {
+        savedPromptId: savedPrompt.id,
+        userId: savedPrompt.userId,
+        versionNumber: 1,
+        sourceRole: "OPTIMIZER",
+        promptContent: savedPrompt.optimizedPrompt,
+        groundingSummary: savedPrompt.intentSummary ?? null,
+      },
+    });
+    versions = [v1];
   }
 
-  return await prisma.spiderRun.create({
-    data: {
-      id: data.id,
-      promptVersionId: data.promptVersionId,
-      targetProvider: data.targetProvider,
-      targetModel: data.targetModel,
-      status: data.status,
-      totalCases: data.totalCases,
-      passedCases: data.passedCases,
-      averageScore: data.averageScore,
-      averageLatencyMs: data.averageLatencyMs,
-      errorMessage: data.errorMessage ?? null,
-      testResults: data.testResults
-        ? {
-            create: data.testResults.map((tr) => ({
-              id: tr.id,
-              caseIndex: tr.caseIndex,
-              testInput: tr.testInput,
-              expectedOutput: tr.expectedOutput ?? null,
-              actualOutput: tr.actualOutput,
-              score: tr.score,
-              latencyMs: tr.latencyMs,
-              status: tr.status,
-              findings: tr.findings ?? null,
-            })),
-          }
-        : undefined,
-    },
-    include: {
-      testResults: true,
-    },
-  });
+  return versions;
 }
 
-/**
- * Mengambil daftar SpiderRun untuk versi prompt tertentu, terurut dari yang terbaru.
- */
-export async function getSpiderRuns(
-  promptVersionId: string
-): Promise<SpiderRun[]> {
-  return await prisma.spiderRun.findMany({
-    where: { promptVersionId },
-    orderBy: { createdAt: "desc" },
-  });
-}
-
-/**
- * Mengambil detail SpiderRun lengkap beserta array SpiderTestResult.
- */
-export async function getSpiderRunById(
-  id: string
-): Promise<(SpiderRun & { testResults: SpiderTestResult[] }) | null> {
-  return await prisma.spiderRun.findUnique({
+export async function getPromptVersionById(
+  id: string,
+  userId?: string
+): Promise<PromptVersion | null> {
+  const version = await prisma.promptVersion.findUnique({
     where: { id },
-    include: {
-      testResults: {
-        orderBy: { caseIndex: "asc" },
-      },
-    },
   });
+
+  if (!version) return null;
+
+  if (
+    userId &&
+    version.userId !== userId &&
+    version.userId !== "legacy_default_user"
+  ) {
+    const err = new Error("Forbidden: Akses versi prompt ditolak.");
+    (err as unknown as { code: string }).code = "FORBIDDEN";
+    throw err;
+  }
+
+  return version;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// v2.0 Crawler Source Operations (CrawlerSource)
+// v2.0 CrawlSession & CrawlItem Operations (Batch + Idempotensi P2002)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Menyimpan metadata asal pengunduhan prompt dari Web Crawler.
- */
-export async function saveCrawlerSource(
-  data: SaveCrawlerSourceInput
-): Promise<CrawlerSource> {
-  return await prisma.crawlerSource.create({
-    data: {
-      id: data.id,
-      savedPromptId: data.savedPromptId ?? null,
-      sourceUrl: data.sourceUrl,
-      domain: data.domain,
-      etag: data.etag ?? null,
-      contentHash: data.contentHash,
-    },
-  });
+export async function saveCrawlSessionBatch(
+  input: SaveCrawlSessionBatchInput
+): Promise<CrawlSession & { items: CrawlItem[] }> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const session = await tx.crawlSession.create({
+        data: {
+          id: input.id,
+          userId: input.userId,
+          idempotencyKey: input.idempotencyKey ?? null,
+          sourceUrl: input.sourceUrl,
+          normalizedUrl: input.normalizedUrl,
+          sourceType: input.sourceType,
+          status: input.status,
+          bytesRead: input.bytesRead ?? 0,
+          errorCode: input.errorCode ?? null,
+          items: input.items
+            ? {
+                create: input.items.map((item) => ({
+                  id: item.id,
+                  userId: input.userId,
+                  itemType: item.itemType,
+                  extractedText: item.extractedText,
+                  surroundingContext: item.surroundingContext ?? null,
+                  lineStart: item.lineStart ?? null,
+                  lineEnd: item.lineEnd ?? null,
+                  confidenceEstimate: item.confidenceEstimate,
+                  warningsJson: JSON.stringify(item.warnings ?? []),
+                })),
+              }
+            : undefined,
+        },
+        include: {
+          items: true,
+        },
+      });
+
+      return session;
+    });
+  } catch (err: unknown) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002" &&
+      input.idempotencyKey
+    ) {
+      const existing = await prisma.crawlSession.findUnique({
+        where: {
+          userId_idempotencyKey: {
+            userId: input.userId,
+            idempotencyKey: input.idempotencyKey,
+          },
+        },
+        include: { items: true },
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+    throw err;
+  }
 }
 
-/**
- * Mengambil metadata CrawlerSource yang terhubung dengan SavedPrompt.
- */
-export async function getCrawlerSource(
-  savedPromptId: string
-): Promise<CrawlerSource | null> {
-  return await prisma.crawlerSource.findUnique({
-    where: { savedPromptId },
+export async function getCrawlSessionById(
+  id: string,
+  userId: string
+): Promise<(CrawlSession & { items: CrawlItem[] }) | null> {
+  const session = await prisma.crawlSession.findUnique({
+    where: { id },
+    include: { items: true },
   });
+
+  if (!session) return null;
+
+  if (session.userId !== userId && session.userId !== "legacy_default_user") {
+    const err = new Error("Forbidden: Akses crawl session ditolak.");
+    (err as unknown as { code: string }).code = "FORBIDDEN";
+    throw err;
+  }
+
+  return session;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v2.0 SpiderRun & SpiderBranchResult Operations (Single Transaction + Anti-IDOR + Retensi)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function saveSpiderRunBatch(
+  input: SaveSpiderRunBatchInput
+): Promise<SpiderRun & { branches: SpiderBranchResult[] }> {
+  // 1. Verifikasi kepemilikan PromptVersion (Anti-IDOR)
+  const promptVersion = await prisma.promptVersion.findUnique({
+    where: { id: input.promptVersionId },
+  });
+  if (!promptVersion) {
+    const err = new Error("PromptVersion tidak ditemukan.");
+    (err as unknown as { code: string }).code = "NOT_FOUND";
+    throw err;
+  }
+
+  if (
+    promptVersion.userId !== input.userId &&
+    promptVersion.userId !== "legacy_default_user"
+  ) {
+    const err = new Error("Forbidden: Tidak berhak menjalankan spider pada versi prompt pengguna lain.");
+    (err as unknown as { code: string }).code = "FORBIDDEN";
+    throw err;
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // 2. Retensi FIFO (Maksimal MAX_SPIDER_RUNS_PER_VERSION per promptVersionId)
+      const existingRuns = await tx.spiderRun.findMany({
+        where: { promptVersionId: input.promptVersionId },
+        orderBy: { createdAt: "asc" },
+      });
+
+      if (existingRuns.length >= MAX_SPIDER_RUNS_PER_VERSION) {
+        const excess = existingRuns.length - MAX_SPIDER_RUNS_PER_VERSION + 1;
+        const toDelete = existingRuns.slice(0, excess);
+        for (const r of toDelete) {
+          await tx.spiderRun.delete({ where: { id: r.id } });
+        }
+      }
+
+      // 3. Simpan SpiderRun bersama seluruh SpiderBranchResult dalam satu batch
+      const run = await tx.spiderRun.create({
+        data: {
+          id: input.id,
+          userId: input.userId,
+          idempotencyKey: input.idempotencyKey ?? null,
+          promptVersionId: input.promptVersionId,
+          testSuiteVersion: input.testSuiteVersion,
+          rubricVersion: input.rubricVersion,
+          provider: input.provider,
+          modelId: input.modelId,
+          status: input.status,
+          criticalGatePassed: input.criticalGatePassed ?? false,
+          qualityMetricsJson: JSON.stringify(input.qualityMetrics ?? {}),
+          securityJson: JSON.stringify(input.securityFindings ?? []),
+          totalTokens: input.totalTokens ?? 0,
+          durationMs: input.durationMs ?? 0,
+          completedAt: input.status === "SUCCEEDED" || input.status === "FAILED" ? new Date() : null,
+          branches: input.branches
+            ? {
+                create: input.branches.map((b) => ({
+                  id: b.id,
+                  caseId: b.caseId,
+                  category: b.category,
+                  severity: b.severity,
+                  status: b.status,
+                  score: b.score ?? null,
+                  latencyMs: b.latencyMs,
+                  sanitizedInput: b.sanitizedInput,
+                  sanitizedOutput: b.sanitizedOutput,
+                  rationale: b.rationale ?? null,
+                  deterministicPass: b.deterministicPass ?? false,
+                })),
+              }
+            : undefined,
+        },
+        include: {
+          branches: true,
+        },
+      });
+
+      return run;
+    });
+  } catch (err: unknown) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002" &&
+      input.idempotencyKey
+    ) {
+      const existing = await prisma.spiderRun.findUnique({
+        where: {
+          userId_idempotencyKey: {
+            userId: input.userId,
+            idempotencyKey: input.idempotencyKey,
+          },
+        },
+        include: { branches: true },
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+    throw err;
+  }
+}
+
+export async function getSpiderRunById(
+  id: string,
+  userId: string
+): Promise<(SpiderRun & { branches: SpiderBranchResult[] }) | null> {
+  const run = await prisma.spiderRun.findUnique({
+    where: { id },
+    include: { branches: true },
+  });
+
+  if (!run) return null;
+
+  if (run.userId !== userId && run.userId !== "legacy_default_user") {
+    const err = new Error("Forbidden: Akses spider run ditolak.");
+    (err as unknown as { code: string }).code = "FORBIDDEN";
+    throw err;
+  }
+
+  return run;
 }
