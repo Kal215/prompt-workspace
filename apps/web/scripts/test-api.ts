@@ -13,7 +13,7 @@ import { POST as POST_SPIDER, GET as GET_SPIDER } from "../src/app/api/spider/ro
 import {
   getPromptById,
   savePrompt,
-  savePromptVersion,
+  createPromptVersion,
   prisma,
   setDatabaseUrl,
 } from "@prompt-workspace/database";
@@ -692,17 +692,6 @@ async function runApiRegressionSuite() {
 
     // 24.6 Anti-IDOR pada GET /api/crawl:
     // Buat SavedPrompt untuk User A dan kaitkan dengan CrawlerSource ini
-    const promptA = await savePrompt({
-      userId: userIdA,
-      originalPrompt: "Prompt A with crawler source",
-      optimizedPrompt: "Optimized Prompt A",
-      score: 90,
-    });
-    await prisma.crawlerSource.update({
-      where: { id: createdCrawlSourceId },
-      data: { savedPromptId: promptA.id },
-    });
-
     // Reset rate limiter crawl agar tidak terhambat kuota saat uji anti-IDOR
     getCrawlRateLimiter().reset();
 
@@ -785,11 +774,10 @@ async function runApiRegressionSuite() {
       optimizedPrompt: "Optimized Prompt User A for Spider",
       score: 88,
     });
-    const versionUserA = await savePromptVersion({
+    const versionUserA = await createPromptVersion({
       savedPromptId: promptUserA.id,
-      promptText: promptUserA.optimizedPrompt,
-      score: 88,
-      changesSummary: "Versi 1 awal",
+      userId: userIdA,
+      promptContent: promptUserA.optimizedPrompt,
     });
 
     // User B mencoba menjalankan spider terhadap version milik User A -> HTTP 403

@@ -126,4 +126,114 @@ test("Export Utilities Unit Suite (Stage 7 - Task #32)", async (t) => {
     assert.ok(!safeName2.includes("?"));
     assert.ok(safeName2.endsWith(".md"));
   });
+
+  await t.test("v2.0 Export Support: buildSafeExportPayload and buildMarkdownReport with v2Metadata", () => {
+    const v2MetadataSample = {
+      versionNumber: 2,
+      sourceRole: "SPIDER_REFINED",
+      versions: [
+        {
+          versionNumber: 1,
+          sourceRole: "OPTIMIZER",
+          changeSummary: "Optimasi awal",
+          criticalGatePassed: false,
+          qualityScore: 78,
+        },
+        {
+          versionNumber: 2,
+          sourceRole: "SPIDER_REFINED",
+          changeSummary: "Remediasi injeksi adversarial",
+          criticalGatePassed: true,
+          qualityScore: 94,
+        },
+      ],
+      crawlerSources: [
+        {
+          sourceUrl: "https://raw.githubusercontent.com/org/repo/main/PROMPT.md",
+          sourceDomain: "raw.githubusercontent.com",
+          sourceTitle: "Official System Prompt Spec",
+          fetchedAt: "2026-10-14T19:00:00.000Z",
+          byteSize: 10240,
+          lineRange: "L1-L40",
+        },
+      ],
+      spiderReport: {
+        jobId: "spider-job-12345",
+        promptVersionId: "pv-v2-test",
+        status: "SUCCEEDED",
+        criticalGatePassed: true,
+        qualityMetrics: {
+          robustness: 94,
+          taskAdherence: 96,
+          constraintAdherence: 95,
+          formatCompliance: 98,
+          robustnessScore: 94,
+          passRate: 1.0,
+        },
+        securityFindings: [
+          {
+            id: "fnd-1",
+            category: "ADVERSARIAL_INJECTION",
+            severity: "CRITICAL",
+            title: "Prompt Injection Bypass Vulnerability",
+            description: "Ditemukan celah prompt injection pada versi sebelumnya",
+            recommendation: "Gunakan boundary delimiter ketat pada input",
+          },
+        ],
+        testCases: [
+          {
+            id: "tc-01",
+            name: "Baseline Happy Path",
+            category: "BASELINE_HAPPY_PATH",
+            status: "PASS",
+            score: 95,
+            latencyMs: 120,
+          },
+          {
+            id: "tc-04",
+            name: "Adversarial Injection Defense",
+            category: "ADVERSARIAL_INJECTION",
+            status: "PASS",
+            score: 94,
+            latencyMs: 210,
+          },
+        ],
+        evaluatedAt: "2026-10-14T19:05:00.000Z",
+        durationMs: 330,
+      },
+    };
+
+    // 1. Validasi Payload JSON v2.0
+    const payloadV2 = buildSafeExportPayload(sampleResult, v2MetadataSample);
+    assert.equal(payloadV2.schemaVersion, "2.0.0");
+    assert.equal(payloadV2.v2Metadata?.versionNumber, 2);
+    assert.equal(payloadV2.v2Metadata?.sourceRole, "SPIDER_REFINED");
+    assert.equal(payloadV2.v2Metadata?.crawlerSources?.length, 1);
+    assert.equal(payloadV2.v2Metadata?.spiderReport?.criticalGatePassed, true);
+    assert.ok(payloadV2.v2Metadata?.disclaimer.includes("Peringatan: Evaluasi ketahanan"));
+
+    // 2. Validasi Laporan Markdown v2.0
+    const mdV2 = buildMarkdownReport(sampleResult, v2MetadataSample);
+    assert.ok(mdV2.includes("## 7. Metadata Ekosistem v2.0 (Closed-Loop & Keamanan)"));
+    assert.ok(mdV2.includes("### A. Riwayat Versi Prompt"));
+    assert.ok(mdV2.includes("- **Versi Aktif:** `v2`"));
+    assert.ok(mdV2.includes("Remediasi injeksi adversarial"));
+    assert.ok(mdV2.includes("### B. Atribusi Sumber Grounding (Web Crawler)"));
+    assert.ok(mdV2.includes("raw.githubusercontent.com"));
+    assert.ok(mdV2.includes("10.0 KB"));
+    assert.ok(mdV2.includes("### C. Ringkasan Uji Ketahanan (Spider Matrix Scorecard)"));
+    assert.ok(mdV2.includes("✅ **LULUS (CRITICAL_GATE_PASSED)**"));
+    assert.ok(mdV2.includes("Skor Ketahanan (Robustness):** 94%"));
+    assert.ok(mdV2.includes("Matriks Kasus Uji Adversarial"));
+    assert.ok(mdV2.includes("Baseline Happy Path"));
+    assert.ok(mdV2.includes("Temuan Keamanan & Rekomendasi Remediasi"));
+    assert.ok(mdV2.includes("Disclaimer Pengujian Ketahanan (Spider Benchmark)"));
+    assert.ok(mdV2.includes("bukan jaminan keamanan mutlak"));
+
+    // 3. Validasi Zero-Leakage pada v2 JSON string
+    const jsonStr = JSON.stringify(payloadV2);
+    assert.ok(!jsonStr.includes("gsk_"));
+    assert.ok(!jsonStr.includes("sk-"));
+    assert.ok(!jsonStr.includes("ghp_"));
+  });
 });

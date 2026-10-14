@@ -23,7 +23,9 @@
       "@prompt-workspace/database": ["../../packages/database/dist/index"],
       "@prompt-workspace/prompt-engine": ["../../packages/prompt-engine/dist/src/index"],
       "@prompt-workspace/provider-adapters": ["../../packages/provider-adapters/dist/index"],
-      "@prompt-workspace/prompt-contracts": ["../../packages/prompt-contracts/dist/index"]
+      "@prompt-workspace/prompt-contracts": ["../../packages/prompt-contracts/dist/index"],
+      "@prompt-workspace/prompt-crawler": ["../../packages/prompt-crawler/dist/index"],
+      "@prompt-workspace/prompt-spider": ["../../packages/prompt-spider/dist/index"]
     }
   },
   "include": [

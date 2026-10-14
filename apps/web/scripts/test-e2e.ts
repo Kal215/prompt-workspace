@@ -361,6 +361,29 @@ async function runE2ESuite() {
       "Tombol Web Crawler (data-testid='open-crawler-modal-button') ter-render di DOM"
     );
 
+    // Interaksi Deterministik Crawler Modal (Task #38 / Gate 4 & 5)
+    console.log("  🖱️ Menguji interaksi klik tombol Web Crawler untuk membuka dialog...");
+    await page.click('[data-testid="open-crawler-modal-button"]');
+    await page.waitForSelector('[data-testid="crawler-import-modal"]', { timeout: 4000 });
+    const modalContent = await page.$eval(
+      '[data-testid="crawler-import-modal"]',
+      (el) => el.textContent || ""
+    );
+    assert(
+      modalContent.includes("raw.githubusercontent.com") && modalContent.includes("github.com"),
+      "CrawlerImportModal menampilkan informasi domain allowlist P0 (raw.githubusercontent.com & github.com)"
+    );
+
+    // Tutup dialog CrawlerImportModal
+    await page.click('button[aria-label="Tutup Dialog"]');
+    await new Promise((r) => setTimeout(r, 400));
+    const modalClosed = await page.$('[data-testid="crawler-import-modal"]');
+    assert(
+      modalClosed === null,
+      "CrawlerImportModal berhasil ditutup kembali setelah verifikasi interaktif"
+    );
+    console.log("  🎯 Dialog CrawlerImportModal terverifikasi interaktif (buka, periksa allowlist, dan tutup).");
+
     const getBadgeCount = async (): Promise<number> => {
       return await page.evaluate(() => {
         const header = document.querySelector("header");
@@ -631,6 +654,15 @@ async function runE2ESuite() {
     assert(
       versionBarExists !== null,
       "Komponen Prompt Version Bar (data-testid='prompt-version-bar') ter-render di DOM"
+    );
+
+    const versionBarText = await page.$eval(
+      '[data-testid="prompt-version-bar"]',
+      (el) => el.textContent || ""
+    );
+    assert(
+      versionBarText.toLowerCase().includes("v1") || versionBarText.includes("Silsilah Versi"),
+      "Prompt Version Bar menampilkan status awal versi prompt aktif (v1)"
     );
     console.log("  🎯 Spider Matrix Panel dan Prompt Version Bar terverifikasi di DOM.");
 

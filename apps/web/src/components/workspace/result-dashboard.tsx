@@ -87,9 +87,29 @@ export function ResultDashboard({
   const findings = result.analysis?.findings || [];
   const status = result.analysis?.status || "optimized";
 
+  const activeVersion = versions?.find((v) => v.versionId === activeVersionId);
+  const activeVersionNumber = activeVersion?.versionNumber || 1;
+
+  const v2Metadata =
+    spiderReport || (versions && versions.length > 0)
+      ? {
+          versionNumber: activeVersionNumber,
+          sourceRole: activeVersion?.source || "OPTIMIZER",
+          versions: versions?.map((v) => ({
+            versionNumber: v.versionNumber,
+            sourceRole: v.source,
+            createdAt: v.createdAt,
+            changeSummary: v.changeSummary,
+            criticalGatePassed: v.criticalGatePassed,
+            qualityScore: v.qualityScore,
+          })),
+          spiderReport: spiderReport || undefined,
+        }
+      : undefined;
+
   const handleExportMarkdown = () => {
     try {
-      const content = buildMarkdownReport(result);
+      const content = buildMarkdownReport(result, v2Metadata);
       const filename = sanitizeExportFilename(result.requestId, "md");
       downloadTextFile(filename, content, "text/markdown;charset=utf-8");
       setExportStatus(`Laporan Markdown berhasil diekspor: ${filename}`);
@@ -105,7 +125,7 @@ export function ResultDashboard({
 
   const handleExportJson = () => {
     try {
-      const payload = buildSafeExportPayload(result);
+      const payload = buildSafeExportPayload(result, v2Metadata);
       const content = JSON.stringify(payload, null, 2);
       const filename = sanitizeExportFilename(result.requestId, "json");
       downloadTextFile(filename, content, "application/json;charset=utf-8");

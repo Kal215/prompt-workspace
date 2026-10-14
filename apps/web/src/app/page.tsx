@@ -27,6 +27,7 @@ import {
 import { CrawlerImportModal } from "@/components/workspace/crawler-import-modal";
 import { formatGroundingFactsForContext } from "@/lib/v2-workspace-helpers";
 import { isCrawlerFeatureEnabled } from "@/lib/feature-flags";
+import { buildClosedLoopOptimizationContext } from "@prompt-workspace/prompt-engine";
 import {
   CrawlerResultItem,
   CrawlerExtractionMode,
@@ -252,16 +253,14 @@ export default function Home() {
 
   const handleRequestSpiderRefinement = async (findings: SpiderSecurityFinding[]) => {
     if (!result) return;
-    const remediationBlock = findings
-      .map(
-        (f, idx) =>
-          `[Remediasi Temuan Spider #${idx + 1} (${f.severity})]: ${f.recommendation}`
-      )
-      .join("\n");
-
-    const nextContext = context
-      ? `${context}\n\n--- [REMEDIASI TEMUAN SPIDER] ---\n${remediationBlock}`
-      : `--- [REMEDIASI TEMUAN SPIDER] ---\n${remediationBlock}`;
+    const nextContext = buildClosedLoopOptimizationContext({
+      userContext: context,
+      spiderFindings: findings.map((f) => ({
+        category: f.category,
+        remediationHint: f.recommendation,
+        sanitizedEvidence: f.evidenceSnippet,
+      })),
+    });
 
     setContext(nextContext);
     toast.info("Memulai Closed-Loop Refinement...", {
