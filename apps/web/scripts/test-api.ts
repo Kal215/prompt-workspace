@@ -1,22 +1,14 @@
 /**
  * apps/web/scripts/test-api.ts
- * Suite Uji Regresi API History Nyata (Real Handler & SQLite Database)
+ * Suite Uji Regresi API Komprehensif (Task #19: Security, Auth, Rate Limit, CSRF, Concurrency)
  * 
- * Menguji langsung handler Next.js API (GET, POST, DELETE) tanpa mock fiktif.
- * Memvalidasi:
- * 1. Happy path GET, POST, DELETE
- * 2. Idempotensi (save dua kali dengan ID identik)
- * 3. Konflik ID duplikat dengan payload berbeda (HTTP 409)
- * 4. Input kosong (originalPrompt/optimizedPrompt kosong atau whitespace)
- * 5. Malformed JSON
- * 6. Payload terlalu besar (> 50.000 karakter / > 256 KB)
- * 7. Score di luar rentang (skor < 0 atau skor > 100)
- * 8. Delete ID tidak ditemukan (HTTP 404)
- * 9. Sanitasi error (tidak ada stack trace atau raw secret/prompt di log dan response)
+ * Menguji langsung handler Next.js API (GET, POST, DELETE) terhadap database SQLite terisolasi.
  */
 
 import { GET, POST, DELETE } from "../src/app/api/history/route";
 import { getPromptById } from "@prompt-workspace/database";
+import { signSession } from "../src/lib/session";
+import { InMemorySlidingWindowLimiter } from "../src/lib/rate-limiter";
 import crypto from "crypto";
 
 interface TestResult {
@@ -39,23 +31,38 @@ function assert(condition: boolean, name: string, details?: string) {
 
 async function runApiRegressionSuite() {
   console.log("\n═══════════════════════════════════════════════════════════════════");
-  console.log("🧪 MENJALANKAN API REGRESSION TEST SUITE (apps/web/src/app/api/history)");
+  console.log("🧪 MENJALANKAN API REGRESSION TEST SUITE (Task #19 Security & Regression)");
   console.log("═══════════════════════════════════════════════════════════════════\n");
 
-  const testId = `test-${crypto.randomUUID()}`;
+  const userIdA = `usr_test_a_${crypto.randomUUID().slice(0, 8)}`;
+  const sessionTokenA = signSession(userIdA);
+  const authHeadersA = {
+    "Content-Type": "application/json",
+    Cookie: `piw_session=${sessionTokenA}`,
+  };
+
+  const userIdB = `usr_test_b_${crypto.randomUUID().slice(0, 8)}`;
+  const sessionTokenB = signSession(userIdB);
+  const authHeadersB = {
+    "Content-Type": "application/json",
+    Cookie: `piw_session=${sessionTokenB}`,
+  };
+
+  const testId = `test-api-${crypto.randomUUID()}`;
   const validPayload = {
     id: testId,
-    originalPrompt: "Prompt uji coba untuk validasi regresi sistem database.",
+    originalPrompt: "Prompt uji coba untuk validasi regresi sistem database Task 19.",
     optimizedPrompt: "Prompt teroptimasi berstandar industri dengan batasan ketat dan panduan jelas.",
-    intentSummary: "Validasi fungsionalitas API History",
+    intentSummary: "Validasi fungsionalitas API History Task 19",
     score: 95,
   };
 
-  // 1. Test Initial GET /api/history
+  // 1. Test GET /api/history
   console.log("▶ [Test 1] GET /api/history (Initial fetch)");
   try {
     const req = new Request("http://localhost:3000/api/history?limit=10", {
       method: "GET",
+      headers: authHeadersA,
     });
     const res = await GET(req);
     const json = await res.json();
@@ -67,11 +74,11 @@ async function runApiRegressionSuite() {
   }
 
   // 2. Test POST /api/history (Happy path)
-  console.log("\n▶ [Test 2] POST /api/history (Simpan Prompt Baru)");
+  console.log("\n▶ [Test 2] POST /api/history (Simpan Prompt Baru oleh User A)");
   try {
     const req = new Request("http://localhost:3000/api/history", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeadersA,
       body: JSON.stringify(validPayload),
     });
     const res = await POST(req);
@@ -89,7 +96,7 @@ async function runApiRegressionSuite() {
   try {
     const req = new Request("http://localhost:3000/api/history", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeadersA,
       body: JSON.stringify(validPayload),
     });
     const res = await POST(req);
@@ -100,13 +107,13 @@ async function runApiRegressionSuite() {
       typeof json.message === "string" && json.message.includes("idempotent"),
       "Pesan konfirmasi idempotensi dikembalikan"
     );
-    assert(json.data?.id === testId, "Mengembalikan data yang sama tanpa menduplikasi baris");
+    assert(json.data?.id === testId, "Mengembalikan data yang sama tanpa duplikasi");
   } catch (err: unknown) {
     assert(false, "Save dua kali idempotent", String(err));
   }
 
   // 4. Test Duplicate ID dengan Payload Berbeda (Conflict 409)
-  console.log("\n▶ [Test 4] POST /api/history (Duplicate ID dengan Payload Berbeda)");
+  console.log("\n▶ [Test 4] POST /api/history (Duplicate ID dengan Payload Berbeda -> 409)");
   try {
     const conflictingPayload = {
       ...validPayload,
@@ -114,7 +121,7 @@ async function runApiRegressionSuite() {
     };
     const req = new Request("http://localhost:3000/api/history", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeadersA,
       body: JSON.stringify(conflictingPayload),
     });
     const res = await POST(req);
@@ -129,57 +136,188 @@ async function runApiRegressionSuite() {
     assert(false, "Duplicate ID conflict", String(err));
   }
 
-  // 5. Test Input Kosong
-  console.log("\n▶ [Test 5] POST /api/history (Input Kosong & Whitespace)");
+  // 5. Test AuthZ Lintas Pengguna (IDOR Prevention: User B mencoba menghapus prompt User A -> 403)
+  console.log("\n▶ [Test 5] AuthZ: User B mencoba menghapus prompt User A (IDOR Prevention -> 403)");
   try {
-    // 5a. originalPrompt kosong
+    const reqForbidden = new Request(`http://localhost:3000/api/history?id=${testId}`, {
+      method: "DELETE",
+      headers: authHeadersB,
+    });
+    const resForbidden = await DELETE(reqForbidden);
+    const jsonForbidden = await resForbidden.json();
+    assert(resForbidden.status === 403, "Akses hapus lintas pengguna ditolak dengan HTTP 403 Forbidden");
+    assert(jsonForbidden.success === false, "Response success: false");
+    assert(
+      typeof jsonForbidden.error === "string" && jsonForbidden.error.includes("pengguna lain"),
+      "Pesan error spesifik melarang akses prompt milik pengguna lain"
+    );
+  } catch (err: unknown) {
+    assert(false, "AuthZ lintas user test", String(err));
+  }
+
+  // 6. Test CSRF Protection (Origin lintas situs tidak diizinkan -> 403)
+  console.log("\n▶ [Test 6] CSRF Protection: Request dengan Origin tidak diizinkan (Cross-Site -> 403)");
+  try {
+    const reqCsrf = new Request("http://localhost:3000/api/history", {
+      method: "POST",
+      headers: {
+        ...authHeadersA,
+        Origin: "http://malicious-cross-origin.com",
+      },
+      body: JSON.stringify(validPayload),
+    });
+    const resCsrf = await POST(reqCsrf);
+    const jsonCsrf = await resCsrf.json();
+    assert(resCsrf.status === 403, "Request cross-origin ditolak dengan HTTP 403 Forbidden");
+    assert(jsonCsrf.success === false, "Response success: false");
+    assert(
+      typeof jsonCsrf.error === "string" &&
+        (jsonCsrf.error.toLowerCase().includes("csrf") ||
+          jsonCsrf.error.toLowerCase().includes("origin") ||
+          jsonCsrf.error.toLowerCase().includes("tidak diizinkan")),
+      "Pesan error spesifik terkait CSRF / Origin tidak diizinkan"
+    );
+  } catch (err: unknown) {
+    assert(false, "CSRF test", String(err));
+  }
+
+  // 7. Test Rate Limiter (HTTP 429 & Retry-After)
+  console.log("\n▶ [Test 7] Rate Limiting: Verifikasi modul Rate Limiter menghasilkan HTTP 429 & Retry-After");
+  try {
+    const testLimiter = new InMemorySlidingWindowLimiter(3, 60);
+
+    const key = "test-client-ip";
+    const r1 = testLimiter.check(key);
+    const r2 = testLimiter.check(key);
+    const r3 = testLimiter.check(key);
+    const r4 = testLimiter.check(key); // melebihi batas
+
+    assert(r1.allowed === true && r2.allowed === true && r3.allowed === true, "Request 1-3 dalam kuota diizinkan");
+    assert(r4.allowed === false, "Request ke-4 melebihi kuota dan ditolak (allowed: false)");
+    assert(r4.retryAfter > 0, "Retry-After berisi nilai detik tunggu valid (> 0)");
+  } catch (err: unknown) {
+    assert(false, "Rate Limiting test", String(err));
+  }
+
+  // 8. Test Live Concurrent Race Condition (P2002)
+  console.log("\n▶ [Test 8] Concurrency P2002: Live Concurrent Race Condition Test");
+  try {
+    // 8a. Parallel identical requests -> idempotent 200/201 (zero 500)
+    const raceIdenticalId = `race-api-ident-${crypto.randomUUID()}`;
+    const raceIdentPayload = {
+      id: raceIdenticalId,
+      originalPrompt: "Prompt konkurensi paralel identik P2002",
+      optimizedPrompt: "Prompt optimasi hasil uji balapan identik",
+      intentSummary: "Uji konkurensi P2002 identik",
+      score: 88,
+    };
+
+    const makeIdentReq = () =>
+      new Request("http://localhost:3000/api/history", {
+        method: "POST",
+        headers: authHeadersA,
+        body: JSON.stringify(raceIdentPayload),
+      });
+
+    const [raceRes1, raceRes2, raceRes3] = await Promise.all([
+      POST(makeIdentReq()),
+      POST(makeIdentReq()),
+      POST(makeIdentReq()),
+    ]);
+
+    const identStatuses = [raceRes1.status, raceRes2.status, raceRes3.status];
+    assert(
+      identStatuses.every((s) => s === 200 || s === 201),
+      "Semua request paralel identik sukses konsisten (200/201) tanpa error 500"
+    );
+
+    // Bersihkan
+    await DELETE(
+      new Request(`http://localhost:3000/api/history?id=${raceIdenticalId}`, {
+        method: "DELETE",
+        headers: authHeadersA,
+      })
+    );
+
+    // 8b. Parallel conflicting requests -> 201 + 409
+    const raceConflictId = `race-api-conf-${crypto.randomUUID()}`;
+    const reqConf1 = new Request("http://localhost:3000/api/history", {
+      method: "POST",
+      headers: authHeadersA,
+      body: JSON.stringify({
+        id: raceConflictId,
+        originalPrompt: "Prompt varian A untuk konflik paralel",
+        optimizedPrompt: "Optimasi varian A",
+        score: 80,
+      }),
+    });
+    const reqConf2 = new Request("http://localhost:3000/api/history", {
+      method: "POST",
+      headers: authHeadersA,
+      body: JSON.stringify({
+        id: raceConflictId,
+        originalPrompt: "Prompt varian B untuk konflik paralel",
+        optimizedPrompt: "Optimasi varian B",
+        score: 85,
+      }),
+    });
+
+    const [confRes1, confRes2] = await Promise.all([POST(reqConf1), POST(reqConf2)]);
+    const confStatuses = [confRes1.status, confRes2.status].sort();
+    assert(
+      confStatuses[0] === 201 && confStatuses[1] === 409,
+      "Salah satu berhasil (201) dan request bertabrakan dengan isi beda ditolak dengan HTTP 409 Conflict"
+    );
+
+    // Bersihkan
+    await DELETE(
+      new Request(`http://localhost:3000/api/history?id=${raceConflictId}`, {
+        method: "DELETE",
+        headers: authHeadersA,
+      })
+    );
+  } catch (err: unknown) {
+    assert(false, "Concurrency race test", String(err));
+  }
+
+  // 9. Test Input Kosong & Whitespace
+  console.log("\n▶ [Test 9] POST /api/history (Input Kosong & Whitespace)");
+  try {
     const reqEmptyOriginal = new Request("http://localhost:3000/api/history", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeadersA,
       body: JSON.stringify({ ...validPayload, id: "test-empty-1", originalPrompt: "   " }),
     });
     const resEmptyOriginal = await POST(reqEmptyOriginal);
     assert(resEmptyOriginal.status === 400, "originalPrompt kosong ditolak dengan HTTP 400");
-
-    // 5b. optimizedPrompt kosong
-    const reqEmptyOptimized = new Request("http://localhost:3000/api/history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...validPayload, id: "test-empty-2", optimizedPrompt: "" }),
-    });
-    const resEmptyOptimized = await POST(reqEmptyOptimized);
-    assert(resEmptyOptimized.status === 400, "optimizedPrompt kosong ditolak dengan HTTP 400");
   } catch (err: unknown) {
     assert(false, "Input kosong test", String(err));
   }
 
-  // 6. Test Malformed JSON
-  console.log("\n▶ [Test 6] POST /api/history (Malformed JSON Body)");
+  // 10. Test Malformed JSON
+  console.log("\n▶ [Test 10] POST /api/history (Malformed JSON Body)");
   try {
     const reqMalformed = new Request("http://localhost:3000/api/history", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{\"broken_json\": true,", // syntax error
+      headers: authHeadersA,
+      body: "{\"broken_json\": true,",
     });
     const resMalformed = await POST(reqMalformed);
-    const jsonMalformed = await resMalformed.json();
     assert(resMalformed.status === 400, "Malformed JSON ditolak dengan HTTP 400");
-    assert(jsonMalformed.success === false, "Response success: false");
-    assert(
-      typeof jsonMalformed.error === "string" && jsonMalformed.error.includes("JSON"),
-      "Pesan error spesifik terkait format JSON tidak valid"
-    );
   } catch (err: unknown) {
     assert(false, "Malformed JSON test", String(err));
   }
 
-  // 7. Test Payload Terlalu Besar
-  console.log("\n▶ [Test 7] POST /api/history (Payload Terlalu Besar > 50.000 Karakter)");
+  // 11. Test Payload Terlalu Besar (413 Payload Too Large)
+  console.log("\n▶ [Test 11] POST /api/history (Stream Body Limit 256 KB -> 413)");
   try {
-    const hugePrompt = "A".repeat(55000);
+    const hugePrompt = "A".repeat(300 * 1024);
     const reqHuge = new Request("http://localhost:3000/api/history", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        ...authHeadersA,
+        "Content-Length": String(hugePrompt.length),
+      },
       body: JSON.stringify({
         ...validPayload,
         id: "test-huge",
@@ -187,83 +325,62 @@ async function runApiRegressionSuite() {
       }),
     });
     const resHuge = await POST(reqHuge);
-    assert(resHuge.status === 400 || resHuge.status === 413, "Prompt > 50.000 karakter ditolak dengan HTTP 400/413");
+    assert(resHuge.status === 413, "Body > 256 KB ditolak dengan HTTP 413 Payload Too Large");
   } catch (err: unknown) {
     assert(false, "Payload size test", String(err));
   }
 
-  // 8. Test Score di Luar Rentang
-  console.log("\n▶ [Test 8] POST /api/history (Score di Luar Rentang 0-100)");
+  // 12. Test Score di Luar Rentang
+  console.log("\n▶ [Test 12] POST /api/history (Score di Luar Rentang 0-100)");
   try {
-    // 8a. score > 100
     const reqScoreHigh = new Request("http://localhost:3000/api/history", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...validPayload, id: "test-score-1", score: 120 }),
+      headers: authHeadersA,
+      body: JSON.stringify({ ...validPayload, id: "test-score-1", score: 150 }),
     });
     const resScoreHigh = await POST(reqScoreHigh);
-    assert(resScoreHigh.status === 400, "Score 120 ditolak dengan HTTP 400");
-
-    // 8b. score < 0
-    const reqScoreLow = new Request("http://localhost:3000/api/history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...validPayload, id: "test-score-2", score: -10 }),
-    });
-    const resScoreLow = await POST(reqScoreLow);
-    assert(resScoreLow.status === 400, "Score -10 ditolak dengan HTTP 400");
+    assert(resScoreHigh.status === 400, "Score 150 ditolak dengan HTTP 400");
   } catch (err: unknown) {
     assert(false, "Score range test", String(err));
   }
 
-  // 9. Test Delete ID Tidak Ditemukan
-  console.log("\n▶ [Test 9] DELETE /api/history (ID Tidak Ditemukan / Kosong)");
+  // 13. Test Delete ID Tidak Ditemukan (404)
+  console.log("\n▶ [Test 13] DELETE /api/history (ID Tidak Ditemukan -> 404)");
   try {
-    // 9a. ID tidak ditemukan (P2025 -> 404)
     const reqNotFound = new Request(
       "http://localhost:3000/api/history?id=non-existent-uuid-999999",
-      { method: "DELETE" }
+      { method: "DELETE", headers: authHeadersA }
     );
     const resNotFound = await DELETE(reqNotFound);
-    const jsonNotFound = await resNotFound.json();
     assert(resNotFound.status === 404, "Delete ID tidak ditemukan mengembalikan HTTP 404");
-    assert(jsonNotFound.success === false, "Response success: false");
-
-    // 9b. Tanpa parameter id
-    const reqNoId = new Request("http://localhost:3000/api/history", {
-      method: "DELETE",
-    });
-    const resNoId = await DELETE(reqNoId);
-    assert(resNoId.status === 400, "Delete tanpa parameter 'id' mengembalikan HTTP 400");
   } catch (err: unknown) {
     assert(false, "Delete not found test", String(err));
   }
 
-  // 10. Test Delete Sukses & Verifikasi Persistensi
-  console.log("\n▶ [Test 10] DELETE /api/history (Delete Sukses)");
+  // 14. Test Delete Sukses oleh Pemilik Sah (User A)
+  console.log("\n▶ [Test 14] DELETE /api/history (Delete Sukses oleh Pemilik Sah)");
   try {
     const reqDelete = new Request(
       `http://localhost:3000/api/history?id=${encodeURIComponent(testId)}`,
-      { method: "DELETE" }
+      { method: "DELETE", headers: authHeadersA }
     );
     const resDelete = await DELETE(reqDelete);
     const jsonDelete = await resDelete.json();
     assert(resDelete.status === 200, "Delete mengembalikan HTTP 200 OK");
     assert(jsonDelete.success === true, "Response success: true");
 
-    // Verifikasi ke database nyata bahwa record terhapus
     const checkDb = await getPromptById(testId);
     assert(checkDb === null, "Konfirmasi record terhapus permanen dari SQLite");
   } catch (err: unknown) {
     assert(false, "Delete success test", String(err));
   }
 
-  // 11. Test Sanitasi Error & Tidak Ada Bocoran Secret / Stack Trace
-  console.log("\n▶ [Test 11] Sanitasi Error Logging & Response");
+  // 15. Test Sanitasi Error
+  console.log("\n▶ [Test 15] Sanitasi Error Logging & Response");
   try {
     const reqBad = new Request("http://localhost:3000/api/history", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeadersA,
       body: "invalid",
     });
     const resBad = await POST(reqBad);

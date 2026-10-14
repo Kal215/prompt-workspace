@@ -6,6 +6,7 @@ export type { SavedPrompt };
 
 export interface SavePromptInput {
   id?: string;
+  userId?: string;
   originalPrompt: string;
   optimizedPrompt: string;
   intentSummary?: string | null;
@@ -61,6 +62,7 @@ export async function savePrompt(data: SavePromptInput): Promise<SavedPrompt> {
   return await prisma.savedPrompt.create({
     data: {
       id: data.id,
+      userId: data.userId ?? "legacy_default_user",
       originalPrompt: data.originalPrompt,
       optimizedPrompt: data.optimizedPrompt,
       intentSummary: data.intentSummary ?? null,
@@ -71,9 +73,20 @@ export async function savePrompt(data: SavePromptInput): Promise<SavedPrompt> {
 
 /**
  * Mengambil riwayat prompt tersimpan, terurut dari yang paling baru.
+ * Jika userId disediakan, hanya mengembalikan prompt milik user tersebut serta prompt legacy.
  */
-export async function getHistory(limit: number = 20): Promise<SavedPrompt[]> {
+export async function getHistory(
+  limit: number = 20,
+  userId?: string
+): Promise<SavedPrompt[]> {
+  const whereClause = userId
+    ? {
+        OR: [{ userId }, { userId: "legacy_default_user" }],
+      }
+    : undefined;
+
   return await prisma.savedPrompt.findMany({
+    where: whereClause,
     take: limit,
     orderBy: {
       createdAt: "desc",
@@ -92,8 +105,29 @@ export async function getPromptById(id: string): Promise<SavedPrompt | null> {
 
 /**
  * Menghapus prompt tersimpan berdasarkan ID.
+ * Jika userId diberikan, pastikan record yang dihapus adalah milik user tersebut
+ * atau milik legacy.
  */
-export async function deletePrompt(id: string): Promise<SavedPrompt> {
+export async function deletePrompt(
+  id: string,
+  userId?: string
+): Promise<SavedPrompt> {
+  if (userId) {
+    const existing = await prisma.savedPrompt.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      const err = new Error("Record tidak ditemukan.");
+      (err as unknown as { code: string }).code = "NOT_FOUND";
+      throw err;
+    }
+    if (existing.userId !== userId && existing.userId !== "legacy_default_user") {
+      const err = new Error("Forbidden: Tidak berhak menghapus prompt milik pengguna lain.");
+      (err as unknown as { code: string }).code = "FORBIDDEN";
+      throw err;
+    }
+  }
+
   return await prisma.savedPrompt.delete({
     where: { id },
   });

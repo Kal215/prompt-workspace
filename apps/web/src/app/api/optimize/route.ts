@@ -6,6 +6,11 @@ import crypto from "crypto";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
+import { checkCsrf, csrfForbiddenResponse } from "../../../lib/csrf";
+import {
+  getOptimizeRateLimiter,
+  extractClientIP,
+} from "../../../lib/rate-limiter";
 
 // Pastikan environment variables (GROQ_API_KEY_1..6) ter-load di server Next.js
 if (!process.env.GROQ_API_KEY_1) {
@@ -29,6 +34,30 @@ function getGroqAdapter(): GroqAdapter {
 
 export async function POST(request: Request) {
   try {
+    // CSRF check
+    const csrf = checkCsrf(request);
+    if (!csrf.allowed) {
+      return csrfForbiddenResponse(csrf.reason || "CSRF validation failed.");
+    }
+
+    // Rate limiting (lebih ketat: melindungi kuota API provider/biaya)
+    const clientIP = extractClientIP(request);
+    const rl = getOptimizeRateLimiter().check(`optimize:${clientIP}`);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Terlalu banyak request optimasi. Silakan coba lagi nanti.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rl.retryAfter),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
 
     const payload = {

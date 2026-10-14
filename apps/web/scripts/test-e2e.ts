@@ -1,15 +1,7 @@
 /**
  * apps/web/scripts/test-e2e.ts
  * Real Browser E2E Test Suite (Google Chrome via Puppeteer-Core)
- * 
- * Menjalankan uji interaksi UI nyata di browser headless:
- * 1. Navigasi ke Next.js production server
- * 2. Interaksi DOM nyata: Buka/tutup History Sidebar
- * 3. Input prompt pada form & eksekusi UI
- * 4. Interaksi "Accept & Save" -> Verifikasi network call & database persistence
- * 5. Verifikasi pembaruan badge counter riwayat
- * 6. Interaksi Delete item pada History Sidebar
- * 7. Verifikasi konsistensi badge counter setelah reload halaman (refresh)
+ * Task #19: Deterministic /api/optimize Interception, Intent Guard, Findings, Diff Viewer, & History Persistence
  */
 
 import puppeteer, { Browser, Page } from "puppeteer-core";
@@ -62,6 +54,49 @@ async function waitForServer(url: string, timeoutMs: number = 30000): Promise<bo
   return false;
 }
 
+const mockOptimizationResult = {
+  requestId: "mock-e2e-task19-req",
+  originalPrompt: "Buatkan saya kode Python untuk scraping data produk e-commerce",
+  detectedIntent: "Ekstraksi data katalog produk e-commerce secara otomatis dan terstruktur",
+  analysis: {
+    findings: [
+      {
+        category: "Clarity",
+        severity: "minor",
+        evidence: "Tidak menyebutkan library atau format output yang diinginkan",
+        recommendation: "Spesifikasikan pustaka (Playwright/BeautifulSoup) dan format JSON/CSV",
+      },
+    ],
+    score: 85,
+    status: "analyzed",
+  },
+  optimizedPrompt:
+    "Sebagai Senior Python Engineer, buatkan skrip automasi web scraping e-commerce menggunakan BeautifulSoup4 dan requests. Skrip harus mengekstrak: nama produk, harga, dan rating; menangani pagination dan error handling; serta mengekspor data ke file JSON terstruktur.",
+  changes: [
+    "Menambahkan persona Senior Python Engineer",
+    "Menetapkan pustaka BeautifulSoup4 & requests",
+    "Menentukan format output JSON dan skema error handling",
+  ],
+  warnings: [
+    "Pastikan kepatuhan terhadap robots.txt dan ketentuan layanan situs target",
+  ],
+  evaluation: {
+    score: 95,
+    passed: true,
+    auditorNotes: "Intent terpelihara 100%, struktur instruksi sangat jelas dan dapat direproduksi.",
+    intentPreserved: true,
+    deceptiveCertaintyAvoided: true,
+    clarityAndStructureScore: 95,
+  },
+  metadata: {
+    modelTarget: "llama-3.3-70b-versatile",
+    processingTimeMs: 420,
+    latencyMs: 380,
+    tokensUsed: { promptTokens: 120, completionTokens: 180, totalTokens: 300 },
+    confidenceScore: 0.95,
+  },
+};
+
 async function runE2ESuite() {
   console.log("\n═══════════════════════════════════════════════════════════════════");
   console.log("🌐 MENJALANKAN REAL BROWSER E2E TEST (Next.js + Chrome Puppeteer)");
@@ -101,7 +136,23 @@ async function runE2ESuite() {
     console.log("  🌐 Chrome browser berhasil diluncurkan.");
 
     const page: Page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 800 });
+    await page.setViewport({ width: 1280, height: 900 });
+
+    // Intersepsi Jaringan: Mock Deterministik /api/optimize
+    await page.setRequestInterception(true);
+    page.on("request", (interceptedReq) => {
+      const url = interceptedReq.url();
+      if (url.includes("/api/optimize") && interceptedReq.method() === "POST") {
+        console.log("  🎯 [Network Intercept] Intersepsi POST /api/optimize -> Mengembalikan mock fixture deterministik");
+        interceptedReq.respond({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(mockOptimizationResult),
+        });
+      } else {
+        interceptedReq.continue();
+      }
+    });
 
     // Capture console errors
     const pageErrors: string[] = [];
@@ -127,10 +178,6 @@ async function runE2ESuite() {
       "Header aplikasi memuat judul 'Prompt Intelligence Workspace'"
     );
 
-    // Temukan tombol Riwayat di header
-    await page.waitForSelector("header button", { timeout: 5000 });
-
-    // Hitung badge awal
     const getBadgeCount = async (): Promise<number> => {
       return await page.evaluate(() => {
         const header = document.querySelector("header");
@@ -150,7 +197,6 @@ async function runE2ESuite() {
 
     // 5. Interaksi: Buka dan Tutup Sidebar Riwayat
     console.log("\n▶ [Step 5] Menguji interaksi buka/tutup History Sidebar...");
-    // Klik tombol riwayat
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll("header button"));
       const btn = buttons.find((b) => b.textContent?.includes("Riwayat"));
@@ -172,34 +218,87 @@ async function runE2ESuite() {
       if (closeBtn) closeBtn.click();
     });
     await new Promise((r) => setTimeout(r, 400));
-    console.log("  🚪 History Sidebar ditutup kembali.");
 
-    // 6. Simpan Prompt melalui Real API & Verifikasi UI
-    console.log("\n▶ [Step 6] Menguji alur penyimpanan (Accept & Save) ke database...");
-    const e2ePromptId = `e2e-${Date.now()}`;
-    const promptData = {
-      id: e2ePromptId,
-      originalPrompt: "Prompt E2E Test untuk verifikasi konsistensi badge counter",
-      optimizedPrompt: "Prompt teroptimasi E2E dengan batasan terstruktur dan format deterministik",
-      intentSummary: "Pengujian E2E integrasi database & UI",
-      score: 96,
-    };
+    // 6. Alur Pengujian Deterministik /api/optimize
+    console.log("\n▶ [Step 6] Menguji alur form optimasi deterministik (Form Input -> Optimize)...");
+    const inputPromptText = mockOptimizationResult.originalPrompt;
+    await page.waitForSelector("#original-prompt", { timeout: 5000 });
+    await page.type("#original-prompt", inputPromptText, { delay: 10 });
 
-    // Panggil POST /api/history nyata dari konteks halaman browser
-    const postResult = await page.evaluate(async (payload) => {
-      const res = await fetch("/api/history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      return { status: res.status, json: await res.json() };
-    }, promptData);
+    // Klik tombol submit "Optimalkan Prompt"
+    const submitBtn = await page.$('button[type="submit"]');
+    assert(submitBtn !== null, "Tombol submit 'Optimalkan Prompt' ditemukan di form");
 
-    assert(postResult.status === 201, "POST /api/history dari browser mengembalikan HTTP 201");
-    assert(postResult.json.success === true, "Response JSON konfirmasi sukses simpan");
+    if (submitBtn) {
+      await submitBtn.click();
+    }
 
-    // 7. Buka Sidebar dan Verifikasi Item Baru Masuk ke DOM
-    console.log("\n▶ [Step 7] Membuka sidebar untuk memeriksa item baru di DOM...");
+    // Tunggu transisi loading state dan render hasil mock deterministik
+    await page.waitForFunction(
+      () => {
+        return (
+          document.body.textContent?.includes("Intent Guard") ||
+          document.body.textContent?.includes("Audit & Analisis Celah") ||
+          document.body.textContent?.includes("Ekstraksi data katalog produk")
+        );
+      },
+      { timeout: 8000 }
+    );
+
+    // 7. Verifikasi Render Komponen Hasil Optimasi
+    console.log("\n▶ [Step 7] Memverifikasi render Intent Guard, Findings Panel, dan Diff Viewer...");
+    const pageTextAfterOptimize = await page.evaluate(() => document.body.textContent || "");
+
+    assert(
+      pageTextAfterOptimize.includes("Intent Guard") ||
+      pageTextAfterOptimize.includes("Ekstraksi data katalog produk"),
+      "Komponen Intent Guard berhasil dirender dengan intent yang terdeteksi"
+    );
+
+    assert(
+      pageTextAfterOptimize.includes("Audit & Analisis Celah") ||
+      pageTextAfterOptimize.includes("Clarity") ||
+      pageTextAfterOptimize.includes("Tidak menyebutkan library"),
+      "Komponen Findings Panel berhasil dirender dengan taksonomi temuan"
+    );
+
+    assert(
+      pageTextAfterOptimize.includes("Perbandingan Prompt") ||
+      pageTextAfterOptimize.includes("Sebagai Senior Python Engineer") ||
+      pageTextAfterOptimize.includes("BeautifulSoup4"),
+      "Komponen Diff Viewer berhasil dirender dengan teks prompt teroptimasi"
+    );
+
+    // 8. Interaksi "Accept & Save" ke Riwayat SQLite
+    console.log("\n▶ [Step 8] Menguji interaksi tombol 'Accept & Save'...");
+    const savedClicked = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const saveBtn = buttons.find(
+        (b) =>
+          b.textContent?.includes("Accept & Save") ||
+          b.textContent?.includes("Diterima & Tersimpan") ||
+          b.textContent?.includes("Terima & Simpan")
+      );
+      if (saveBtn) {
+        saveBtn.click();
+        return true;
+      }
+      return false;
+    });
+
+    assert(savedClicked, "Tombol 'Accept & Save' berhasil ditemukan dan diklik");
+    await new Promise((r) => setTimeout(r, 1200));
+
+    // Verifikasi badge riwayat bertambah 1
+    const badgeAfterSave = await getBadgeCount();
+    console.log(`  📊 Badge riwayat setelah simpan: ${badgeAfterSave}`);
+    assert(
+      badgeAfterSave === initialBadgeCount + 1,
+      `Badge counter riwayat bertambah 1 (Sebelum: ${initialBadgeCount}, Sesudah: ${badgeAfterSave})`
+    );
+
+    // 9. Buka Sidebar dan Verifikasi Item Tersimpan di DOM
+    console.log("\n▶ [Step 9] Memeriksa kartu riwayat baru di dalam Sidebar...");
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll("header button"));
       const btn = buttons.find((b) => b.textContent?.includes("Riwayat"));
@@ -207,38 +306,39 @@ async function runE2ESuite() {
     });
 
     await new Promise((r) => setTimeout(r, 800));
+    const isSavedItemInSidebar = await page.evaluate((promptKeyword) => {
+      return document.body.textContent?.includes(promptKeyword) || false;
+    }, "scraping data produk e-commerce");
 
-    const itemExistsInSidebar = await page.evaluate((expectedPrompt) => {
-      return document.body.textContent?.includes(expectedPrompt) || false;
-    }, promptData.originalPrompt);
+    assert(isSavedItemInSidebar, "Prompt hasil optimasi tersimpan muncul di dalam History Sidebar");
 
-    assert(itemExistsInSidebar, "Prompt yang baru disimpan tampil nyata pada kartu di History Sidebar");
-
-    // 8. Hapus Item dari Sidebar (Interaksi Delete UI)
-    console.log("\n▶ [Step 8] Menghapus prompt melalui tombol Delete di Sidebar UI...");
-    const deleteTriggered = await page.evaluate((idToDelete) => {
-      // Panggil DELETE API langsung seperti yang dilakukan handleDelete
-      return fetch(`/api/history?id=${encodeURIComponent(idToDelete)}`, {
+    // 10. Hapus Item Baru Tersebut via DELETE API untuk Menjaga Kebersihan Database
+    console.log("\n▶ [Step 10] Menghapus prompt uji coba via DELETE /api/history...");
+    const deleteSuccess = await page.evaluate(async (promptToDeleteId) => {
+      const delRes = await fetch(`/api/history?id=${encodeURIComponent(promptToDeleteId)}`, {
         method: "DELETE",
-      }).then((r) => r.json());
-    }, e2ePromptId);
+      });
+      const delJson = await delRes.json();
+      return delJson.success === true;
+    }, mockOptimizationResult.requestId);
 
-    assert(deleteTriggered.success === true, "Penghapusan via DELETE /api/history berhasil");
-
-    // 9. Verifikasi Konsistensi Badge Setelah Reload Halaman
-    console.log("\n▶ [Step 9] Menguji konsistensi badge setelah reload halaman...");
-    await page.reload({ waitUntil: "networkidle0" });
+    assert(deleteSuccess, "Prompt uji coba berhasil dihapus via endpoint DELETE");
     await new Promise((r) => setTimeout(r, 600));
 
-    const postReloadBadgeCount = await getBadgeCount();
-    console.log(`  📊 Badge riwayat setelah reload: ${postReloadBadgeCount}`);
+    // 11. Verifikasi Konsistensi Badge Setelah Reload Halaman
+    console.log("\n▶ [Step 11] Menguji konsistensi state dan badge setelah reload...");
+    await page.reload({ waitUntil: "networkidle0" });
+    await new Promise((r) => setTimeout(r, 800));
+
+    const finalBadgeCount = await getBadgeCount();
+    console.log(`  📊 Badge riwayat akhir setelah reload: ${finalBadgeCount}`);
     assert(
-      postReloadBadgeCount === initialBadgeCount,
-      `Badge counter sinkron dengan database setelah reload (Nilai: ${postReloadBadgeCount})`
+      finalBadgeCount === initialBadgeCount,
+      `Badge counter kembali sinkron persis dengan kondisi awal (${initialBadgeCount})`
     );
 
-    // 10. Verifikasi Keamanan Log & Tidak Ada Bocoran Secret / Raw Error
-    console.log("\n▶ [Step 10] Memeriksa console errors & sanitasi...");
+    // 12. Verifikasi Keamanan Konsol Browser
+    console.log("\n▶ [Step 12] Memeriksa console errors & sanitasi...");
     const hasSecretLeak = pageErrors.some((err) => err.includes("gsk_") || err.includes("DATABASE_URL"));
     assert(!hasSecretLeak, "Tidak ada kebocoran secret atau API key pada console browser");
 
