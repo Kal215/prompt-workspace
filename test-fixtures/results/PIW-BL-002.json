@@ -1,69 +1,83 @@
 {
   "requestId": "req-PIW-BL-002",
   "originalPrompt": "Tulis esai tentang AI yang bagus dan lengkap.",
-  "detectedIntent": "Menganalisis kelemahan prompt yang meminta penulisan esai AI, mengidentifikasi kekurangan dalam tujuan, konteks, kejelasan, format output, dan kriteria keberhasilan.",
+  "detectedIntent": "User wants a well‑written, comprehensive essay on AI, including relevant details and an initial structure, without fabricating references or assuming specific assignment rules.",
   "analysis": {
     "findings": [
       {
         "category": "Tujuan",
         "severity": "major",
         "evidence": "\"Tulis esai tentang AI yang bagus dan lengkap.\"",
-        "recommendation": "Jelaskan tujuan spesifik esai (misalnya: menjelaskan dampak AI pada pendidikan, membandingkan pendekatan etika, dll.) serta apa yang dianggap \"bagus\" dan \"lengkap\".",
+        "recommendation": "Specify the exact purpose of the essay (e.g., inform, argue, compare) and the intended audience or use case.",
         "type": "tujuan",
-        "message": "Jelaskan tujuan spesifik esai (misalnya: menjelaskan dampak AI pada pendidikan, membandingkan pendekatan etika, dll.) serta apa yang dianggap \"bagus\" dan \"lengkap\"."
-      },
-      {
-        "category": "Konteks",
-        "severity": "major",
-        "evidence": "Prompt tidak menyebutkan audiens, panjang yang diinginkan, atau tingkat kedalaman akademik.",
-        "recommendation": "Sertakan informasi tentang target pembaca (misalnya: mahasiswa S1, peneliti, umum), panjang perkiraan (kata atau halaman), dan gaya penulisan (formal, tinjauan literatur, dll.).",
-        "type": "konteks",
-        "message": "Sertakan informasi tentang target pembaca (misalnya: mahasiswa S1, peneliti, umum), panjang perkiraan (kata atau halaman), dan gaya penulisan (formal, tinjauan literatur, dll.)."
+        "message": "Specify the exact purpose of the essay (e.g., inform, argue, compare) and the intended audience or use case."
       },
       {
         "category": "Ambiguitas",
         "severity": "major",
-        "evidence": "Penggunaan kata subjektif \"bagus\" dan \"lengkap\" tanpa definisi yang dapat diukur.",
-        "recommendation": "Definisikan kriteria objektif untuk \"bagus\" (misalnya: argumen logis, referensi terkini) dan \"lengkap\" (misalnya: mencakup sejarah AI, aplikasi, tantangan etis).",
+        "evidence": "Kata‑kata subjektif seperti \"bagus\" dan \"lengkap\".",
+        "recommendation": "Define measurable criteria for \"good\" (e.g., clarity, depth, academic tone) and \"complete\" (e.g., sections to cover, word count).",
         "type": "ambiguitas",
-        "message": "Definisikan kriteria objektif untuk \"bagus\" (misalnya: argumen logis, referensi terkini) dan \"lengkap\" (misalnya: mencakup sejarah AI, aplikasi, tantangan etis)."
+        "message": "Define measurable criteria for \"good\" (e.g., clarity, depth, academic tone) and \"complete\" (e.g., sections to cover, word count)."
       },
       {
         "category": "Keluaran",
-        "severity": "minor",
-        "evidence": "Tidak ada format atau struktur output yang diminta.",
-        "recommendation": "Tentukan format yang diharapkan (misalnya: outline dengan judul, subjudul, atau esai penuh dalam markdown).",
+        "severity": "major",
+        "evidence": "Tidak ada format output yang diminta.",
+        "recommendation": "State the desired output format (plain text, markdown, outline, JSON) and any structural requirements (headings, bullet points).",
         "type": "keluaran",
-        "message": "Tentukan format yang diharapkan (misalnya: outline dengan judul, subjudul, atau esai penuh dalam markdown)."
+        "message": "State the desired output format (plain text, markdown, outline, JSON) and any structural requirements (headings, bullet points)."
+      },
+      {
+        "category": "Batasan",
+        "severity": "major",
+        "evidence": "Tidak ada batasan panjang, gaya sitasi, atau sumber yang boleh dipakai.",
+        "recommendation": "Provide constraints such as word count, citation style (APA, MLA), allowed sources, and any technical limits.",
+        "type": "batasan",
+        "message": "Provide constraints such as word count, citation style (APA, MLA), allowed sources, and any technical limits."
       },
       {
         "category": "Keberhasilan",
-        "severity": "minor",
-        "evidence": "Tidak ada kriteria penilaian atau metrik untuk menilai apakah esai memenuhi harapan.",
-        "recommendation": "Berikan kriteria keberhasilan seperti: mencakup minimal tiga subtopik, menggunakan minimal dua sumber akademik, atau mematuhi batas kata tertentu.",
+        "severity": "major",
+        "evidence": "Tidak ada kriteria evaluasi atau metrik penyelesaian.",
+        "recommendation": "Define success criteria (e.g., includes introduction, body, conclusion; covers at least three AI sub‑topics; no fabricated references).",
         "type": "keberhasilan",
-        "message": "Berikan kriteria keberhasilan seperti: mencakup minimal tiga subtopik, menggunakan minimal dua sumber akademik, atau mematuhi batas kata tertentu."
+        "message": "Define success criteria (e.g., includes introduction, body, conclusion; covers at least three AI sub‑topics; no fabricated references)."
+      },
+      {
+        "category": "Konteks",
+        "severity": "minor",
+        "evidence": "\"Domain: Penulisan akademik\" but missing target audience and level of expertise.",
+        "recommendation": "Add details about the intended readership (undergraduate, graduate, general public) and any disciplinary focus.",
+        "type": "konteks",
+        "message": "Add details about the intended readership (undergraduate, graduate, general public) and any disciplinary focus."
       }
     ],
     "score": 32,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Role: You are an expert essay writer specialized in artificial intelligence.\nObjective: Produce a well‑structured, comprehensive essay about AI that satisfies the defined quality criteria.\nInput Parameters:\n- Audience and desired length: [TARGET_AUDIENS_DAN_JUMLAH_KATA] (e.g., undergraduate students, 1500 words)\n- Academic depth/complexity: [TINGKAT_KEDALAMAN] (e.g., introductory, intermediate, advanced)\n- Definition of a \"good\" essay: [KRITERIA_BAGUS] (e.g., logical argumentation, up‑to‑date references, clear thesis statement)\n- Definition of a \"complete\" essay: [KRITERIA_LENGKAP] (e.g., covers AI history, current applications, ethical challenges, future outlook)\n- Minimum subtopics to include: at least three (e.g., history of AI, applications, ethical considerations)\n- Minimum academic sources: [JUMLAH_SUMBER] sources (use placeholder citations like [1], [2])\nInstructions:\n1. Draft an outline with a main title and hierarchical subheadings.\n2. Write the full essay following the outline, using a formal academic style appropriate for the specified audience.\n3. Insert placeholder citations for each source referenced.\n4. Ensure all required subtopics are addressed and the essay stays within the word limit.\n5. Review the essay against the \"good\" and \"complete\" criteria.\nOutput Format:\n- First, present the outline in plain text.\n- Then provide the complete essay in Markdown, using headings (##) for each section and sub‑headings (###) where needed.\n- Include a \"References\" section with placeholder entries.\nConstraints:\n- Do not fabricate real sources or URLs; use placeholder citations only.\n- Strictly adhere to the specified audience level, word count, and depth.\n- Replace all placeholders before executing the prompt.\n- Observe ethical guidelines and avoid copyrighted material without permission.",
+  "optimizedPrompt": "Role: Penulis esai akademik yang berpengalaman.\n\nObjective: Menulis esai tentang Kecerdasan Buatan (AI) yang memenuhi tujuan spesifik, audiens target, dan kriteria kualitas yang ditentukan.\n\nInput & Parameters:\n- Tujuan esai: [TUJUAN_ESSAY] (misalnya: menginformasikan, meyakinkan, membandingkan, atau mengkritisi)\n- Audiens target: [AUDIENS_TARGET] (misalnya: mahasiswa S1, profesional TI, atau publik umum)\n- Panjang esai: [PANJANG_KATA] kata\n- Gaya sitasi yang harus dipakai: [GAYA_SITASI] (misalnya: APA, MLA, atau Chicago)\n- Sumber yang diizinkan: [SUMBER_YANG_DIIZINKAN] (misalnya: jurnal peer‑review, buku teks, artikel konferensi)\n- Sub‑topik AI yang harus dibahas: [DAFTAR_SUBTOPIK_AI] (misalnya: pembelajaran mesin, etika AI, aplikasi industri)\n- Kriteria kualitas: kejelasan, kedalaman analisis, nada akademik, dan tidak mengarang referensi.\n\nOperational Steps:\n1. Buat kerangka esai yang mencakup pendahuluan, tiga atau lebih bagian utama sesuai sub‑topik, dan kesimpulan.\n2. Kumpulkan informasi dari sumber yang diizinkan, catat semua referensi secara lengkap.\n3. Tulis setiap bagian dengan fokus pada tujuan esai dan audiens, gunakan bahasa yang sesuai tingkat keahlian.\n4. Sisipkan sitasi sesuai gaya yang ditentukan.\n5. Pastikan total kata mendekati [PANJANG_KATA] dengan toleransi ±5%.\n6. Periksa bahwa esai mencakup semua sub‑topik yang diminta dan tidak mengandung referensi fiktif.\n\nOutput Format:\n- Dokumen dalam format Markdown.\n- Gunakan heading level 1 untuk judul, level 2 untuk bagian utama, dan level 3 untuk sub‑bagian.\n- Daftar pustaka di akhir dengan format [GAYA_SITASI].\n- Sertakan tabel atau bullet point bila diperlukan untuk memperjelas poin.\n\nConstraints:\n- Tidak boleh melebihi atau kurang dari batas kata yang ditentukan.\n- Semua kutipan harus berasal dari [SUMBER_YANG_DIIZINKAN] dan dicantumkan secara akurat.\n- Hindari penggunaan bahasa subjektif tanpa dukungan fakta.\n- Tidak boleh menambahkan tujuan atau topik di luar yang tercantum dalam input.\n- Ikuti semua batasan etika penulisan akademik.",
   "changes": [
-    "Menambahkan peran (Role) dan tujuan spesifik (Objective) untuk memperjelas konteks.",
-    "Menyertakan placeholder terstruktur untuk audiens, panjang, tingkat kedalaman, serta kriteria \"bagus\" dan \"lengkap\".",
-    "Menentukan langkah operasional yang detail, termasuk pembuatan outline dan penggunaan placeholder sitasi.",
-    "Mendefinisikan format keluaran yang diharapkan (outline + essay dalam Markdown).",
-    "Menetapkan batasan khusus untuk menghindari fabrikasi fakta dan memastikan kepatuhan etika."
+    "Menambahkan peran (Role) dan tanggung jawab penulis esai",
+    "Mendefinisikan tujuan spesifik, audiens, panjang kata, gaya sitasi, dan sumber sebagai placeholder terstruktur",
+    "Menyediakan langkah operasional yang jelas untuk penulisan",
+    "Menetapkan format keluaran dalam Markdown dengan struktur heading dan daftar pustaka",
+    "Menetapkan batasan panjang, sumber, dan kriteria kualitas untuk menghindari ambiguitas"
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (misalnya [TARGET_AUDIENS_DAN_JUMLAH_KATA], [KRITERIA_BAGUS], [KRITERIA_LENGKAP], [JUMLAH_SUMBER]) sebelum menjalankan prompt.",
-    "Pastikan sumber akademik yang akan di‑insert memang ada dan dapat diakses; gunakan referensi yang sah.",
-    "Periksa kembali batasan etika dan perizinan terkait penggunaan materi AI sebelum publikasi."
+    "Pengguna wajib mengganti semua placeholder (misalnya [TUJUAN_ESSAY], [AUDIENS_TARGET], [PANJANG_KATA], dll.) dengan nilai yang sesuai sebelum menjalankan prompt",
+    "Pastikan semua sumber yang dipilih memenuhi hak cipta dan izin penggunaan",
+    "Periksa kembali kepatuhan terhadap gaya sitasi yang dipilih"
   ],
   "metadata": {
-    "modelTarget": "groq-llama-3.3-70b-versatile",
-    "processingTimeMs": 5741,
+    "modelTarget": "openai/gpt-oss-120b",
+    "processingTimeMs": 5289,
+    "latencyMs": 5287,
+    "tokensUsed": {
+      "promptTokens": 1856,
+      "completionTokens": 1915,
+      "totalTokens": 3771
+    },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"
   }

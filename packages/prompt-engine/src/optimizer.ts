@@ -1,16 +1,33 @@
 import { GroqAdapter } from "@prompt-workspace/provider-adapters";
 import { Finding } from "@prompt-workspace/prompt-contracts";
 import { z } from "zod";
+import { safeLogger } from "./logger.js";
+import {
+  IntentPreservationError,
+  ProviderRateLimitError,
+  ProviderTimeoutError,
+  ProviderUnavailableError,
+  SchemaValidationError,
+} from "./errors.js";
 
 export interface OptimizePromptResult {
   optimizedPrompt: string;
   changes: string[];
   warnings: string[];
+  telemetry?: {
+    model: string;
+    latencyMs?: number;
+    usage?: {
+      promptTokens: number;
+      completionTokens: number;
+    };
+    keyUsed?: string;
+  };
 }
 
 const RawOptimizerOutputSchema = z.object({
-  optimizedPrompt: z.string().min(1),
-  changes: z.array(z.string()).min(1),
+  optimizedPrompt: z.string().min(1, "optimizedPrompt tidak boleh kosong"),
+  changes: z.array(z.string()).min(1, "Minimal harus ada 1 catatan perubahan"),
   warnings: z.array(z.string()),
 });
 
@@ -79,8 +96,11 @@ function extractJsonFromText(rawText: string): any {
 
   try {
     return JSON.parse(cleaned);
-  } catch (err) {
-    throw new Error(`Gagal mem-parse output JSON dari Optimizer: ${cleaned.substring(0, 200)}...`);
+  } catch (err: any) {
+    throw new SchemaValidationError(
+      `Gagal mem-parse output JSON dari Optimizer: ${cleaned.substring(0, 100)}...`,
+      err
+    );
   }
 }
 
@@ -98,6 +118,12 @@ export async function optimizePrompt(
   constraints: string[] = [],
   adapter?: GroqAdapter
 ): Promise<OptimizePromptResult> {
+  safeLogger.info("Memulai optimasi prompt (Preserve Intent)", {
+    originalPrompt,
+    findingsCount: analysisFindings.length,
+    constraintsCount: constraints.length,
+  });
+
   const groq = adapter || new GroqAdapter();
 
   const findingsSummary = analysisFindings
@@ -125,19 +151,67 @@ export async function optimizePrompt(
     `Ingat aturan keras Intent Preservation: Gunakan placeholder terstruktur jika ada informasi yang belum lengkap, JANGAN PERNAH MENGARANG fakta/URL.`,
   ].join("\n");
 
-  const response = await groq.chatCompletion([
-    { role: "system", content: OPTIMIZER_SYSTEM_PROMPT },
-    { role: "user", content: userContent },
-  ], {
-    temperature: 0.2,
-  });
+  let response;
+  try {
+    response = await groq.chatCompletion(
+      [
+        { role: "system", content: OPTIMIZER_SYSTEM_PROMPT },
+        { role: "user", content: userContent },
+      ],
+      {
+        temperature: 0.2,
+      }
+    );
+  } catch (err: any) {
+    safeLogger.error("Gagal memanggil provider saat optimasi prompt", err);
+
+    if (err?.code === "RATE_LIMIT" || err?.statusCode === 429) {
+      throw new ProviderRateLimitError(err.message, err);
+    }
+    if (err?.code === "TIMEOUT" || err?.statusCode === 504) {
+      throw new ProviderTimeoutError(err.message, err);
+    }
+    throw new ProviderUnavailableError(
+      err?.message || "Provider Groq tidak tersedia atau semua key exhausted",
+      err
+    );
+  }
 
   const parsedJson = extractJsonFromText(response.content);
-  const validated = RawOptimizerOutputSchema.parse(parsedJson);
+
+  let validated;
+  try {
+    validated = RawOptimizerOutputSchema.parse(parsedJson);
+  } catch (err: any) {
+    safeLogger.error("Validasi skema output Optimizer gagal", err);
+    throw new SchemaValidationError(
+      "Struktur JSON dari Optimizer tidak sesuai dengan skema yang diharapkan",
+      err
+    );
+  }
+
+  // Verifikasi dasar Intent Preservation: prompt hasil optimasi tidak boleh kosong
+  if (!validated.optimizedPrompt || validated.optimizedPrompt.trim().length === 0) {
+    throw new IntentPreservationError("Hasil optimasi prompt kosong");
+  }
+
+  safeLogger.info("Optimasi prompt selesai", {
+    optimizedPrompt: validated.optimizedPrompt,
+    changesCount: validated.changes.length,
+    warningsCount: (validated.warnings || []).length,
+    model: response.model,
+    latencyMs: response.latencyMs,
+  });
 
   return {
     optimizedPrompt: validated.optimizedPrompt,
     changes: validated.changes,
     warnings: validated.warnings || [],
+    telemetry: {
+      model: response.model,
+      latencyMs: response.latencyMs,
+      usage: response.usage,
+      keyUsed: response.keyUsed,
+    },
   };
 }

@@ -6,63 +6,69 @@
     "findings": [
       {
         "category": "Ambiguitas",
-        "severity": "major",
-        "evidence": "\"canggih\" is a subjective term without measurable criteria.",
-        "recommendation": "Specify concrete attributes (e.g., performance metrics, scalability targets, user base size) that define a \"canggih\" AI product.",
+        "severity": "minor",
+        "evidence": "\"produk besar yang canggih\" – terms like \"canggih\" are subjective and not measurable.",
+        "recommendation": "Specify concrete quality attributes (e.g., performance targets, scalability level, user count) instead of vague adjectives.",
         "type": "ambiguitas",
-        "message": "Specify concrete attributes (e.g., performance metrics, scalability targets, user base size) that define a \"canggih\" AI product."
+        "message": "Specify concrete quality attributes (e.g., performance targets, scalability level, user count) instead of vague adjectives."
       },
       {
         "category": "Batasan",
-        "severity": "major",
-        "evidence": "Prompt does not mention timeline, budget, team size, technology stack, or regulatory constraints.",
-        "recommendation": "Provide explicit constraints such as expected development duration, budget limits, preferred programming languages/frameworks, compliance requirements, and resource availability.",
+        "severity": "critical",
+        "evidence": "Prompt does not define technical constraints such as preferred programming language, AI frameworks, budget, team size, timeline, or regulatory considerations.",
+        "recommendation": "Provide explicit constraints (e.g., budget ceiling, timeline phases, technology stack, compliance requirements) to guide the roadmap.",
         "type": "batasan",
-        "message": "Provide explicit constraints such as expected development duration, budget limits, preferred programming languages/frameworks, compliance requirements, and resource availability."
+        "message": "Provide explicit constraints (e.g., budget ceiling, timeline phases, technology stack, compliance requirements) to guide the roadmap."
       },
       {
         "category": "Keluaran",
-        "severity": "minor",
-        "evidence": "No format is defined for the roadmap (e.g., markdown, table, Gantt chart).",
-        "recommendation": "State the desired output format (e.g., markdown with headings, JSON structure, CSV timeline) to ensure the response meets user expectations.",
+        "severity": "major",
+        "evidence": "No format for the roadmap is requested (e.g., markdown table, Gantt chart, JSON).",
+        "recommendation": "State the desired output format and structure (e.g., phases with deliverables, milestones, responsible roles) to ensure usable results.",
         "type": "keluaran",
-        "message": "State the desired output format (e.g., markdown with headings, JSON structure, CSV timeline) to ensure the response meets user expectations."
+        "message": "State the desired output format and structure (e.g., phases with deliverables, milestones, responsible roles) to ensure usable results."
       },
       {
         "category": "Keberhasilan",
         "severity": "major",
-        "evidence": "There are no criteria for evaluating whether the roadmap is complete or successful.",
-        "recommendation": "Define success metrics such as coverage of key phases, clarity of milestones, alignment with validation and MVP priorities, and actionable deliverables.",
+        "evidence": "The prompt lacks criteria for evaluating whether the roadmap is successful or complete.",
+        "recommendation": "Define success metrics (e.g., validation milestones, MVP launch date, adoption targets) that the roadmap should satisfy.",
         "type": "keberhasilan",
-        "message": "Define success metrics such as coverage of key phases, clarity of milestones, alignment with validation and MVP priorities, and actionable deliverables."
+        "message": "Define success metrics (e.g., validation milestones, MVP launch date, adoption targets) that the roadmap should satisfy."
       },
       {
         "category": "Konteks",
         "severity": "minor",
-        "evidence": "While the domain is given (product planning), the target audience, market segment, and end‑user personas are missing.",
-        "recommendation": "Include information about the intended users, market niche, and business goals to tailor the roadmap appropriately.",
+        "evidence": "While domain and high‑level expectations are given, details about the target market, user personas, and existing resources are missing.",
+        "recommendation": "Add information about the intended audience, market size, and current capabilities to tailor the roadmap appropriately.",
         "type": "konteks",
-        "message": "Include information about the intended users, market niche, and business goals to tailor the roadmap appropriately."
+        "message": "Add information about the intended audience, market size, and current capabilities to tailor the roadmap appropriately."
       }
     ],
     "score": 32,
     "status": "needs_optimization"
   },
-  "optimizedPrompt": "Role: AI Product Planning Specialist\nObjective: Create a comprehensive roadmap for developing an AI application from initial concept to a large‑scale, high‑performance product.\nInput & Parameters:\n- Target audience and user personas: [TARGET_AUDIENS]\n- Market segment and business goals: [PASAR_SEGMENT], [BUSINESS_GOALS]\n- Desired performance metrics and scalability targets (e.g., latency, accuracy, concurrent users): [PERFORMANCE_METRICS]\n- Development timeline (months/years) and major milestones: [TIMELINE]\n- Budget constraints (currency and amount): [BUDGET]\n- Team composition and size: [TEAM_SIZE]\n- Preferred technology stack (programming languages, frameworks, cloud services, AI/ML libraries): [TECH_STACK]\n- Regulatory and compliance requirements (e.g., GDPR, HIPAA): [REGULATORY_CONSTRAINTS]\n- Success criteria for evaluating the roadmap (coverage of phases, clarity of milestones, alignment with MVP, actionable deliverables): [SUCCESS_CRITERIA]\n- Desired output format for the roadmap (e.g., markdown with headings, JSON structure, CSV timeline, Gantt chart description): [OUTPUT_FORMAT]\n\nInstructions:\n1. Outline the roadmap in sequential phases (e.g., Ideation, Research, MVP Development, Scaling, Optimization, Market Expansion).\n2. For each phase, list key activities, deliverables, responsible roles, estimated duration, and required resources.\n3. Incorporate the specified performance metrics, budget limits, and regulatory constraints into relevant phases.\n4. Highlight critical milestones and decision points that determine progression to the next phase.\n5. Provide a brief evaluation checklist based on the defined success criteria.\n\nOutput Format:\n- Present the roadmap using the chosen [OUTPUT_FORMAT] placeholder. If markdown is selected, use clear headings, sub‑headings, bullet points, and tables where appropriate.\n- Include a summary table that maps phases to timelines, budgets, and team allocations.\n- Append the success‑criteria checklist at the end of the document.\n\nConstraints:\n- Do not fabricate any data; use only the information supplied via placeholders.\n- Maintain a professional tone suitable for stakeholders and development teams.\n- Ensure the roadmap is actionable and realistic given the provided constraints.",
+  "optimizedPrompt": "Role: AI Product Strategist\nObjective: Create a detailed, phase‑by‑phase roadmap for developing an AI‑driven application, starting from initial concept through to a large‑scale, high‑performance product.\n\nInputs & Parameters:\n- Product concept description (brief overview of the AI application idea).\n- Target market: [TARGET_MARKET]\n- Primary user personas: [USER_PERSONAS]\n- Budget ceiling: [BUDGET]\n- Overall timeline (e.g., months or years): [TIMELINE]\n- Preferred technology stack (programming language, AI frameworks, cloud services, etc.): [TECH_STACK]\n- Team size and key roles: [TEAM_SIZE]\n- Regulatory or compliance requirements: [REGULATORY_REQUIREMENTS]\n- Desired performance targets (accuracy, latency, throughput, etc.): [PERFORMANCE_TARGETS]\n- Scalability level (number of concurrent users, data volume, geographic coverage): [SCALABILITY_LEVEL]\n- Success metrics for each phase (MVP launch date, user adoption rate, revenue targets, etc.): [SUCCESS_METRICS]\n- Desired output format for the roadmap (e.g., markdown table, Gantt chart, JSON): [OUTPUT_FORMAT]\n\nOperational Steps:\n1. Define high‑level phases (e.g., Discovery, MVP Development, Pilot Testing, Scaling, Full Product Launch).\n2. For each phase, list specific deliverables, milestones, and responsible roles.\n3. Map each deliverable to the provided timeline, budget, and resource constraints.\n4. Incorporate performance, scalability, and regulatory checkpoints into the milestones.\n5. Attach success criteria (from SUCCESS_METRICS) to validate completion of each phase.\n6. Present the roadmap in the specified OUTPUT_FORMAT, ensuring clear headings, dates, owners, and evaluation criteria.\n\nOutput Format:\n- Structured representation (as defined by [OUTPUT_FORMAT]) containing:\n  • Phase name\n  • Timeframe (start‑end dates)\n  • Key deliverables\n  • Milestones & success criteria\n  • Assigned team/role\n  • Budget allocation per phase\n  • Technical and regulatory notes\n\nConstraints & Rules:\n- Use only the information supplied or the placeholders provided; do not fabricate data.\n- Maintain a professional tone and clear, measurable language.\n- Ensure all placeholders are clearly marked for later replacement before execution.\n- Adhere to any ethical, legal, or compliance considerations indicated in REGULATORY_REQUIREMENTS.",
   "changes": [
-    "Added explicit role and objective sections to clarify purpose",
-    "Introduced structured placeholders for all missing critical information (audience, market, metrics, timeline, budget, team, tech stack, regulations, success criteria, output format)",
-    "Defined step‑by‑step instructions for building the roadmap",
-    "Specified expected output format and included a checklist for success evaluation",
-    "Listed constraints to prevent hallucination and ensure realistic deliverables"
+    "Added explicit role (AI Product Strategist) and clear objective.",
+    "Introduced structured placeholders for all missing critical information (market, personas, budget, timeline, tech stack, team size, regulations, performance, scalability, success metrics, output format).",
+    "Defined detailed operational steps to guide roadmap creation.",
+    "Specified a comprehensive output format with required fields.",
+    "Listed constraints to prevent hallucination and ensure placeholder replacement."
   ],
   "warnings": [
-    "Pengguna wajib mengganti semua placeholder (misalnya [TARGET_AUDIENS], [TIMELINE], dll.) dengan informasi yang relevan sebelum menjalankan prompt",
-    "Pastikan batasan anggaran, regulasi, dan sumber daya sesuai dengan kebijakan organisasi dan peraturan yang berlaku"
+    "Pengguna wajib mengganti semua placeholder (e.g., [TARGET_MARKET], [BUDGET], [OUTPUT_FORMAT]) dengan data yang sebenarnya sebelum menjalankan prompt.",
+    "Pastikan bahwa semua persyaratan regulasi dan kepatuhan telah dipenuhi sesuai dengan [REGULATORY_REQUIREMENTS]."
   ],
   "metadata": {
-    "modelTarget": "groq-llama-3.3-70b-versatile",
-    "processingTimeMs": 4082,
+    "modelTarget": "openai/gpt-oss-120b",
+    "processingTimeMs": 4838,
+    "latencyMs": 4836,
+    "tokensUsed": {
+      "promptTokens": 1831,
+      "completionTokens": 1643,
+      "totalTokens": 3474
+    },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision"
   }

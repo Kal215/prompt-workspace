@@ -96,6 +96,25 @@ export const PromptAnalysisSchema = z.object({
 });
 export type PromptAnalysis = z.infer<typeof PromptAnalysisSchema>;
 
+export const PromptMetadataSchema = z
+  .object({
+    modelTarget: z.string().optional(),
+    processingTimeMs: z.number().optional(),
+    latencyMs: z.number().optional(),
+    tokensUsed: z
+      .object({
+        promptTokens: z.number().default(0),
+        completionTokens: z.number().default(0),
+        totalTokens: z.number().default(0),
+      })
+      .optional(),
+    confidenceScore: z.number().optional(),
+    estimatedTokenSavings: z.string().optional(),
+  })
+  .passthrough();
+
+export type PromptMetadata = z.infer<typeof PromptMetadataSchema>;
+
 export const PromptOptimizationResultSchema = z.object({
   /** ID request terkait */
   requestId: z.string().min(1, "requestId is required"),
@@ -119,15 +138,7 @@ export const PromptOptimizationResultSchema = z.object({
   warnings: z.array(z.string()),
 
   /** Metadata tambahan (model target, waktu pemrosesan, token, dll.) */
-  metadata: z
-    .object({
-      modelTarget: z.string().optional(),
-      processingTimeMs: z.number().optional(),
-      confidenceScore: z.number().optional(),
-      estimatedTokenSavings: z.string().optional(),
-    })
-    .passthrough()
-    .optional(),
+  metadata: PromptMetadataSchema.optional(),
 });
 
 export type PromptOptimizationResult = z.infer<
