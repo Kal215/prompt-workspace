@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  History,
   X,
   Clock,
   Trash2,
@@ -16,7 +15,6 @@ import {
   Database,
   RefreshCw,
   Loader2,
-  FileText,
 } from "lucide-react";
 
 export interface SavedPromptItem {
@@ -71,9 +69,17 @@ export function HistorySidebar({
   }, [onCountChange]);
 
   useEffect(() => {
+    let ignore = false;
     if (isOpen) {
-      fetchHistory();
+      queueMicrotask(() => {
+        if (!ignore) {
+          fetchHistory();
+        }
+      });
     }
+    return () => {
+      ignore = true;
+    };
   }, [isOpen, refreshKey, fetchHistory]);
 
   const handleCopy = async (id: string, text: string, e: React.MouseEvent) => {
@@ -245,7 +251,7 @@ export function HistorySidebar({
                   Belum ada prompt yang disimpan
                 </p>
                 <p className="text-[11px] leading-relaxed max-w-xs text-muted-foreground">
-                  Klik tombol <strong className="text-foreground">"Accept & Save"</strong> pada hasil optimasi untuk menyimpan prompt langsung ke database workspace Anda.
+                  Klik tombol <strong className="text-foreground">&quot;Accept &amp; Save&quot;</strong> pada hasil optimasi untuk menyimpan prompt langsung ke database workspace Anda.
                 </p>
               </div>
               <div className="pt-2">
@@ -294,7 +300,7 @@ export function HistorySidebar({
                     </div>
                     {item.intentSummary && (
                       <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
-                        Intent: "{item.intentSummary}"
+                        Intent: &ldquo;{item.intentSummary}&rdquo;
                       </div>
                     )}
                   </div>

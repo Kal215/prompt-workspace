@@ -67,7 +67,7 @@ export function IntentGuardCard({ intent }: IntentGuardCardProps) {
             <span>Ringkasan Maksud Terdeteksi</span>
           </div>
           <p className="text-foreground leading-relaxed font-medium">
-            "{summary}"
+            &ldquo;{summary}&rdquo;
           </p>
         </div>
 

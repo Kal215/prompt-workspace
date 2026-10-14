@@ -14,15 +14,28 @@ export interface SavePromptInput {
 
 // In ESM / Node environments, resolve the absolute path to prisma/dev.db
 const getDatabaseUrl = (): string => {
-  if (process.env.DATABASE_URL) {
-    return process.env.DATABASE_URL;
-  }
+  const envUrl = process.env.DATABASE_URL;
   const currentDir =
     typeof __dirname !== "undefined"
       ? __dirname
       : dirname(fileURLToPath(import.meta.url));
   const fallbackDbPath = resolve(currentDir, "../prisma/dev.db");
-  return `file:${fallbackDbPath}`;
+
+  if (!envUrl) {
+    return `file:${fallbackDbPath}`;
+  }
+
+  // Absolute SQLite path or protocol (e.g. file:/tmp/isolated.db or file:///...)
+  if (envUrl.startsWith("file:/")) {
+    return envUrl;
+  }
+
+  // Jika berupa path relatif SQLite, arahkan ke path absolut dev.db kanonis
+  if (envUrl.startsWith("file:")) {
+    return `file:${fallbackDbPath}`;
+  }
+
+  return envUrl;
 };
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
