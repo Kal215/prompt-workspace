@@ -101,6 +101,11 @@ export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
 
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Kesehatan Prompt:</span>
+            {status && (
+              <Badge variant="outline" className="text-[10px] uppercase font-mono px-2 py-0.5">
+                {status}
+              </Badge>
+            )}
             <span
               className={`text-xs font-bold px-2.5 py-1 rounded-full border ${getScoreColor(
                 score

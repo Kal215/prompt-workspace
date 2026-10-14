@@ -57,6 +57,6 @@ export interface PromptOptimizationResult {
     processingTimeMs?: number;
     confidenceScore?: number;
     estimatedTokenSavings?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }

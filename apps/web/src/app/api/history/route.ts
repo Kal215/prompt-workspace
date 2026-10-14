@@ -1,11 +1,31 @@
 import { NextResponse } from "next/server";
 import dotenv from "dotenv";
 import path from "path";
-import { getHistory, savePrompt, deletePrompt, type SavePromptInput } from "@prompt-workspace/database";
+import {
+  getHistory,
+  savePrompt,
+  getPromptById,
+  deletePrompt,
+  type SavePromptInput,
+} from "@prompt-workspace/database";
 
 // Pastikan konfigurasi .env root dimuat untuk DATABASE_URL dan konfigurasi lainnya
 dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
+const MAX_PROMPT_CHARS = 50000;
+const MAX_PAYLOAD_BYTES = 256 * 1024; // 256 KB
+
+/**
+ * Helper untuk sanitasi error logging: tidak mengekspos prompt mentah, secret, atau stack trace.
+ */
+function logSanitizedError(operation: string, error: unknown) {
+  const err = error as { name?: string; message?: string; code?: string };
+  console.error(`[API_HISTORY_${operation}_ERROR]`, {
+    name: err?.name || "Error",
+    code: err?.code || "UNKNOWN",
+  });
+}
 
 /**
  * GET /api/history
@@ -15,7 +35,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get("limit");
-    const limit = limitParam ? Math.min(Math.max(parseInt(limitParam, 10) || 20, 1), 100) : 50;
+    const limit = limitParam
+      ? Math.min(Math.max(parseInt(limitParam, 10) || 20, 1), 100)
+      : 50;
 
     const history = await getHistory(limit);
 
@@ -24,8 +46,8 @@ export async function GET(request: Request) {
       data: history,
       count: history.length,
     });
-  } catch (error) {
-    console.error("[API_HISTORY_GET_ERROR]", error);
+  } catch (error: unknown) {
+    logSanitizedError("GET", error);
     return NextResponse.json(
       {
         success: false,
@@ -39,33 +61,143 @@ export async function GET(request: Request) {
 /**
  * POST /api/history
  * Menyimpan prompt yang di-accept oleh user ke database SQLite.
+ * Dilengkapi dengan validasi ketat, idempotensi, batasan ukuran, dan sanitasi error.
  */
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-
-    const { originalPrompt, optimizedPrompt, intentSummary, score, id } = body;
-
-    if (!originalPrompt || typeof originalPrompt !== "string") {
+    // 1. Validasi Ukuran Content-Length
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_PAYLOAD_BYTES) {
       return NextResponse.json(
-        { success: false, error: "Field 'originalPrompt' wajib diisi (string)." },
+        {
+          success: false,
+          error: "Ukuran payload melebihi batas maksimum 256 KB.",
+        },
+        { status: 413 }
+      );
+    }
+
+    // 2. Validasi Format JSON (Cegah Crash Malformed JSON)
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Format JSON tidak valid atau body kosong.",
+        },
         { status: 400 }
       );
     }
 
-    if (!optimizedPrompt || typeof optimizedPrompt !== "string") {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
       return NextResponse.json(
-        { success: false, error: "Field 'optimizedPrompt' wajib diisi (string)." },
+        {
+          success: false,
+          error: "Payload body harus berupa JSON object.",
+        },
         { status: 400 }
       );
+    }
+
+    const { originalPrompt, optimizedPrompt, intentSummary, score, id } =
+      body as Record<string, unknown>;
+
+    // 3. Validasi Field Wajib & Input Kosong
+    if (typeof originalPrompt !== "string" || !originalPrompt.trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Field 'originalPrompt' wajib diisi string dan tidak boleh kosong.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (typeof optimizedPrompt !== "string" || !optimizedPrompt.trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Field 'optimizedPrompt' wajib diisi string dan tidak boleh kosong.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 4. Validasi Batas Maksimum Karakter Prompt
+    if (
+      originalPrompt.length > MAX_PROMPT_CHARS ||
+      optimizedPrompt.length > MAX_PROMPT_CHARS
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Ukuran prompt melebihi batas maksimum ${MAX_PROMPT_CHARS.toLocaleString("id-ID")} karakter.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // 5. Validasi Rentang Nilai Score (0 - 100)
+    let parsedScore = 80;
+    if (score !== undefined && score !== null) {
+      if (typeof score !== "number" || isNaN(score) || score < 0 || score > 100) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Nilai 'score' harus berupa angka numerik di antara 0 dan 100.",
+          },
+          { status: 400 }
+        );
+      }
+      parsedScore = Math.round(score);
+    }
+
+    const cleanOriginal = originalPrompt.trim();
+    const cleanOptimized = optimizedPrompt.trim();
+    const cleanIntent =
+      typeof intentSummary === "string" ? intentSummary.trim() : null;
+    const cleanId =
+      typeof id === "string" && id.trim() ? id.trim() : undefined;
+
+    // 6. Idempotensi & Validasi Duplikasi ID
+    if (cleanId) {
+      const existing = await getPromptById(cleanId);
+      if (existing) {
+        // Cek apakah data payload identik (Idempotent Request)
+        const isIdentical =
+          existing.originalPrompt === cleanOriginal &&
+          existing.optimizedPrompt === cleanOptimized;
+
+        if (isIdentical) {
+          return NextResponse.json(
+            {
+              success: true,
+              message: "Prompt sudah tersimpan sebelumnya (idempotent).",
+              data: existing,
+            },
+            { status: 200 }
+          );
+        }
+
+        // Jika ID sama tetapi payload berbeda -> Conflict
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Conflict: ID prompt sudah terdaftar dengan data berbeda.",
+          },
+          { status: 409 }
+        );
+      }
     }
 
     const payload: SavePromptInput = {
-      id: typeof id === "string" && id.trim() ? id.trim() : undefined,
-      originalPrompt: originalPrompt.trim(),
-      optimizedPrompt: optimizedPrompt.trim(),
-      intentSummary: typeof intentSummary === "string" ? intentSummary.trim() : null,
-      score: typeof score === "number" && !isNaN(score) ? Math.round(score) : 80,
+      id: cleanId,
+      originalPrompt: cleanOriginal,
+      optimizedPrompt: cleanOptimized,
+      intentSummary: cleanIntent,
+      score: parsedScore,
     };
 
     const saved = await savePrompt(payload);
@@ -78,8 +210,8 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("[API_HISTORY_POST_ERROR]", error);
+  } catch (error: unknown) {
+    logSanitizedError("POST", error);
     return NextResponse.json(
       {
         success: false,
@@ -92,26 +224,35 @@ export async function POST(request: Request) {
 
 /**
  * DELETE /api/history?id=...
- * Menghapus prompt tertentu dari riwayat database (opsional).
+ * Menghapus prompt tertentu dari riwayat database SQLite.
  */
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
-    if (!id) {
+    if (!id || !id.trim()) {
       return NextResponse.json(
-        { success: false, error: "Parameter 'id' wajib disertakan untuk menghapus prompt." },
+        {
+          success: false,
+          error: "Parameter 'id' wajib disertakan untuk menghapus prompt.",
+        },
         { status: 400 }
       );
     }
 
+    const cleanId = id.trim();
+
     try {
-      await deletePrompt(id);
-    } catch (err: any) {
-      if (err?.code === "P2025") {
+      await deletePrompt(cleanId);
+    } catch (err: unknown) {
+      const prismaErr = err as { code?: string };
+      if (prismaErr?.code === "P2025") {
         return NextResponse.json(
-          { success: false, error: "Prompt dengan ID tersebut tidak ditemukan di database." },
+          {
+            success: false,
+            error: "Prompt dengan ID tersebut tidak ditemukan di database.",
+          },
           { status: 404 }
         );
       }
@@ -122,8 +263,8 @@ export async function DELETE(request: Request) {
       success: true,
       message: "Prompt berhasil dihapus dari database.",
     });
-  } catch (error) {
-    console.error("[API_HISTORY_DELETE_ERROR]", error);
+  } catch (error: unknown) {
+    logSanitizedError("DELETE", error);
     return NextResponse.json(
       {
         success: false,
