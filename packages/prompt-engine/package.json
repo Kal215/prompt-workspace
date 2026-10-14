@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "npx tsx scripts/test-playground.ts"
+    "test": "npx tsx scripts/test-playground.ts && npx tsx scripts/test-closed-loop.ts"
   },
   "dependencies": {
     "@prompt-workspace/domain-rules": "*",
