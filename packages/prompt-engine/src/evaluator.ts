@@ -1,4 +1,8 @@
-import { GroqAdapter } from "@prompt-workspace/provider-adapters";
+import {
+  GroqAdapter,
+  LLMProviderAdapter,
+  createProviderAdapter,
+} from "@prompt-workspace/provider-adapters";
 import { OptimizationEvaluation } from "@prompt-workspace/prompt-contracts";
 import { DomainRulePack, getDomainPack } from "@prompt-workspace/domain-rules";
 import { z } from "zod";
@@ -105,10 +109,10 @@ export async function evaluateOptimization(
   originalPrompt: string,
   optimizedPrompt: string,
   expectedBehavior: string,
-  adapter?: GroqAdapter,
+  adapter?: LLMProviderAdapter | GroqAdapter,
   domainPackInput?: DomainRulePack | string | null
 ): Promise<EvaluateOptimizationResult> {
-  const groq = adapter || new GroqAdapter();
+  const providerAdapter = adapter || createProviderAdapter({ providerId: "groq" });
 
   const domainPack: DomainRulePack =
     typeof domainPackInput === "string" || domainPackInput === null || domainPackInput === undefined
@@ -143,18 +147,23 @@ export async function evaluateOptimization(
 
   let response;
   try {
-    response = await groq.chatCompletion(
+    response = await providerAdapter.chatCompletion(
       [
         { role: "system", content: AUDITOR_SYSTEM_PROMPT },
         { role: "user", content: userContent },
       ],
       {
         temperature: 0.1, // deterministik untuk audit yang konsisten
+        responseFormat: "json",
       }
     );
   } catch (err: any) {
     safeLogger.error("Auditor call to LLM provider failed", err);
-    if (err?.code === "RATE_LIMIT" || err?.statusCode === 429) {
+    if (
+      err?.code === "RATE_LIMIT" ||
+      err?.code === "RATE_LIMITED" ||
+      err?.statusCode === 429
+    ) {
       throw new ProviderRateLimitError(err.message, err);
     }
     if (err?.code === "TIMEOUT" || err?.statusCode === 504) {

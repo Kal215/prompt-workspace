@@ -5,6 +5,7 @@ import {
   GroqAdapterOptions,
   GroqAdapterError,
   GroqErrorCode,
+  LLMProviderAdapter,
 } from "./types.js";
 
 export interface KeyEntry {
@@ -14,10 +15,11 @@ export interface KeyEntry {
   cooldownUntil: number; // timestamp ms
 }
 
-export class GroqAdapter {
+export class GroqAdapter implements LLMProviderAdapter {
+  public readonly providerId = "groq";
   private keys: KeyEntry[] = [];
   private currentKeyIndex = 0;
-  private readonly defaultModel = "llama-3.3-70b-versatile";
+  public readonly defaultModel = "llama-3.3-70b-versatile";
   private readonly defaultTimeoutMs = 30_000;
 
   constructor(providedKeys?: string[]) {

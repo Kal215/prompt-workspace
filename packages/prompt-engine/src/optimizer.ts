@@ -1,4 +1,8 @@
-import { GroqAdapter } from "@prompt-workspace/provider-adapters";
+import {
+  GroqAdapter,
+  LLMProviderAdapter,
+  createProviderAdapter,
+} from "@prompt-workspace/provider-adapters";
 import { Finding } from "@prompt-workspace/prompt-contracts";
 import { DomainRulePack, getDomainPack } from "@prompt-workspace/domain-rules";
 import { z } from "zod";
@@ -118,7 +122,7 @@ export async function optimizePrompt(
   originalPrompt: string,
   analysisFindings: Finding[],
   constraints: string[] = [],
-  adapter?: GroqAdapter,
+  adapter?: LLMProviderAdapter | GroqAdapter,
   domainPackInput?: DomainRulePack | string | null
 ): Promise<OptimizePromptResult> {
   const domainPack: DomainRulePack =
@@ -133,7 +137,7 @@ export async function optimizePrompt(
     domainId: domainPack.domainId,
   });
 
-  const groq = adapter || new GroqAdapter();
+  const providerAdapter = adapter || createProviderAdapter({ providerId: "groq" });
 
   const findingsSummary = analysisFindings
     .map(
@@ -174,26 +178,31 @@ export async function optimizePrompt(
 
   let response;
   try {
-    response = await groq.chatCompletion(
+    response = await providerAdapter.chatCompletion(
       [
         { role: "system", content: OPTIMIZER_SYSTEM_PROMPT },
         { role: "user", content: userContent },
       ],
       {
         temperature: 0.2,
+        responseFormat: "json",
       }
     );
   } catch (err: any) {
     safeLogger.error("Gagal memanggil provider saat optimasi prompt", err);
 
-    if (err?.code === "RATE_LIMIT" || err?.statusCode === 429) {
+    if (
+      err?.code === "RATE_LIMIT" ||
+      err?.code === "RATE_LIMITED" ||
+      err?.statusCode === 429
+    ) {
       throw new ProviderRateLimitError(err.message, err);
     }
     if (err?.code === "TIMEOUT" || err?.statusCode === 504) {
       throw new ProviderTimeoutError(err.message, err);
     }
     throw new ProviderUnavailableError(
-      err?.message || "Provider Groq tidak tersedia atau semua key exhausted",
+      err?.message || "Provider LLM tidak tersedia atau semua key exhausted",
       err
     );
   }
