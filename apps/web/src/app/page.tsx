@@ -11,8 +11,13 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { PromptOptimizationResult } from "@/types/prompt";
 import { ResultDashboard } from "@/components/workspace/result-dashboard";
+import {
+  HistorySidebar,
+  SavedPromptItem,
+} from "@/components/workspace/history-sidebar";
 import {
   Sparkles,
   Loader2,
@@ -22,6 +27,7 @@ import {
   Sliders,
   RefreshCw,
   Cpu,
+  History,
 } from "lucide-react";
 
 export default function Home() {
@@ -30,6 +36,10 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PromptOptimizationResult | null>(null);
+
+  // History Sidebar state
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [savedPrompts, setSavedPrompts] = useState<SavedPromptItem[]>([]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -81,8 +91,53 @@ export default function Home() {
     setError(null);
   };
 
+  const handleAcceptPrompt = (res: PromptOptimizationResult) => {
+    const intentStr =
+      typeof res.detectedIntent === "string"
+        ? res.detectedIntent
+        : res.detectedIntent?.summary || "";
+
+    const newItem: SavedPromptItem = {
+      id: res.requestId || Date.now().toString(),
+      requestId: res.requestId || Date.now().toString(),
+      originalPrompt: res.originalPrompt,
+      optimizedPrompt: res.optimizedPrompt,
+      timestamp: new Date().toISOString(),
+      score:
+        res.analysis?.score ??
+        res.analysis?.overallScore ??
+        res.metrics?.clarityScore ??
+        85,
+      detectedIntent: intentStr,
+    };
+
+    setSavedPrompts((prev) => {
+      // Avoid duplicate by requestId
+      const filtered = prev.filter((p) => p.requestId !== newItem.requestId);
+      return [newItem, ...filtered];
+    });
+  };
+
+  const handleSelectHistoryPrompt = (item: SavedPromptItem) => {
+    setPrompt(item.originalPrompt);
+    setIsHistoryOpen(false);
+  };
+
+  const handleClearHistory = () => {
+    setSavedPrompts([]);
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/10">
+      {/* History Sidebar */}
+      <HistorySidebar
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        items={savedPrompts}
+        onSelectPrompt={handleSelectHistoryPrompt}
+        onClearHistory={handleClearHistory}
+      />
+
       {/* Top Header */}
       <header className="border-b border-border/60 bg-background/80 backdrop-blur sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -99,12 +154,35 @@ export default function Home() {
               </span>
             </div>
           </div>
-          <div className="text-xs text-muted-foreground flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-medium text-foreground/80 flex items-center gap-1">
-              <Cpu className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-              Groq Engine Live
-            </span>
+
+          <div className="flex items-center gap-3">
+            {/* History Toggle Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsHistoryOpen(true)}
+              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80 hover:bg-muted/60"
+            >
+              <History className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Riwayat</span>
+              {savedPrompts.length > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="ml-1 text-[10px] px-1.5 py-0 font-mono"
+                >
+                  {savedPrompts.length}
+                </Badge>
+              )}
+            </Button>
+
+            {/* Groq Engine Live Indicator */}
+            <div className="text-xs text-muted-foreground hidden sm:flex items-center gap-2 pl-2 border-l border-border/40">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-medium text-foreground/80 flex items-center gap-1">
+                <Cpu className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                Groq Engine Live
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -309,6 +387,7 @@ export default function Home() {
               <ResultDashboard
                 result={result}
                 onRegenerate={() => handleSubmit()}
+                onAccept={handleAcceptPrompt}
               />
             )}
           </section>

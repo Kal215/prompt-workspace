@@ -5,14 +5,21 @@ import { FindingsPanel } from "./findings-panel";
 import { PromptDiffViewer } from "./prompt-diff-viewer";
 import { ChangesTracker } from "./changes-tracker";
 import { Card, CardContent } from "@/components/ui/card";
+import { exportOptimizationResultToMarkdown } from "@/lib/export";
+import { toast } from "sonner";
 import { Activity, Clock, Zap, Cpu } from "lucide-react";
 
 interface ResultDashboardProps {
   result: PromptOptimizationResult;
   onRegenerate: () => void;
+  onAccept?: (result: PromptOptimizationResult) => void;
 }
 
-export function ResultDashboard({ result, onRegenerate }: ResultDashboardProps) {
+export function ResultDashboard({
+  result,
+  onRegenerate,
+  onAccept,
+}: ResultDashboardProps) {
   // Defensive fallbacks to gracefully handle both raw Engine results and enhanced mocks
   const score =
     result.analysis?.score ??
@@ -31,6 +38,34 @@ export function ResultDashboard({ result, onRegenerate }: ResultDashboardProps) 
     result.metadata?.modelTarget || "Groq llama-3.3-70b-versatile";
   const findings = result.analysis?.findings || [];
   const status = result.analysis?.status || "optimized";
+
+  const handleExportMarkdown = () => {
+    try {
+      const filename = exportOptimizationResultToMarkdown(result);
+      toast.info("Laporan Markdown berhasil diunduh!", {
+        description: `Disimpan sebagai ${filename}`,
+      });
+    } catch (err) {
+      console.error("Gagal mengekspor Markdown:", err);
+      toast.error("Gagal mengekspor laporan Markdown.");
+    }
+  };
+
+  const handleAcceptAndSave = async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(result.optimizedPrompt).catch(() => {});
+      }
+    } catch (err) {
+      console.warn("Clipboard access warning:", err);
+    }
+
+    toast.success("Prompt diterima dan disalin ke clipboard!", {
+      description: "Versi teroptimasi siap digunakan langsung di generator atau model target.",
+    });
+
+    onAccept?.(result);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -88,7 +123,10 @@ export function ResultDashboard({ result, onRegenerate }: ResultDashboardProps) 
                 <span className="text-[11px] text-muted-foreground block">
                   Target Runtime
                 </span>
-                <span className="text-xs font-semibold text-foreground truncate block max-w-[120px]" title={modelTarget}>
+                <span
+                  className="text-xs font-semibold text-foreground truncate block max-w-[120px]"
+                  title={modelTarget}
+                >
                   {modelTarget}
                 </span>
               </div>
@@ -97,11 +135,13 @@ export function ResultDashboard({ result, onRegenerate }: ResultDashboardProps) 
         </CardContent>
       </Card>
 
-      {/* 1. Diff & Prompt Comparison Viewer (Hero Output) */}
+      {/* 1. Diff & Prompt Comparison Viewer with Action Buttons */}
       <PromptDiffViewer
         originalPrompt={result.originalPrompt}
         optimizedPrompt={result.optimizedPrompt}
         onRegenerate={onRegenerate}
+        onExportMarkdown={handleExportMarkdown}
+        onAcceptAndSave={handleAcceptAndSave}
       />
 
       {/* 2. Intent Guard Card */}
@@ -110,11 +150,7 @@ export function ResultDashboard({ result, onRegenerate }: ResultDashboardProps) 
       {/* 3. Findings & Changes Side-by-Side */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7">
-          <FindingsPanel
-            findings={findings}
-            score={score}
-            status={status}
-          />
+          <FindingsPanel findings={findings} score={score} status={status} />
         </div>
         <div className="lg:col-span-5">
           <ChangesTracker changes={result.changes} />
