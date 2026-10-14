@@ -1,0 +1,86 @@
+{
+  "requestId": "req-PIW-BL-003",
+  "originalPrompt": "Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.",
+  "detectedIntent": "User seeks assistance in conducting market research and providing a nuanced conclusion on the potential success of a specific business, with a structured separation of facts, assumptions, hypotheses, and unknowns, while avoiding definitive statements without sufficient evidence.",
+  "analysis": {
+    "findings": [
+      {
+        "category": "Konteks",
+        "severity": "critical",
+        "evidence": "\"Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.\"",
+        "recommendation": "Sertakan detail spesifik tentang bisnis yang dimaksud: produk/layanan, target pasar, lokasi geografis, ukuran pasar, kompetitor utama, dan periode waktu yang relevan.",
+        "type": "konteks",
+        "message": "Sertakan detail spesifik tentang bisnis yang dimaksud: produk/layanan, target pasar, lokasi geografis, ukuran pasar, kompetitor utama, dan periode waktu yang relevan."
+      },
+      {
+        "category": "Bukti",
+        "severity": "critical",
+        "evidence": "Tidak ada data, URL, atau sumber informasi yang diberikan untuk analisis.",
+        "recommendation": "Lampirkan data mentah, laporan riset sebelumnya, link ke sumber statistik, atau setidaknya contoh metrik yang ingin dianalisis.",
+        "type": "bukti",
+        "message": "Lampirkan data mentah, laporan riset sebelumnya, link ke sumber statistik, atau setidaknya contoh metrik yang ingin dianalisis."
+      },
+      {
+        "category": "Tujuan",
+        "severity": "major",
+        "evidence": "\"kasih kesimpulan apakah bisnis ini akan sukses\"",
+        "recommendation": "Definisikan tujuan akhir secara lebih terukur, misalnya: menghasilkan rekomendasi investasi, menilai kelayakan pasar, atau mengidentifikasi risiko utama.",
+        "type": "tujuan",
+        "message": "Definisikan tujuan akhir secara lebih terukur, misalnya: menghasilkan rekomendasi investasi, menilai kelayakan pasar, atau mengidentifikasi risiko utama."
+      },
+      {
+        "category": "Ambiguitas",
+        "severity": "major",
+        "evidence": "Penggunaan kata \"sukses\" tanpa kriteria yang jelas.",
+        "recommendation": "Jelaskan apa yang dimaksud dengan \"sukses\" (misalnya: profitabilitas > 10% dalam 2 tahun, pangsa pasar > 5%, atau pertumbuhan pendapatan tahunan).",
+        "type": "ambiguitas",
+        "message": "Jelaskan apa yang dimaksud dengan \"sukses\" (misalnya: profitabilitas > 10% dalam 2 tahun, pangsa pasar > 5%, atau pertumbuhan pendapatan tahunan)."
+      },
+      {
+        "category": "Batasan",
+        "severity": "major",
+        "evidence": "Tidak ada batasan mengenai metodologi, alat, atau sumber data yang boleh/harus dipakai.",
+        "recommendation": "Tentukan batasan teknis atau metodologis, seperti penggunaan data publik, batas anggaran, atau preferensi bahasa pemrograman/alat analisis.",
+        "type": "batasan",
+        "message": "Tentukan batasan teknis atau metodologis, seperti penggunaan data publik, batas anggaran, atau preferensi bahasa pemrograman/alat analisis."
+      },
+      {
+        "category": "Keluaran",
+        "severity": "minor",
+        "evidence": "Tidak ada format output yang diminta.",
+        "recommendation": "Spesifikasikan format laporan yang diinginkan (misalnya: markdown dengan heading, tabel CSV, atau presentasi slide).",
+        "type": "keluaran",
+        "message": "Spesifikasikan format laporan yang diinginkan (misalnya: markdown dengan heading, tabel CSV, atau presentasi slide)."
+      },
+      {
+        "category": "Keberhasilan",
+        "severity": "major",
+        "evidence": "Tidak ada kriteria evaluasi untuk menilai apakah kesimpulan sudah memadai.",
+        "recommendation": "Berikan metrik atau checklist untuk menilai keberhasilan, seperti: mencakup semua faktor risiko, menyertakan sumber data, dan memisahkan fakta vs asumsi.",
+        "type": "keberhasilan",
+        "message": "Berikan metrik atau checklist untuk menilai keberhasilan, seperti: mencakup semua faktor risiko, menyertakan sumber data, dan memisahkan fakta vs asumsi."
+      }
+    ],
+    "score": 32,
+    "status": "needs_optimization"
+  },
+  "optimizedPrompt": "Role: Anda berperan sebagai analis riset pasar profesional yang membantu mengevaluasi kelayakan bisnis.\nObjective: Menyusun riset pasar komprehensif dan memberikan kesimpulan apakah bisnis yang dimaksud dapat dianggap sukses berdasarkan kriteria yang ditentukan.\nInput & Parameters:\n- Nama bisnis: [NAMA_BISNIS]\n- Produk atau layanan: [PRODUK_ATA_LAYANAN]\n- Target pasar (segmen demografis, psikografis, dll.): [TARGET_PASAR]\n- Lokasi geografis operasi: [LOKASI_GEOGRAFIS]\n- Ukuran pasar yang diperkirakan atau data historis: [UKURAN_PASAR]\n- Kompetitor utama: [KOMPETITOR_UTAMA]\n- Periode waktu analisis (misalnya 2024‑2026): [PERIODE_WAKTU]\n- Sumber data yang tersedia (URL, laporan, dataset, dll.): [DATA_SAAT_INI]\n- Definisi \"sukses\" (misalnya profitabilitas >10% dalam 2 tahun, pangsa pasar >5%, pertumbuhan tahunan): [DEFINISI_KEBERHASILAN]\n- Batasan metodologi atau alat yang harus/harus tidak dipakai (misalnya hanya data publik, bahasa pemrograman tertentu): [METODOLOGI_BATASAN]\n- Format laporan yang diinginkan (markdown, tabel CSV, slide, dll.): [FORMAT_KELUARAN]\n- Kriteria evaluasi kesimpulan (misalnya mencakup semua faktor risiko, menyertakan sumber data, memisahkan fakta vs asumsi): [KRITERIA_EVALUASI]\n\nOperational Steps:\n1. Kumpulkan dan rangkum data dari sumber yang diberikan atau publik.\n2. Analisis ukuran pasar, tren pertumbuhan, dan segmentasi target.\n3. Identifikasi kekuatan, kelemahan, peluang, dan ancaman (SWOT) terkait kompetitor utama.\n4. Evaluasi kelayakan finansial berdasarkan definisi sukses yang ditetapkan.\n5. Buat rekomendasi investasi atau keputusan strategis yang selaras dengan tujuan.\n6. Susun laporan sesuai format yang diminta, sertakan tabel, grafik, dan referensi sumber.\n\nOutput Format:\n- Laporan dalam [FORMAT_KELUARAN] yang mencakup:\n  * Ringkasan eksekutif\n  * Analisis pasar (ukuran, pertumbuhan, segmentasi)\n  * Analisis kompetitif (SWOT)\n  * Evaluasi kelayakan berdasarkan [DEFINISI_KEBERHASILAN]\n  * Rekomendasi akhir\n  * Daftar sumber data\n  * Checklist [KRITERIA_EVALUASI]\n\nConstraints:\n- Hanya gunakan data yang disediakan atau bersifat publik.\n- Hindari spekulasi tanpa dasar data.\n- Patuhi semua batasan metodologi yang tercantum dalam [METODOLOGI_BATASAN].",
+  "changes": [
+    "Menambahkan peran (Role) dan tujuan spesifik (Objective) untuk memperjelas konteks.",
+    "Menyediakan placeholder terstruktur untuk semua informasi yang belum lengkap (bisnis, produk, pasar, data, definisi sukses, dll.).",
+    "Mendefinisikan langkah operasional (Operational Steps) yang sistematis.",
+    "Menentukan format keluaran yang diharapkan beserta elemen laporan.",
+    "Menetapkan batasan penggunaan data dan metodologi."
+  ],
+  "warnings": [
+    "Pengguna wajib mengganti semua placeholder (misalnya [NAMA_BISNIS], [DATA_SAAT_INI]) dengan informasi yang akurat sebelum menjalankan prompt.",
+    "Pastikan semua data yang digunakan memiliki izin penggunaan yang sah dan tidak melanggar hak cipta atau privasi.",
+    "Periksa kembali definisi \"sukses\" dan batasan metodologi agar sesuai dengan kebutuhan bisnis Anda."
+  ],
+  "metadata": {
+    "modelTarget": "groq-llama-3.3-70b-versatile",
+    "processingTimeMs": 5653,
+    "confidenceScore": 0.95,
+    "estimatedTokenSavings": "+24% precision"
+  }
+}

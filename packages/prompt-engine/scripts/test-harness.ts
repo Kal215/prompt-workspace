@@ -1,8 +1,10 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as dotenv from "dotenv";
 import { GroqAdapter } from "@prompt-workspace/provider-adapters";
+import { PromptOptimizationRequest } from "@prompt-workspace/prompt-contracts";
+import { runOptimizationPipeline } from "../src/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,14 +31,19 @@ interface BaselineFixture {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function run() {
-  console.log("═══════════════════════════════════════════════════════════════");
-  console.log("🚀 PROMPT INTELLIGENCE ENGINE — BASELINE TEST HARNESS (GROQ)");
-  console.log("═══════════════════════════════════════════════════════════════\n");
+  console.log("═══════════════════════════════════════════════════════════════════");
+  console.log("🚀 PROMPT INTELLIGENCE ENGINE — OPTIMIZATION PIPELINE TEST HARNESS");
+  console.log("═══════════════════════════════════════════════════════════════════\n");
 
   const fixturesPath = resolve(rootDir, "test-fixtures/baseline-prompts.json");
   if (!existsSync(fixturesPath)) {
     console.error(`❌ Fixture file not found: ${fixturesPath}`);
     process.exit(1);
+  }
+
+  const resultsDir = resolve(rootDir, "test-fixtures/results");
+  if (!existsSync(resultsDir)) {
+    mkdirSync(resultsDir, { recursive: true });
   }
 
   const raw = readFileSync(fixturesPath, "utf-8");
@@ -53,36 +60,54 @@ async function run() {
     process.exit(1);
   }
 
-  const SYSTEM_PROMPT =
-    "Anda adalah analis prompt. Tugas Anda HANYA mengidentifikasi kelemahan dari prompt user. Jangan memperbaiki, hanya analisis. Sebutkan: (1) tujuan yang terdeteksi, (2) informasi yang hilang, (3) ambiguitas. Jawab dalam format terstruktur.";
-
   let successCount = 0;
 
   for (let i = 0; i < fixtures.length; i++) {
     const item = fixtures[i];
-    console.log("───────────────────────────────────────────────────────────────");
-    console.log(`[${i + 1}/${fixtures.length}] TEST FIXTURE: ${item.id} | Domain: ${item.domain}`);
+    console.log("───────────────────────────────────────────────────────────────────");
+    console.log(`[${i + 1}/${fixtures.length}] PIPELINE RUN: ${item.id} | Domain: ${item.domain}`);
     console.log(`User Bad Prompt: "${item.badPrompt}"`);
     console.log(`Original Intent: "${item.originalIntent}"`);
-    console.log("───────────────────────────────────────────────────────────────");
+    console.log("───────────────────────────────────────────────────────────────────");
 
     try {
-      console.log("⏳ Mengirim analisis ke Groq API...");
-      const response = await adapter.chatCompletion([
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: item.badPrompt },
-      ]);
+      console.log("⏳ Menjalankan runOptimizationPipeline (Analyzer -> Optimizer)...");
+      const request: PromptOptimizationRequest = {
+        requestId: `req-${item.id}`,
+        prompt: item.badPrompt,
+        context: `Domain: ${item.domain}. Expected: ${item.expectedBehavior}`,
+        taskType: item.domain,
+        constraints: [],
+      };
 
-      console.log(`\n✅ Hasil Analisis LLM (Model: ${response.model} | Key: ${response.keyUsed} | Latency: ${response.latencyMs}ms):`);
-      console.log(response.content.trim());
+      const result = await runOptimizationPipeline(request, adapter);
 
-      if (response.usage) {
-        console.log(`📊 Tokens: prompt=${response.usage.promptTokens}, completion=${response.usage.completionTokens}`);
+      // Simpan hasil ke test-fixtures/results/{id}.json
+      const outputPath = resolve(resultsDir, `${item.id}.json`);
+      writeFileSync(outputPath, JSON.stringify(result, null, 2), "utf-8");
+
+      console.log(`\n✅ SUKSES PIPELINE [${item.id}] (Waktu: ${result.metadata?.processingTimeMs}ms)`);
+      console.log(`🎯 Detected Intent: ${result.detectedIntent}`);
+      console.log(`🔍 Findings (${result.analysis.findings.length} temuan terdeteksi):`);
+      for (const finding of result.analysis.findings) {
+        console.log(`   - [${finding.category}] (${finding.severity}): ${finding.recommendation}`);
       }
+      console.log(`\n✨ Optimized Prompt Preview:\n${result.optimizedPrompt}`);
+      console.log(`\n📝 Changes:`);
+      for (const change of result.changes) {
+        console.log(`   + ${change}`);
+      }
+      if (result.warnings.length > 0) {
+        console.log(`\n⚠️ Warnings:`);
+        for (const warning of result.warnings) {
+          console.log(`   ! ${warning}`);
+        }
+      }
+      console.log(`💾 Saved full JSON to: ${outputPath}`);
 
       successCount++;
     } catch (err: any) {
-      console.error(`❌ Error analyzing ${item.id}:`, err.message);
+      console.error(`❌ Error optimizing ${item.id}:`, err.message);
     }
 
     // Jeda 2 detik antar request jika masih ada item berikutnya
@@ -93,9 +118,9 @@ async function run() {
     }
   }
 
-  console.log("\n═══════════════════════════════════════════════════════════════");
-  console.log(`🏁 SELESAI: ${successCount}/${fixtures.length} fixtures berhasil dianalisis via Groq API.`);
-  console.log("═══════════════════════════════════════════════════════════════");
+  console.log("\n═══════════════════════════════════════════════════════════════════");
+  console.log(`🏁 SELESAI: ${successCount}/${fixtures.length} fixtures berhasil dioptimasi melalui pipeline.`);
+  console.log("═══════════════════════════════════════════════════════════════════");
 
   if (successCount === 0) {
     process.exit(1);
