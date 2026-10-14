@@ -18,6 +18,7 @@ import {
   HistorySidebar,
   SavedPromptItem,
 } from "@/components/workspace/history-sidebar";
+import { PrivacyDisclosure } from "@/components/workspace/privacy-disclosure";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -318,6 +319,9 @@ export default function Home() {
                     )}
                   </div>
                 </form>
+
+                {/* Privacy, External Provider & Data Retention Disclosure */}
+                <PrivacyDisclosure />
               </CardContent>
             </Card>
           </section>
