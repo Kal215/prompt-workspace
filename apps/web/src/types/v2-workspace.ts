@@ -29,6 +29,13 @@ export type V2JobStatus =
 export type CrawlerItemType = "PROMPT_CANDIDATE" | "GROUNDING_FACT";
 
 /**
+ * Mode ekstraksi konten pada Crawler.
+ */
+export type CrawlerExtractionMode =
+  | "EXTRACT_PROMPTS"
+  | "EXTRACT_GROUNDING_CONTEXT";
+
+/**
  * Metadata atribusi dan asal-usul sumber konten hasil crawling.
  */
 export interface CrawlerAttribution {
@@ -39,6 +46,7 @@ export interface CrawlerAttribution {
   publishedDate?: string;
   fetchedAt: string;
   byteSize: number;
+  lineRange?: string; // e.g. "L10-L45"
 }
 
 /**
@@ -152,6 +160,12 @@ export interface SpiderReportSummary {
   durationMs: number;
 }
 
+export type PromptVersionSource =
+  | "initial"
+  | "spider-refinement"
+  | "crawler-grounded"
+  | "manual-edit";
+
 /**
  * Riwayat versi prompt (v1, v2, v3...) dalam satu alur iterasi Closed-Loop.
  */
@@ -160,6 +174,7 @@ export interface PromptVersionRecord {
   versionNumber: number;
   promptText: string;
   contextText?: string;
+  source?: PromptVersionSource;
   createdAt: string;
   spiderJobId?: string;
   criticalGatePassed?: boolean;
