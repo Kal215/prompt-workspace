@@ -154,13 +154,21 @@ export function getOptimizeRateLimiter(): InMemorySlidingWindowLimiter {
 
 /**
  * Mengekstrak IP address dari Request headers.
- * Memprioritaskan X-Forwarded-For (proxy/CDN), fallback ke X-Real-IP.
+ * Hanya mempercayai X-Forwarded-For jika TRUST_PROXY disetel ke "true" untuk mencegah spoofing.
  */
 export function extractClientIP(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    // Ambil IP pertama (IP klien asli)
-    return forwarded.split(",")[0].trim();
+  const trustProxy =
+    process.env.TRUST_PROXY === "true" || process.env.TRUST_PROXY === "1";
+  if (trustProxy) {
+    const forwarded = request.headers.get("x-forwarded-for");
+    if (forwarded) {
+      // Ambil IP pertama (IP klien asli)
+      return forwarded.split(",")[0].trim();
+    }
+    const realIp = request.headers.get("x-real-ip");
+    if (realIp) {
+      return realIp.trim();
+    }
   }
-  return request.headers.get("x-real-ip") || "unknown";
+  return request.headers.get("x-client-ip") || "127.0.0.1";
 }

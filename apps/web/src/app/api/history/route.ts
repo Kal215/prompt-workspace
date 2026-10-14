@@ -8,7 +8,7 @@ import {
   deletePrompt,
   type SavePromptInput,
 } from "@prompt-workspace/database";
-import { getOrCreateSession } from "../../../lib/session";
+import { getOrCreateSession, resolveSession } from "../../../lib/session";
 import {
   getHistoryRateLimiter,
   extractClientIP,
@@ -120,8 +120,22 @@ export async function POST(request: Request) {
       return rateLimitedResponse(rl.retryAfter);
     }
 
-    // Session identity
-    const session = getOrCreateSession(request);
+    // Session identity & token validation
+    const sessionRes = resolveSession(request);
+    if (sessionRes.status === "invalid") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized: Token sesi tidak valid atau telah dimanipulasi.",
+        },
+        { status: 401 }
+      );
+    }
+    const session = sessionRes.session || getOrCreateSession(request);
+    const sessionHeaders: Record<string, string> = {};
+    if (session.isNew) {
+      sessionHeaders["Set-Cookie"] = session.cookieHeaderValue;
+    }
 
     // 1. Validasi Ukuran Content-Length Header
     const contentLength = request.headers.get("content-length");
@@ -291,7 +305,7 @@ export async function POST(request: Request) {
               message: "Prompt sudah tersimpan sebelumnya (idempotent).",
               data: existing,
             },
-            { status: 200 }
+            { status: 200, headers: sessionHeaders }
           );
         }
 
@@ -334,7 +348,7 @@ export async function POST(request: Request) {
               message: "Prompt sudah tersimpan sebelumnya (idempotent - race resolved).",
               data: racedRecord,
             },
-            { status: 200 }
+            { status: 200, headers: sessionHeaders }
           );
         }
         return NextResponse.json(
@@ -354,7 +368,7 @@ export async function POST(request: Request) {
         message: "Prompt berhasil disimpan ke riwayat database.",
         data: saved,
       },
-      { status: 201 }
+      { status: 201, headers: sessionHeaders }
     );
   } catch (error: unknown) {
     logSanitizedError("POST", error);
@@ -375,14 +389,10 @@ export async function POST(request: Request) {
  */
 export async function DELETE(request: Request) {
   try {
-    // CSRF check untuk DELETE: validasi Origin/Referer jika ada
-    const origin = request.headers.get("origin");
-    const referer = request.headers.get("referer");
-    if (origin || referer) {
-      const csrf = checkCsrf(request);
-      if (!csrf.allowed) {
-        return csrfForbiddenResponse(csrf.reason || "CSRF validation failed.");
-      }
+    // CSRF check untuk DELETE
+    const csrf = checkCsrf(request);
+    if (!csrf.allowed) {
+      return csrfForbiddenResponse(csrf.reason || "CSRF validation failed.");
     }
 
     // Rate limiting
@@ -392,8 +402,20 @@ export async function DELETE(request: Request) {
       return rateLimitedResponse(rl.retryAfter);
     }
 
-    // Session identity
-    const session = getOrCreateSession(request);
+    // Session identity: DELETE WAJIB membawa sesi aktif yang sah
+    const sessionRes = resolveSession(request);
+    if (sessionRes.status !== "authenticated" || !sessionRes.session) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: sessionRes.error
+            ? `Unauthorized: ${sessionRes.error}`
+            : "Unauthorized: Operasi DELETE memerlukan sesi aktif yang valid.",
+        },
+        { status: 401 }
+      );
+    }
+    const session = sessionRes.session;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

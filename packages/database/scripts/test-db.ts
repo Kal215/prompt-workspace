@@ -1,10 +1,32 @@
-import { savePrompt, getHistory, getPromptById, deletePrompt, prisma } from "../src/index.js";
+import { savePrompt, getHistory, getPromptById, deletePrompt, prisma, setDatabaseUrl } from "../src/index.js";
+import os from "os";
+import path from "path";
+import fs from "fs";
+import { execSync } from "child_process";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function main() {
   console.log("═══════════════════════════════════════════════════════════════════");
   console.log("🗄️  TEST PERSISTENCE: PRISMA & SQLITE (packages/database)");
   console.log("═══════════════════════════════════════════════════════════════════");
 
+  // 0. Setup isolated temporary database
+  const tempDbName = `test-db-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
+  const tempDbPath = path.join(os.tmpdir(), tempDbName).replace(/\\/g, "/");
+  const tempDbUrl = `file:${tempDbPath}`;
+  const schemaPath = path.resolve(__dirname, "../prisma/schema.prisma");
+
+  console.log(`[0] Menginisialisasi database SQLite sementara terisolasi: ${tempDbPath}`);
+  execSync(`npx prisma migrate deploy --schema="${schemaPath}"`, {
+    env: { ...process.env, DATABASE_URL: tempDbUrl },
+    stdio: "ignore",
+  });
+  setDatabaseUrl(tempDbUrl);
+
+  try {
   const samplePrompt = {
     userId: "test-user-alpha",
     originalPrompt: "Bantu saya riset pasar dan kasih kesimpulan apakah bisnis ini akan sukses.",
@@ -54,7 +76,30 @@ async function main() {
     console.log("✅ Penghapusan lintas pengguna berhasil diblokir dengan FORBIDDEN.");
   }
 
-  console.log("\n[5] Menjalankan deletePrompt() oleh pemilik yang sah...");
+  console.log("\n[5] Menguji perlindungan data legacy (legacy_default_user)...");
+  const legacyPrompt = await savePrompt({
+    userId: "legacy_default_user",
+    originalPrompt: "Prompt legacy historis",
+    optimizedPrompt: "Prompt optimasi legacy",
+    score: 85,
+  });
+  try {
+    // User biasa (test-user-alpha) mencoba menghapus data legacy
+    await deletePrompt(legacyPrompt.id, "test-user-alpha");
+    throw new Error("SECURITY_FAILURE: User biasa berhasil menghapus record legacy!");
+  } catch (err: unknown) {
+    const code = (err as { code?: string })?.code;
+    if (code !== "FORBIDDEN") {
+      throw err;
+    }
+    console.log("✅ Penghapusan data legacy oleh user biasa berhasil diblokir dengan FORBIDDEN.");
+  }
+
+  // Pemilik sah legacy menghapus record uji
+  await deletePrompt(legacyPrompt.id, "legacy_default_user");
+  console.log("✅ Record legacy berhasil dihapus oleh 'legacy_default_user'.");
+
+  console.log("\n[6] Menjalankan deletePrompt() oleh pemilik yang sah...");
   const deleted = await deletePrompt(saved.id, "test-user-alpha");
   console.log(`✅ deletePrompt berhasil menghapus record [ID: ${deleted.id.slice(0, 8)}...]`);
 
@@ -64,10 +109,18 @@ async function main() {
   }
   console.log("✅ Konfirmasi record terhapus bersih (recheck = null)");
 
-  await prisma.$disconnect();
   console.log("\n═══════════════════════════════════════════════════════════════════");
   console.log("🏁 TEST PRISMA & SQLITE DATA OWNERSHIP BERHASIL 100%");
   console.log("═══════════════════════════════════════════════════════════════════");
+  } finally {
+    await prisma.$disconnect();
+    try {
+      if (fs.existsSync(tempDbPath)) fs.unlinkSync(tempDbPath);
+      if (fs.existsSync(`${tempDbPath}-journal`)) fs.unlinkSync(`${tempDbPath}-journal`);
+    } catch {
+      // Abaikan
+    }
+  }
 }
 
 main().catch(async (e) => {

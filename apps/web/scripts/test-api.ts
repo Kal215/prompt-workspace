@@ -6,10 +6,14 @@
  */
 
 import { GET, POST, DELETE } from "../src/app/api/history/route";
-import { getPromptById } from "@prompt-workspace/database";
+import { getPromptById, savePrompt, prisma, setDatabaseUrl } from "@prompt-workspace/database";
 import { signSession } from "../src/lib/session";
 import { InMemorySlidingWindowLimiter } from "../src/lib/rate-limiter";
 import crypto from "crypto";
+import os from "os";
+import path from "path";
+import fs from "fs";
+import { execSync } from "child_process";
 
 interface TestResult {
   name: string;
@@ -34,10 +38,25 @@ async function runApiRegressionSuite() {
   console.log("🧪 MENJALANKAN API REGRESSION TEST SUITE (Task #19 Security & Regression)");
   console.log("═══════════════════════════════════════════════════════════════════\n");
 
+  // 0. Setup isolated temporary SQLite database
+  const tempDbName = `test-api-reg-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
+  const tempDbPath = path.join(os.tmpdir(), tempDbName).replace(/\\/g, "/");
+  const tempDbUrl = `file:${tempDbPath}`;
+  const schemaPath = path.resolve(__dirname, "../../../packages/database/prisma/schema.prisma");
+
+  console.log(`[0] Menginisialisasi database SQLite sementara terisolasi: ${tempDbPath}`);
+  execSync(`npx prisma migrate deploy --schema="${schemaPath}"`, {
+    env: { ...process.env, DATABASE_URL: tempDbUrl },
+    stdio: "ignore",
+  });
+  setDatabaseUrl(tempDbUrl);
+
+  try {
   const userIdA = `usr_test_a_${crypto.randomUUID().slice(0, 8)}`;
   const sessionTokenA = signSession(userIdA);
   const authHeadersA = {
     "Content-Type": "application/json",
+    Origin: "http://localhost:3000",
     Cookie: `piw_session=${sessionTokenA}`,
   };
 
@@ -45,6 +64,7 @@ async function runApiRegressionSuite() {
   const sessionTokenB = signSession(userIdB);
   const authHeadersB = {
     "Content-Type": "application/json",
+    Origin: "http://localhost:3000",
     Cookie: `piw_session=${sessionTokenB}`,
   };
 
@@ -396,6 +416,119 @@ async function runApiRegressionSuite() {
     assert(false, "Sanitasi error test", String(err));
   }
 
+  // 16. Test CSRF Fail-Closed (Missing Origin & Referer -> 403 Forbidden)
+  console.log("\n▶ [Test 16] CSRF Fail-Closed: Request tanpa Origin & Referer ditolak 403");
+  try {
+    const reqNoOrigin = new Request("http://localhost:3000/api/history", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: `piw_session=${sessionTokenA}`,
+      },
+      body: JSON.stringify(validPayload),
+    });
+    const resNoOrigin = await POST(reqNoOrigin);
+    assert(resNoOrigin.status === 403, "Request tanpa Origin/Referer ditolak dengan HTTP 403 Forbidden");
+  } catch (err: unknown) {
+    assert(false, "CSRF fail-closed test", String(err));
+  }
+
+  // 17. Test DELETE Tanpa Sesi (401 Unauthorized)
+  console.log("\n▶ [Test 17] Session: DELETE /api/history tanpa sesi ditolak 401");
+  try {
+    const reqNoSession = new Request("http://localhost:3000/api/history?id=some-id", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+    });
+    const resNoSession = await DELETE(reqNoSession);
+    assert(resNoSession.status === 401, "DELETE tanpa sesi mengembalikan HTTP 401 Unauthorized");
+  } catch (err: unknown) {
+    assert(false, "DELETE tanpa sesi test", String(err));
+  }
+
+  // 18. Test DELETE dengan Sesi Tampered (401 Unauthorized)
+  console.log("\n▶ [Test 18] Session: DELETE /api/history dengan token palsu ditolak 401");
+  try {
+    const reqTampered = new Request("http://localhost:3000/api/history?id=some-id", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+        Cookie: "piw_session=fake_user:12345:invalid_signature",
+      },
+    });
+    const resTampered = await DELETE(reqTampered);
+    assert(resTampered.status === 401, "DELETE dengan cookie palsu mengembalikan HTTP 401 Unauthorized");
+  } catch (err: unknown) {
+    assert(false, "DELETE sesi palsu test", String(err));
+  }
+
+  // 19. Test POST dengan Sesi Tampered (401 Unauthorized)
+  console.log("\n▶ [Test 19] Session: POST /api/history dengan token palsu ditolak 401");
+  try {
+    const reqPostTampered = new Request("http://localhost:3000/api/history", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+        Cookie: "piw_session=forged_token",
+      },
+      body: JSON.stringify(validPayload),
+    });
+    const resPostTampered = await POST(reqPostTampered);
+    assert(resPostTampered.status === 401, "POST dengan cookie palsu mengembalikan HTTP 401 Unauthorized");
+  } catch (err: unknown) {
+    assert(false, "POST sesi palsu test", String(err));
+  }
+
+  // 20. Test POST Sesi Baru Menerbitkan Set-Cookie
+  console.log("\n▶ [Test 20] Session: POST /api/history tanpa sesi menerbitkan Set-Cookie");
+  try {
+    const reqNewSession = new Request("http://localhost:3000/api/history", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({
+        originalPrompt: "Prompt dari sesi baru tanpa cookie sebelumnya",
+        optimizedPrompt: "Prompt teroptimasi otomatis dengan header sesi",
+        score: 89,
+      }),
+    });
+    const resNewSession = await POST(reqNewSession);
+    assert(resNewSession.status === 201, "POST baru mengembalikan HTTP 201");
+    const setCookie = resNewSession.headers.get("Set-Cookie");
+    assert(Boolean(setCookie && setCookie.includes("piw_session=")), "Header Set-Cookie piw_session berhasil diterbitkan");
+  } catch (err: unknown) {
+    assert(false, "Set-Cookie generation test", String(err));
+  }
+
+  // 21. Test Proteksi Legacy Record (legacy_default_user tidak bisa dihapus user biasa)
+  console.log("\n▶ [Test 21] AuthZ: Proteksi data legacy (legacy_default_user) dari penghapusan user biasa");
+  try {
+    const legacyPrompt = await savePrompt({
+      userId: "legacy_default_user",
+      originalPrompt: "Prompt legacy historis",
+      optimizedPrompt: "Prompt optimasi legacy",
+      score: 91,
+    });
+    const reqDelLegacy = new Request(`http://localhost:3000/api/history?id=${legacyPrompt.id}`, {
+      method: "DELETE",
+      headers: authHeadersA,
+    });
+    const resDelLegacy = await DELETE(reqDelLegacy);
+    assert(resDelLegacy.status === 403, "Penghapusan prompt legacy oleh user biasa ditolak dengan HTTP 403 Forbidden");
+
+    const checkLegacy = await getPromptById(legacyPrompt.id);
+    assert(checkLegacy !== null, "Record legacy tetap aman dan utuh di database");
+  } catch (err: unknown) {
+    assert(false, "Legacy protection test", String(err));
+  }
+
   // Ringkasan
   console.log("\n═══════════════════════════════════════════════════════════════════");
   const failedCount = results.filter((r) => !r.passed).length;
@@ -405,6 +538,13 @@ async function runApiRegressionSuite() {
 
   if (failedCount > 0) {
     process.exit(1);
+  }
+  } finally {
+    await prisma.$disconnect();
+    try {
+      if (fs.existsSync(tempDbPath)) fs.unlinkSync(tempDbPath);
+      if (fs.existsSync(`${tempDbPath}-journal`)) fs.unlinkSync(`${tempDbPath}-journal`);
+    } catch {}
   }
 }
 

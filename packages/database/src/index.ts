@@ -13,8 +13,8 @@ export interface SavePromptInput {
   score: number;
 }
 
-// In ESM / Node environments, resolve the absolute path to prisma/dev.db
-const getDatabaseUrl = (): string => {
+// In ESM / Node environments, resolve the absolute path to prisma/dev.db or custom DATABASE_URL
+export const getDatabaseUrl = (): string => {
   const envUrl = process.env.DATABASE_URL;
   const currentDir =
     typeof __dirname !== "undefined"
@@ -26,34 +26,79 @@ const getDatabaseUrl = (): string => {
     return `file:${fallbackDbPath}`;
   }
 
-  // Absolute SQLite path or protocol (e.g. file:/tmp/isolated.db or file:///...)
+  // 1. In-memory SQLite
+  if (envUrl === "file::memory:" || envUrl.startsWith("file::memory:?")) {
+    return envUrl;
+  }
+
+  // 2. Windows absolute path: file:C:/... or file:D:\...
+  if (/^file:[a-zA-Z]:[\\/]/i.test(envUrl)) {
+    return envUrl;
+  }
+
+  // 3. Unix absolute path or standard file protocol: file:/... or file:///...
   if (envUrl.startsWith("file:/")) {
     return envUrl;
   }
 
-  // Jika berupa path relatif SQLite, arahkan ke path absolut dev.db kanonis
-  if (envUrl.startsWith("file:")) {
+  // 4. Jika berupa path dev.db relatif eksplisit, arahkan ke dev.db kanonis
+  if (
+    envUrl === "file:./dev.db" ||
+    envUrl === "file:dev.db" ||
+    envUrl === "file:prisma/dev.db" ||
+    envUrl.endsWith("/prisma/dev.db") ||
+    envUrl.endsWith("\\prisma\\dev.db")
+  ) {
     return `file:${fallbackDbPath}`;
+  }
+
+  // 5. Jika relative file test lain (misal "file:./test-temp.db"), resolve absolut terhadap process.cwd()
+  if (envUrl.startsWith("file:")) {
+    const rawPath = envUrl.slice(5);
+    return `file:${resolve(/* turbopackIgnore: true */ process.cwd(), rawPath)}`;
   }
 
   return envUrl;
 };
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+let currentUrl = getDatabaseUrl();
+let activePrisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: currentUrl,
+    },
+  },
+});
 
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
+export function setDatabaseUrl(url: string): void {
+  process.env.DATABASE_URL = url;
+  currentUrl = getDatabaseUrl();
+  activePrisma = new PrismaClient({
     datasources: {
       db: {
-        url: getDatabaseUrl(),
+        url: currentUrl,
       },
     },
   });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
 }
+
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const nowUrl = getDatabaseUrl();
+    if (nowUrl !== currentUrl) {
+      currentUrl = nowUrl;
+      activePrisma = new PrismaClient({
+        datasources: {
+          db: {
+            url: nowUrl,
+          },
+        },
+      });
+    }
+    const val = (activePrisma as unknown as Record<string | symbol, unknown>)[prop];
+    return typeof val === "function" ? val.bind(activePrisma) : val;
+  },
+});
 
 /**
  * Menyimpan riwayat prompt yang di-"Accept" oleh pengguna.
@@ -105,8 +150,8 @@ export async function getPromptById(id: string): Promise<SavedPrompt | null> {
 
 /**
  * Menghapus prompt tersimpan berdasarkan ID.
- * Jika userId diberikan, pastikan record yang dihapus adalah milik user tersebut
- * atau milik legacy.
+ * Jika userId diberikan, pastikan record yang dihapus adalah milik user tersebut.
+ * Record 'legacy_default_user' bersifat read-only dan dilarang dihapus kecuali oleh 'legacy_default_user'.
  */
 export async function deletePrompt(
   id: string,
@@ -121,7 +166,12 @@ export async function deletePrompt(
       (err as unknown as { code: string }).code = "NOT_FOUND";
       throw err;
     }
-    if (existing.userId !== userId && existing.userId !== "legacy_default_user") {
+    if (existing.userId === "legacy_default_user" && userId !== "legacy_default_user") {
+      const err = new Error("Forbidden: Record legacy bersifat read-only dan tidak boleh dihapus.");
+      (err as unknown as { code: string }).code = "FORBIDDEN";
+      throw err;
+    }
+    if (existing.userId !== userId) {
       const err = new Error("Forbidden: Tidak berhak menghapus prompt milik pengguna lain.");
       (err as unknown as { code: string }).code = "FORBIDDEN";
       throw err;

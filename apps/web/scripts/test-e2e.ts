@@ -5,13 +5,66 @@
  */
 
 import puppeteer, { Browser, Page } from "puppeteer-core";
-import { spawn, ChildProcess } from "child_process";
+import { spawn, ChildProcess, execSync } from "child_process";
 import path from "path";
+import fs from "fs";
+import os from "os";
 import http from "http";
 
 const PORT = 3124;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-const CHROME_PATH = "/usr/bin/google-chrome";
+
+function findBrowserExecutable(): string {
+  if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
+    return process.env.CHROME_PATH;
+  }
+
+  if (process.platform === "win32") {
+    const candidates = [
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+      `${process.env.LOCALAPPDATA || "C:\\Users\\Default\\AppData\\Local"}\\Google\\Chrome\\Application\\chrome.exe`,
+      "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+      "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    ];
+    for (const p of candidates) {
+      if (p && fs.existsSync(p)) {
+        return p;
+      }
+    }
+  } else {
+    const candidates = [
+      "/usr/bin/google-chrome",
+      "/usr/bin/google-chrome-stable",
+      "/usr/bin/chromium-browser",
+      "/usr/bin/chromium",
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return p;
+      }
+    }
+  }
+
+  throw new Error("Executable Chrome/Edge tidak ditemukan di sistem.");
+}
+
+function killProcessTree(pid?: number) {
+  if (!pid) return;
+  if (process.platform === "win32") {
+    try {
+      execSync(`taskkill /pid ${pid} /T /F`, { stdio: "ignore" });
+    } catch {}
+  } else {
+    try {
+      process.kill(-pid, "SIGTERM");
+    } catch {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {}
+    }
+  }
+}
 
 interface TestResult {
   name: string;
@@ -104,14 +157,35 @@ async function runE2ESuite() {
 
   let serverProcess: ChildProcess | null = null;
   let browser: Browser | null = null;
+  let tempDbPath: string | null = null;
 
   try {
+    // 0. Setup isolated temporary database
+    const tempDbName = `test-e2e-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
+    tempDbPath = path.join(os.tmpdir(), tempDbName).replace(/\\/g, "/");
+    const tempDbUrl = `file:${tempDbPath}`;
+    const schemaPath = path.resolve(__dirname, "../../../packages/database/prisma/schema.prisma");
+
+    console.log(`[0] Menginisialisasi database SQLite sementara terisolasi: ${tempDbPath}`);
+    execSync(`npx prisma migrate deploy --schema="${schemaPath}"`, {
+      env: { ...process.env, DATABASE_URL: tempDbUrl },
+      stdio: "ignore",
+    });
+
     // 1. Jalankan Next.js server produksi
     console.log(`▶ [Step 1] Memulai Next.js server pada port ${PORT}...`);
     const webRoot = path.resolve(__dirname, "..");
-    serverProcess = spawn("npx", ["next", "start", "-p", String(PORT)], {
+    const isWin = process.platform === "win32";
+    serverProcess = spawn(isWin ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT)], {
       cwd: webRoot,
-      env: { ...process.env, PORT: String(PORT) },
+      env: {
+        ...process.env,
+        PORT: String(PORT),
+        DATABASE_URL: tempDbUrl,
+        SESSION_SECRET: "e2e-test-session-secret-at-least-32-characters-long",
+        ALLOWED_ORIGINS: "http://127.0.0.1:3124,http://localhost:3124",
+      },
+      shell: isWin,
       stdio: "ignore",
     });
 
@@ -121,10 +195,12 @@ async function runE2ESuite() {
     }
     console.log(`  🚀 Server aktif di ${BASE_URL}`);
 
-    // 2. Luncurkan browser headless Chrome
-    console.log("\n▶ [Step 2] Meluncurkan Google Chrome headless...");
+    // 2. Luncurkan browser headless Chrome / Edge
+    console.log("\n▶ [Step 2] Meluncurkan browser headless Chromium/Chrome/Edge...");
+    const browserPath = findBrowserExecutable();
+    console.log(`  🌐 Menggunakan executable browser: ${browserPath}`);
     browser = await puppeteer.launch({
-      executablePath: CHROME_PATH,
+      executablePath: browserPath,
       headless: true,
       args: [
         "--no-sandbox",
@@ -133,7 +209,7 @@ async function runE2ESuite() {
         "--disable-gpu",
       ],
     });
-    console.log("  🌐 Chrome browser berhasil diluncurkan.");
+    console.log("  🌐 Browser berhasil diluncurkan.");
 
     const page: Page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 900 });
@@ -156,8 +232,12 @@ async function runE2ESuite() {
 
     // Capture console errors
     const pageErrors: string[] = [];
-    page.on("pageerror", (err) => pageErrors.push(err instanceof Error ? err.message : String(err)));
+    page.on("pageerror", (err) => {
+      console.log(`[Page Error] ${err}`);
+      pageErrors.push(err instanceof Error ? err.message : String(err));
+    });
     page.on("console", (msg) => {
+      console.log(`[Browser Console ${msg.type()}] ${msg.text()}`);
       if (msg.type() === "error") {
         pageErrors.push(msg.text());
       }
@@ -317,8 +397,12 @@ async function runE2ESuite() {
     const deleteSuccess = await page.evaluate(async (promptToDeleteId) => {
       const delRes = await fetch(`/api/history?id=${encodeURIComponent(promptToDeleteId)}`, {
         method: "DELETE",
+        headers: {
+          Origin: window.location.origin,
+        },
       });
       const delJson = await delRes.json();
+      console.log("E2E DELETE status:", delRes.status, JSON.stringify(delJson));
       return delJson.success === true;
     }, mockOptimizationResult.requestId);
 
@@ -347,10 +431,14 @@ async function runE2ESuite() {
       await browser.close().catch(() => {});
       console.log("  🛑 Browser ditutup.");
     }
-    if (serverProcess) {
-      serverProcess.kill("SIGTERM");
+    if (serverProcess && serverProcess.pid) {
+      killProcessTree(serverProcess.pid);
       console.log("  🛑 Next.js server dihentikan.");
     }
+    try {
+      if (tempDbPath && fs.existsSync(tempDbPath)) fs.unlinkSync(tempDbPath);
+      if (tempDbPath && fs.existsSync(`${tempDbPath}-journal`)) fs.unlinkSync(`${tempDbPath}-journal`);
+    } catch {}
   }
 
   // Summary
