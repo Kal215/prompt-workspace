@@ -1,5 +1,6 @@
 import { GroqAdapter } from "@prompt-workspace/provider-adapters";
 import { Finding } from "@prompt-workspace/prompt-contracts";
+import { DomainRulePack, getDomainPack } from "@prompt-workspace/domain-rules";
 import { z } from "zod";
 import { safeLogger } from "./logger.js";
 import {
@@ -14,6 +15,7 @@ export interface AnalyzePromptResult {
   findings: Finding[];
   score: number;
   status: string;
+  domainId?: string;
   telemetry?: {
     model: string;
     latencyMs?: number;
@@ -112,24 +114,45 @@ function extractJsonFromText(rawText: string): any {
  * @param prompt Prompt asli dari pengguna
  * @param context Konteks opsional
  * @param adapter GroqAdapter instance (opsional, default dibuat baru)
+ * @param domainPackInput DomainRulePack instance atau taskType string opsional
  */
 export async function analyzePrompt(
   prompt: string,
   context?: string | null,
-  adapter?: GroqAdapter
+  adapter?: GroqAdapter,
+  domainPackInput?: DomainRulePack | string | null
 ): Promise<AnalyzePromptResult> {
+  const domainPack: DomainRulePack =
+    typeof domainPackInput === "string" || domainPackInput === null || domainPackInput === undefined
+      ? getDomainPack(domainPackInput)
+      : domainPackInput;
+
   safeLogger.info("Memulai analisis prompt", {
     prompt,
     hasContext: !!context,
+    domainId: domainPack.domainId,
   });
 
   const groq = adapter || new GroqAdapter();
+
+  const domainDirectivesSection =
+    domainPack.analyzerDirectives.length > 0 && domainPack.domainId !== "general"
+      ? [
+          ``,
+          `ATURAN PEMERIKSAAN KHUSUS DOMAIN [${domainPack.name.toUpperCase()}]:`,
+          ...domainPack.analyzerDirectives.map((d, i) => `${i + 1}. ${d}`),
+          `Fokus Taksonomi yang Diperketat: ${domainPack.focusCategories.join(", ")}`,
+        ].join("\n")
+      : "";
 
   const userContent = [
     `ANALISIS PROMPT BERIKUT:`,
     `Prompt: "${prompt}"`,
     context ? `Konteks Tambahan: "${context}"` : `Konteks Tambahan: (Tidak ada)`,
-  ].join("\n");
+    domainDirectivesSection,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   let response;
   try {
@@ -184,6 +207,7 @@ export async function analyzePrompt(
     detectedIntent: validated.detectedIntent,
     findingsCount: normalizedFindings.length,
     score: validated.score,
+    domainId: domainPack.domainId,
     model: response.model,
     latencyMs: response.latencyMs,
   });
@@ -193,6 +217,7 @@ export async function analyzePrompt(
     findings: normalizedFindings,
     score: validated.score,
     status: validated.status,
+    domainId: domainPack.domainId,
     telemetry: {
       model: response.model,
       latencyMs: response.latencyMs,

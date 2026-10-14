@@ -1,5 +1,6 @@
 import { GroqAdapter } from "@prompt-workspace/provider-adapters";
 import { Finding } from "@prompt-workspace/prompt-contracts";
+import { DomainRulePack, getDomainPack } from "@prompt-workspace/domain-rules";
 import { z } from "zod";
 import { safeLogger } from "./logger.js";
 import {
@@ -111,17 +112,25 @@ function extractJsonFromText(rawText: string): any {
  * @param analysisFindings Daftar temuan dari Analyzer
  * @param constraints Batasan tambahan yang ditentukan pengguna
  * @param adapter GroqAdapter instance (opsional, default dibuat baru)
+ * @param domainPackInput DomainRulePack instance atau taskType string opsional
  */
 export async function optimizePrompt(
   originalPrompt: string,
   analysisFindings: Finding[],
   constraints: string[] = [],
-  adapter?: GroqAdapter
+  adapter?: GroqAdapter,
+  domainPackInput?: DomainRulePack | string | null
 ): Promise<OptimizePromptResult> {
+  const domainPack: DomainRulePack =
+    typeof domainPackInput === "string" || domainPackInput === null || domainPackInput === undefined
+      ? getDomainPack(domainPackInput)
+      : domainPackInput;
+
   safeLogger.info("Memulai optimasi prompt (Preserve Intent)", {
     originalPrompt,
     findingsCount: analysisFindings.length,
     constraintsCount: constraints.length,
+    domainId: domainPack.domainId,
   });
 
   const groq = adapter || new GroqAdapter();
@@ -138,6 +147,15 @@ export async function optimizePrompt(
       ? constraints.map((c) => `- ${c}`).join("\n")
       : "(Tidak ada batasan tambahan)";
 
+  const domainDirectivesSection =
+    domainPack.optimizerDirectives.length > 0 && domainPack.domainId !== "general"
+      ? [
+          ``,
+          `ATURAN REKONSTRUKSI & GUARDRAIL KHUSUS DOMAIN [${domainPack.name.toUpperCase()}]:`,
+          ...domainPack.optimizerDirectives.map((d, i) => `${i + 1}. ${d}`),
+        ].join("\n")
+      : "";
+
   const userContent = [
     `OPTIMASI PROMPT BERIKUT BERDASARKAN HASIL ANALISIS:`,
     `Prompt Asli: "${originalPrompt}"`,
@@ -147,9 +165,12 @@ export async function optimizePrompt(
     ``,
     `Batasan Tambahan dari Pengguna:`,
     constraintsSummary,
+    domainDirectivesSection,
     ``,
     `Ingat aturan keras Intent Preservation: Gunakan placeholder terstruktur jika ada informasi yang belum lengkap, JANGAN PERNAH MENGARANG fakta/URL.`,
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   let response;
   try {

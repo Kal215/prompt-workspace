@@ -84,6 +84,20 @@ export type Finding = z.infer<typeof FindingSchema>;
 // Blueprint v1.0 Bagian 5.3 — Core Result Schema
 // ──────────────────────────────────────────────
 
+// ──────────────────────────────────────────────
+// Blueprint v1.0 Bagian 11.4 & Bagian 3 — Domain Rule Metadata
+// ──────────────────────────────────────────────
+
+export const AppliedDomainRuleSchema = z.object({
+  /** ID unik domain rule pack */
+  domainId: z.string(),
+  /** Versi aturan domain */
+  ruleVersion: z.string(),
+  /** Label nama domain */
+  name: z.string(),
+});
+export type AppliedDomainRule = z.infer<typeof AppliedDomainRuleSchema>;
+
 export const PromptAnalysisSchema = z.object({
   /** Daftar temuan kelemahan prompt berdasarkan taksonomi */
   findings: z.array(FindingSchema),
@@ -110,6 +124,7 @@ export const PromptMetadataSchema = z
       .optional(),
     confidenceScore: z.number().optional(),
     estimatedTokenSavings: z.string().optional(),
+    appliedDomainRule: AppliedDomainRuleSchema.optional(),
   })
   .passthrough();
 
@@ -157,6 +172,9 @@ export const PromptOptimizationResultSchema = z.object({
 
   /** Peringatan asumsi atau informasi yang masih kurang */
   warnings: z.array(z.string()),
+
+  /** Domain rule pack yang diterapkan (opsional, transparansi UI) */
+  appliedDomainRule: AppliedDomainRuleSchema.optional(),
 
   /** Hasil audit evaluasi kualitas / LLM-as-a-Judge (opsional) */
   evaluation: OptimizationEvaluationSchema.optional(),

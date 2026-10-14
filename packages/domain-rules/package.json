@@ -1,0 +1,14 @@
+{
+  "name": "@prompt-workspace/domain-rules",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Domain-specific rule packs for Prompt Intelligence Engine — analyzer directives, optimizer guardrails, and evaluation criteria",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx scripts/test-domain-rules.ts"
+  },
+  "dependencies": {}
+}
