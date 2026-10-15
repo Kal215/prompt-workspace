@@ -25,6 +25,8 @@ Penggunaan:
 
 Opsi:
   --style=<preset>    Preset gaya: comprehensive_blueprint (default), concise_tactical, conversational_expert
+  --audience=<level>  Tingkat audiens: specialist (default), professional, academic, student
+  --blueprint         Cetak Universal Meta-Blueprint 10-Bagian lengkap dengan diagram Mermaid
   --budget=<mode>     Mode budget token: balanced (default), eco, deep_audit
   --url=<url>         URL dokumentasi/GitHub referensi (maks 2, pisahkan koma atau ulang flag)
   --context=<teks>    Konteks tambahan / spesifikasi arsitektur
@@ -33,6 +35,7 @@ Opsi:
 
 Contoh:
   npm run piew -- "Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS."
+  npm run piew -- "Rancang riset mikroplastik laut" --audience=academic --blueprint
   npm run piew -- "Fix login bug" --style=concise_tactical --budget=eco
 `);
 }
@@ -49,6 +52,8 @@ async function main() {
   let prompt = "";
   let stylePreset: SynthesisStylePreset = config.defaultStylePreset || "comprehensive_blueprint";
   let budgetMode: TokenBudgetMode = config.defaultBudgetMode || "balanced";
+  let audienceLevel: any = "specialist";
+  let showBlueprint = false;
   let context: string | undefined;
   const referenceUrls: string[] = [];
   let jsonOutput = false;
@@ -58,6 +63,10 @@ async function main() {
       stylePreset = arg.split("=")[1] as SynthesisStylePreset;
     } else if (arg.startsWith("--budget=")) {
       budgetMode = arg.split("=")[1] as TokenBudgetMode;
+    } else if (arg.startsWith("--audience=")) {
+      audienceLevel = arg.split("=")[1];
+    } else if (arg === "--blueprint") {
+      showBlueprint = true;
     } else if (arg.startsWith("--context=")) {
       context = arg.slice("--context=".length);
     } else if (arg.startsWith("--url=")) {
@@ -81,12 +90,28 @@ async function main() {
       prompt,
       stylePreset,
       budgetMode,
+      audienceLevel,
       context,
       referenceUrls: referenceUrls.length > 0 ? referenceUrls : undefined,
     });
 
     if (jsonOutput) {
       console.log(JSON.stringify(result, null, 2));
+      process.exit(0);
+    }
+
+    if (showBlueprint && result.universalBlueprint) {
+      console.log("\n" + "═".repeat(68));
+      console.log("🌟 PIEW UNIVERSAL META-BLUEPRINT (10-Bagian + Diagram Mermaid)");
+      console.log("═".repeat(68) + "\n");
+      console.log(result.universalBlueprint.renderedMasterPrompt);
+      console.log("\n" + "─".repeat(68));
+      console.log(
+        `📊 Domain: ${result.universalBlueprint.domain.toUpperCase()} | ` +
+        `Audiens: ${result.audienceLevel} | Diagram: ${result.universalBlueprint.diagrams.length} Mermaid | ` +
+        `Fase: ${result.universalBlueprint.executionPhases.length} | Latency: ${result.processingTimeMs ?? 0}ms`
+      );
+      console.log("─".repeat(68) + "\n");
       process.exit(0);
     }
 

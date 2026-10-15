@@ -22,6 +22,7 @@ import {
   DeterministicContentCache,
 } from "./cache.js";
 import { loadPiewConfig } from "./config.js";
+import { synthesizeUniversalBlueprint } from "./universal-synthesizer.js";
 import { runPromptCrawler } from "@prompt-workspace/prompt-crawler";
 import { runPromptSpider } from "@prompt-workspace/prompt-spider";
 import { LLMProviderAdapter } from "@prompt-workspace/provider-adapters";
@@ -66,6 +67,7 @@ export async function runAutoPilotMasterPipeline(
     taskType: validatedInput.taskType,
     stylePreset,
     budgetMode,
+    audienceLevel: validatedInput.audienceLevel,
     referenceUrls: validatedInput.referenceUrls?.slice(0, 2).sort(),
   };
 
@@ -201,6 +203,23 @@ export async function runAutoPilotMasterPipeline(
     }
   }
 
+  // 6b. Sintesis Universal Meta-Blueprint & Diagram Polimorfik
+  const audienceLevel = validatedInput.audienceLevel || "specialist";
+  const universalResult = synthesizeUniversalBlueprint({
+    prompt: validatedInput.prompt,
+    context: validatedInput.context,
+    audienceLevel,
+    domain: route.domainId,
+  });
+
+  if (universalResult.consistencyValid) {
+    changes.push(
+      `Universal Meta-Blueprint 10-Bagian terpasang (Konsistensi Diagram vs Fase: ${universalResult.consistencyScore}%)`
+    );
+  } else {
+    warnings.push(...universalResult.warnings);
+  }
+
   const result: AutoPilotResult = {
     optimizedPrompt: synthesisOutput.masterPrompt,
     taskSpec,
@@ -218,6 +237,8 @@ export async function runAutoPilotMasterPipeline(
       domainId: route.domainId,
       complexity: taskSpec.complexity,
     },
+    audienceLevel,
+    universalBlueprint: universalResult.blueprint,
   };
 
   const parsedResult = AutoPilotResultSchema.parse(result);
