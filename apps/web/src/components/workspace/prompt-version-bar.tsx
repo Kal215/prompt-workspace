@@ -89,10 +89,11 @@ export function PromptVersionBar({
         </div>
         <div>
           <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-            Silsilah Versi Prompt (v2.0)
+            Versi Instruksi
+            <span className="sr-only">v1 Silsilah Versi</span>
           </span>
           <span className="text-[10px] text-muted-foreground block">
-            {versions.length} versi terekam dalam siklus iterasi tertutup
+            {versions.length} versi terekam dalam siklus iterasi
           </span>
         </div>
       </div>
@@ -101,7 +102,10 @@ export function PromptVersionBar({
       <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
         {versions.map((ver, idx) => {
           const isActive = ver.versionId === activeVersionId;
-          const label = ver.versionId.toUpperCase();
+          const displayLabel =
+            ver.versionNumber === 1
+              ? "Versi 1 (Awal)"
+              : `Versi ${ver.versionNumber} (Hasil Perbaikan)`;
 
           return (
             <React.Fragment key={ver.versionId}>
@@ -118,7 +122,8 @@ export function PromptVersionBar({
                     : "bg-muted/40 text-foreground hover:bg-muted border-border/60 hover:border-border"
                 }`}
               >
-                <span className="font-mono font-bold">{label}</span>
+                <span className="font-mono font-semibold">{displayLabel}</span>
+                <span className="sr-only">{ver.versionId}</span>
 
                 {/* Source Badge */}
                 {ver.source && (

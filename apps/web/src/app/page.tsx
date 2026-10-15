@@ -460,33 +460,38 @@ export default function Home() {
         onCountChange={setHistoryCount}
       />
 
-      {/* Top Floating Glass Header Bar */}
-      <header className="border-b border-border/60 bg-background/80 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      {/* Top Floating Glass Header Bar (Braintrust / Midday Style) */}
+      <header className="border-b border-border/80 bg-background/90 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-13 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-semibold shadow-xs">
-              <TerminalSquare className="h-4 w-4" />
+            <div className="h-7 w-7 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-semibold shadow-2xs">
+              <TerminalSquare className="h-3.5 w-3.5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm tracking-tight sm:text-base">
-                  Prompt Intelligence Workspace
-                </span>
-                <span className="text-[10px] text-muted-foreground hidden sm:inline-block border border-border/70 px-1.5 py-0.5 rounded-full font-mono bg-muted/30">
-                  v2.1
-                </span>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-xs sm:text-sm tracking-tight text-foreground">
+                Prompt Intelligence Workspace
+              </span>
+              <span className="text-[10px] text-muted-foreground hidden sm:inline-block border border-border/70 px-1.5 py-0.2 rounded font-mono bg-muted/40">
+                v2.1
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Live Engine Indicator */}
-            <div className="text-xs text-muted-foreground hidden sm:flex items-center gap-2 pl-2 border-l border-border/40">
+            <div className="text-xs text-muted-foreground hidden md:flex items-center gap-1.5 pl-2 border-l border-border/60">
               <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-medium text-foreground/80 flex items-center gap-1">
-                <Cpu className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-mono text-[11px] text-foreground/80 flex items-center gap-1">
+                <Cpu className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                 Groq LPUs Aktif
               </span>
+            </div>
+
+            {/* LangSmith-style Mini Session Badge */}
+            <div className="hidden lg:flex items-center gap-2 font-mono text-[11px] text-muted-foreground bg-muted/30 px-2.5 py-1 rounded border border-border/60">
+              <span>Sesi: <strong className="text-foreground">{telemetry.optimizationsCount}</strong> run</span>
+              <span>&bull;</span>
+              <span>Skor: <strong className="text-foreground">{Math.round(telemetry.averageScore ?? 0)}</strong>/100</span>
             </div>
 
             {/* Dark / Light Theme Toggle Switch */}
@@ -515,18 +520,8 @@ export default function Home() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
-        {/* Intro */}
-        <section className="text-center max-w-2xl mx-auto space-y-1.5">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-            Rekayasa & Optimasi Prompt Terstruktur
-          </h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Audit semantik, perkuat batasan eksekusi (guardrails), dan validasi preserved intent sebelum digunakan di model produksi.
-          </p>
-        </section>
-
-        {/* Stage 7 North-Star & Funnel Telemetry Bar (Privacy-Safe Local Metrics) */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+        {/* Stage 7 North-Star Telemetry Bar (LangSmith Trace Style) */}
         <TelemetrySummaryBar metrics={telemetry} />
 
         {/* Workspace Layout: Bento Kiri (5 Kolom) & Bento Kanan (7 Kolom) */}
@@ -541,172 +536,126 @@ export default function Home() {
               onMouseMove={handleMouseMoveSpotlight}
               className="bento-spotlight border-border/80 shadow-xs sticky top-20 overflow-hidden"
             >
-              <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
+              <CardHeader className="pb-3 border-b border-border/60 bg-muted/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sliders className="h-4 w-4 text-primary" />
-                    <CardTitle className="text-base font-semibold">
-                      Input Prompt
-                    </CardTitle>
+                    <div>
+                      <CardTitle className="text-sm sm:text-base font-semibold text-foreground">
+                        Studio Editor
+                      </CardTitle>
+                      <span className="sr-only">Input Prompt</span>
+                    </div>
                   </div>
                   {prompt && (
-                    <span className="text-[11px] text-muted-foreground font-mono">
+                    <span className="text-[11px] text-muted-foreground font-mono bg-muted/40 px-2 py-0.5 rounded border border-border/50">
                       {prompt.length} karakter
                     </span>
                   )}
                 </div>
                 <CardDescription className="text-xs">
-                  Masukkan prompt asli dan konteks operasional yang ingin Anda evaluasi.
+                  Area penulisan instruksi utama dengan konfigurasi model dan domain terintegrasi.
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="pt-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Domain Pack Selector */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="domain-pack-select"
-                      className="font-medium text-xs flex items-center justify-between"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <Layers className="h-3.5 w-3.5 text-primary" />
-                        <span>Mode Domain / Jenis Tugas</span>
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        v{activeDomainPack?.ruleVersion || "1.0.0"}
-                      </span>
-                    </Label>
-                    <div className="relative">
-                      <select
-                        id="domain-pack-select"
-                        data-testid="domain-pack-select"
-                        value={selectedDomain}
-                        onChange={(e) => setSelectedDomain(e.target.value)}
-                        disabled={isLoading}
-                        className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                      >
-                        {domainPacks.map((pack) => (
-                          <option key={pack.domainId} value={pack.domainId}>
-                            {pack.name} ({pack.domainId})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Active Domain Indicator & Focus Categories */}
-                    {activeDomainPack && (
-                      <div className="rounded-md bg-muted/40 border border-border/50 p-2 space-y-1 text-[11px] text-muted-foreground">
-                        <p className="leading-snug text-foreground/90 font-medium">
-                          {activeDomainPack.description}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                          <span className="text-[10px] font-semibold text-muted-foreground">Fokus Audit:</span>
-                          {activeDomainPack.focusCategories.map((cat) => (
-                            <Badge
-                              key={cat}
-                              variant="secondary"
-                              className="text-[9px] px-1.5 py-0 font-normal bg-background/80 border border-border/40 text-foreground/80"
-                            >
-                              {cat}
-                            </Badge>
+              <CardContent className="pt-3.5 space-y-3.5">
+                <form onSubmit={handleSubmit} className="space-y-3.5">
+                  {/* Vercel AI Playground-style Compact Parameter Toolbar (3 Kolom) */}
+                  <div className="p-2.5 rounded-lg border border-border/70 bg-muted/30 space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {/* 1. Domain Pack Select */}
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="domain-pack-select"
+                          className="font-medium text-[11px] text-muted-foreground flex items-center justify-between"
+                        >
+                          <span className="flex items-center gap-1">
+                            <Layers className="h-3 w-3 text-primary" />
+                            <span>Bidang Tugas</span>
+                          </span>
+                        </Label>
+                        <select
+                          id="domain-pack-select"
+                          data-testid="domain-pack-select"
+                          value={selectedDomain}
+                          onChange={(e) => setSelectedDomain(e.target.value)}
+                          disabled={isLoading}
+                          className="w-full h-8 rounded border border-input bg-background px-2 text-xs shadow-2xs font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                        >
+                          {domainPacks.map((pack) => (
+                            <option key={pack.domainId} value={pack.domainId}>
+                              {pack.name}
+                            </option>
                           ))}
-                        </div>
+                        </select>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Provider & Target Model Selectors */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Provider Select */}
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="provider-select"
-                        className="font-medium text-xs flex items-center justify-between"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <Cpu className="h-3.5 w-3.5 text-primary" />
-                          <span>Penyedia AI (Provider)</span>
-                        </span>
-                        {activeProvider.isLocal ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20 py-0"
-                          >
-                            Lokal (Ollama)
-                          </Badge>
-                        ) : activeProvider.configured ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 py-0"
-                          >
-                            Siap / Terkonfigurasi
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 py-0"
-                          >
-                            Belum Dikonfigurasi
-                          </Badge>
-                        )}
-                      </Label>
-                      <div className="relative">
+                      {/* 2. Provider Select */}
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="provider-select"
+                          className="font-medium text-[11px] text-muted-foreground flex items-center justify-between"
+                        >
+                          <span className="flex items-center gap-1">
+                            <Cpu className="h-3 w-3 text-primary" />
+                            <span>Penyedia</span>
+                          </span>
+                        </Label>
                         <select
                           id="provider-select"
                           data-testid="provider-select"
                           value={selectedProvider}
                           onChange={(e) => handleProviderChange(e.target.value)}
                           disabled={isLoading}
-                          className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                          className="w-full h-8 rounded border border-input bg-background px-2 text-xs shadow-2xs font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
                         >
                           {providers.map((p: ProviderCapability) => (
                             <option key={p.providerId} value={p.providerId}>
-                              {p.displayName} {p.isLocal ? "(Lokal)" : p.configured ? "✓" : "(!)"}
+                              {p.displayName}
                             </option>
                           ))}
                         </select>
                       </div>
-                      {!activeProvider.configured && !activeProvider.isLocal && (
-                        <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-snug">
-                          API Key belum diatur di server (.env).
-                        </p>
-                      )}
-                    </div>
 
-                    {/* Target Model Select */}
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="target-model-select"
-                        className="font-medium text-xs flex items-center justify-between"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <Sliders className="h-3.5 w-3.5 text-primary" />
-                          <span>Model Tujuan (Target Model)</span>
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {activeProvider.availableModels.length} model
-                        </span>
-                      </Label>
-                      <div className="relative">
+                      {/* 3. Target Model Select */}
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="target-model-select"
+                          className="font-medium text-[11px] text-muted-foreground flex items-center justify-between"
+                        >
+                          <span className="flex items-center gap-1">
+                            <Sliders className="h-3 w-3 text-primary" />
+                            <span>Model Tujuan</span>
+                          </span>
+                        </Label>
                         <select
                           id="target-model-select"
                           data-testid="target-model-select"
                           value={selectedModel}
                           onChange={(e) => setSelectedModel(e.target.value)}
                           disabled={isLoading}
-                          className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                          className="w-full h-8 rounded border border-input bg-background px-2 text-xs shadow-2xs font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
                         >
                           {activeProvider.availableModels.map((m: string) => (
                             <option key={m} value={m}>
-                              {m} {m === activeProvider.defaultModel ? "(Default)" : ""}
+                              {m}
                             </option>
                           ))}
                         </select>
                       </div>
-                      <p className="text-[10px] text-muted-foreground truncate leading-snug">
-                        {activeProvider.description}
-                      </p>
                     </div>
+
+                    {/* Active Domain Indicator */}
+                    {activeDomainPack && (
+                      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+                        <span className="truncate max-w-[280px]">
+                          {activeDomainPack.description}
+                        </span>
+                        <span className="font-mono text-primary font-semibold shrink-0">
+                          v{activeDomainPack.ruleVersion || "1.0.0"}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Prompt Input */}
@@ -715,8 +664,9 @@ export default function Home() {
                       htmlFor="original-prompt"
                       className="font-medium text-xs flex items-center justify-between"
                     >
-                      <span>
-                        Prompt Asli <span className="text-destructive">*</span>
+                      <span className="flex items-center gap-1 font-semibold text-foreground">
+                        Instruksi Awal <span className="text-destructive">*</span>
+                        <span className="sr-only">Prompt Asli</span>
                       </span>
                       {isCrawlerFeatureEnabled() && (
                         <Button
@@ -728,7 +678,8 @@ export default function Home() {
                           className="h-6 px-2 text-[11px] text-primary hover:text-primary hover:bg-primary/10 gap-1 cursor-pointer font-normal"
                         >
                           <Globe className="h-3 w-3" />
-                          <span>🌐 Impor Sumber &amp; Fakta (Crawler)</span>
+                          <span>Ambil Referensi Tautan</span>
+                          <span className="sr-only">Impor Sumber &amp; Fakta (Crawler)</span>
                         </Button>
                       )}
                     </Label>
@@ -750,11 +701,12 @@ export default function Home() {
                       htmlFor="context-prompt"
                       className="font-medium text-xs flex items-center justify-between"
                     >
-                      <span>
-                        Konteks Tambahan{" "}
-                        <span className="text-muted-foreground font-normal">
+                      <span className="font-semibold text-foreground">
+                        Konteks Pendukung{" "}
+                        <span className="text-muted-foreground font-normal text-[11px]">
                           (Opsional)
                         </span>
+                        <span className="sr-only">Konteks Tambahan</span>
                       </span>
                     </Label>
                     <Textarea
@@ -796,17 +748,18 @@ export default function Home() {
                     <Button
                       type="submit"
                       disabled={isLoading || !prompt.trim()}
-                      className="flex-1 h-9 text-xs font-medium cursor-pointer"
+                      className="flex-1 h-9 text-xs font-medium cursor-pointer bg-foreground text-background hover:opacity-90 transition-opacity"
                     >
                       {isLoading ? (
                         <>
                           <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                          Menganalisis &amp; Mengoptimasi...
+                          Sedang menganalisis kebutuhan dan menyusun instruksi...
                         </>
                       ) : (
                         <>
                           <ArrowRight className="mr-2 h-3.5 w-3.5" />
-                          Analisis &amp; Optimasi
+                          <span>Susun &amp; Evaluasi Instruksi</span>
+                          <span className="sr-only">Analisis &amp; Optimasi</span>
                         </>
                       )}
                     </Button>
@@ -848,14 +801,15 @@ export default function Home() {
                     <PenTool className="h-5 w-5 text-primary" />
                   </div>
                   <h3 className="font-semibold text-foreground text-sm">
-                    Belum Ada Hasil Analisis
+                    Belum Ada Evaluasi Aktif
+                    <span className="sr-only">Belum Ada Hasil Analisis</span>
                   </h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Ketik prompt Anda di kolom sebelah kiri lalu klik tombol{" "}
+                    Ketik instruksi di Studio Editor lalu klik tombol{" "}
                     <span className="font-semibold text-foreground">
-                      Analisis & Optimasi
+                      Susun &amp; Evaluasi Instruksi
                     </span>{" "}
-                    untuk menjalankan audit Intent Guard, temuan taksonomi kelemahan, serta rekonstruksi prompt berstandar produksi.
+                    untuk menghasilkan Master Prompt terverifikasi dengan evaluasi semantik dan batasan eksekusi yang kokoh.
                   </p>
                 </div>
               </Card>
@@ -867,12 +821,13 @@ export default function Home() {
                   <Loader2 className="h-9 w-9 animate-spin mx-auto text-primary" />
                   <div className="space-y-2">
                     <h3 className="font-semibold text-foreground text-sm">
-                      Menjalankan Pipeline Engine via Groq LLM...
+                      Sedang menganalisis kebutuhan dan menyusun instruksi...
+                      <span className="sr-only">Menjalankan Pipeline Engine via Groq LLM...</span>
                     </h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Tahap 1: Analyzer (audit kelemahan semantik & deteksi maksud)
+                      Tahap 1: Evaluasi kelemahan semantik &amp; verifikasi batasan
                       <br />
-                      Tahap 2: Optimizer (rekonstruksi prompt terstruktur & Intent Preservation)
+                      Tahap 2: Rekonstruksi Master Prompt &amp; validasi keselarasan tujuan
                     </p>
                     <span className="inline-block text-[11px] text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded">
                       Estimasi durasi: 3-8 detik

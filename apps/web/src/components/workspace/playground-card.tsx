@@ -163,15 +163,15 @@ export function PlaygroundCard({
   };
 
   return (
-    <Card data-testid="playground-card" className="border-border shadow-xs overflow-hidden">
-      <CardHeader className="bg-muted/30 pb-4 border-b border-border">
+    <Card data-testid="playground-card" className="border-border/80 shadow-xs overflow-hidden">
+      <CardHeader className="bg-muted/20 pb-3 border-b border-border/60">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Play className="h-4 w-4 text-primary fill-primary" />
-              <span>Target Model Execution Playground</span>
+              <span>Target Model Playground</span>
               <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
-                Level 3: Uji Nyata
+                Vercel AI Sandbox
               </Badge>
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
@@ -179,7 +179,7 @@ export function PlaygroundCard({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="font-mono text-[11px] gap-1">
+            <Badge variant="secondary" className="font-mono text-[11px] gap-1 bg-muted/60">
               <Cpu className="h-3 w-3 text-muted-foreground" />
               <span>{providerId || "groq"}</span>
             </Badge>

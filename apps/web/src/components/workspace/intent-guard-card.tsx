@@ -8,16 +8,24 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DetectedIntent, AppliedDomainRuleInfo } from "@/types/prompt";
-import { ShieldCheck, HelpCircle, Target, FileText, CheckCircle2 } from "lucide-react";
+import { TaskSpecificationMap } from "@prompt-workspace/prompt-contracts";
+import { ShieldCheck, HelpCircle, Target, FileText, CheckCircle2, ShieldAlert, GitFork } from "lucide-react";
 
 interface IntentGuardCardProps {
   intent: DetectedIntent | string;
   appliedDomainRule?: AppliedDomainRuleInfo | null;
   providerId?: string | null;
   model?: string | null;
+  taskSpec?: TaskSpecificationMap | null;
 }
 
-export function IntentGuardCard({ intent, appliedDomainRule, providerId, model }: IntentGuardCardProps) {
+export function IntentGuardCard({
+  intent,
+  appliedDomainRule,
+  providerId,
+  model,
+  taskSpec,
+}: IntentGuardCardProps) {
   const isString = typeof intent === "string";
   const summary = isString ? intent : intent.summary;
   const confidence = !isString && typeof intent.confidence === "number" ? intent.confidence : 0.95;
@@ -122,6 +130,48 @@ export function IntentGuardCard({ intent, appliedDomainRule, providerId, model }
             </div>
           )}
         </div>
+
+        {/* Master Prompt Task Specification (Negative Constraints & Logical Tensions) */}
+        {taskSpec && (
+          <div className="space-y-3 pt-2 border-t border-border/40">
+            {taskSpec.negativeConstraints && taskSpec.negativeConstraints.length > 0 && (
+              <div className="space-y-1.5 p-3 rounded-md bg-destructive/5 border border-destructive/20 text-xs">
+                <div className="flex items-center gap-1.5 font-semibold text-destructive">
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                  <span>Batasan Mutlak (Negative Constraints &amp; Anti-Patterns):</span>
+                </div>
+                <ul className="space-y-1 text-muted-foreground pl-1">
+                  {taskSpec.negativeConstraints.map((constraint, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-destructive font-bold">&times;</span>
+                      <span className="leading-relaxed">{constraint}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {taskSpec.logicalTensions && taskSpec.logicalTensions.length > 0 && (
+              <div className="space-y-1.5 p-3 rounded-md bg-muted/30 border border-border/40 text-xs">
+                <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                  <GitFork className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span>Resolusi Ketegangan Desain (Logical Tensions):</span>
+                </div>
+                <div className="space-y-1.5 text-muted-foreground">
+                  {taskSpec.logicalTensions.map((t, i) => (
+                    <div key={i} className="flex items-start gap-1.5 leading-relaxed">
+                      <span className="text-primary font-bold">&bull;</span>
+                      <div>
+                        <span className="font-medium text-foreground">{t.tension}: </span>
+                        <span>{t.resolutionStrategy}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Uncertainties / Ambiguities Identified */}
         {uncertainties && uncertainties.length > 0 && (

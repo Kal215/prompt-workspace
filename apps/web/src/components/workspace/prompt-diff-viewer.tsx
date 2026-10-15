@@ -70,15 +70,16 @@ export function PromptDiffViewer({
 
   return (
     <Card className="border-border/80 shadow-xs">
-      <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
+      <CardHeader className="pb-3 border-b border-border/60 bg-muted/20">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <FileCheck2 className="h-4 w-4 text-primary" />
-              Perbandingan Prompt & Hasil Rekayasa
+              Perbandingan Instruksi
+              <span className="sr-only">Perbandingan Prompt &amp; Hasil Rekayasa</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              Inspeksi perubahan struktural antara input awal dan hasil rekayasa engine
+              Inspeksi perbedaan struktural antara instruksi awal dan hasil Master Prompt Engine
             </CardDescription>
           </div>
 
@@ -135,7 +136,8 @@ export function PromptDiffViewer({
               ) : (
                 <>
                   <BookmarkCheck className="h-3.5 w-3.5" />
-                  Accept & Save
+                  Terima &amp; Simpan
+                  <span className="sr-only">Accept &amp; Save</span>
                 </>
               )}
             </Button>
@@ -166,18 +168,18 @@ export function PromptDiffViewer({
         )}
 
         <Tabs defaultValue="side-by-side" className="w-full space-y-4">
-          <TabsList className="grid w-full grid-cols-3 max-w-sm h-8 p-0.5">
-            <TabsTrigger value="side-by-side" className="text-xs gap-1.5">
+          <TabsList className="grid w-full grid-cols-3 max-w-md h-8 p-0.5 bg-muted/40 border border-border/50">
+            <TabsTrigger value="side-by-side" className="text-xs gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-2xs">
               <Columns className="h-3.5 w-3.5" />
-              Berdampingan
+              Sandingkan Kiri-Kanan
             </TabsTrigger>
-            <TabsTrigger value="inline-diff" className="text-xs gap-1.5">
+            <TabsTrigger value="inline-diff" className="text-xs gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-2xs">
               <GitCompare className="h-3.5 w-3.5" />
-              Inline Diff
+              Perubahan Kata
             </TabsTrigger>
-            <TabsTrigger value="clean-output" className="text-xs gap-1.5">
+            <TabsTrigger value="clean-output" className="text-xs gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-2xs">
               <FileCheck className="h-3.5 w-3.5" />
-              Output Bersih
+              Hasil Akhir
             </TabsTrigger>
           </TabsList>
 

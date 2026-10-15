@@ -208,26 +208,30 @@ export function CrawlerImportModal({
     >
       <div className="relative w-full max-w-3xl rounded-xl border border-border bg-card text-card-foreground shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header Modal */}
-        <div className="flex items-center justify-between border-b border-border/80 px-5 py-4 bg-muted/20">
+        <div className="flex items-center justify-between border-b border-border/80 px-5 py-3.5 bg-muted/20">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Globe className="h-5 w-5" />
+              <Globe className="h-4 w-4" />
             </div>
             <div>
               <h2
                 id="crawler-modal-title"
-                className="text-base font-semibold leading-none tracking-tight"
+                className="text-sm font-semibold leading-none tracking-tight text-foreground flex items-center gap-2"
               >
-                Impor Sumber &amp; Grounding (Web Crawler v2.0)
+                Ambil Referensi Tautan
+                <span className="sr-only">Impor Sumber &amp; Fakta (Crawler) (Web Crawler v2.0)</span>
+                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary py-0">
+                  Firecrawl Engine
+                </Badge>
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
-                Tarik dokumen resmi dan ekstrak kandidat prompt atau fakta arsitektur terverifikasi.
+                Tarik dokumen resmi dan ekstrak potongan instruksi atau fakta grounding terverifikasi.
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             aria-label="Tutup Dialog"
           >
             <X className="h-4 w-4" />

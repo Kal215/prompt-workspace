@@ -257,8 +257,8 @@ export function ResultDashboard({
     { key: "all", label: "Semua Panel", icon: LayoutGrid },
     { key: "diff", label: "Hasil & Perbandingan", icon: GitCompare },
     { key: "evaluation", label: "Evaluasi & Perubahan", icon: ShieldCheck },
-    { key: "spider", label: "Uji Ketahanan", icon: Bug },
-    { key: "playground", label: "Uji Coba Langsung", icon: Play },
+    { key: "spider", label: "Matriks Pengujian", icon: Bug },
+    { key: "playground", label: "Uji Coba Model", icon: Play },
   ] as const;
 
   return (
@@ -431,7 +431,7 @@ export function ResultDashboard({
 
       {/* Kontainer Panel Interaktif (Semua panel tetap ter-render di DOM agar E2E deterministik) */}
       <div className="space-y-6">
-        {/* Panel 1: Hasil & Perbandingan (Diff Viewer) */}
+        {/* Panel 1: Hasil & Perbandingan (Diff Viewer + Master Task Spec Summary) */}
         <div className={activeTab === "all" || activeTab === "diff" ? "block space-y-4" : "hidden"}>
           <PromptDiffViewer
             originalPrompt={result.originalPrompt}
@@ -441,6 +441,73 @@ export function ResultDashboard({
             onAcceptAndSave={handleAcceptAndSave}
             isSaving={isSaving}
           />
+
+          {/* Master Prompt Synthesis Engine: Task Specification Overview */}
+          {result.analysis?.taskSpec && (
+            <Card className="border-border/70 bg-card/60 shadow-2xs overflow-hidden">
+              <div className="p-3.5 border-b border-border/50 bg-muted/20 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-semibold text-foreground">
+                    Spesifikasi Tugas Master Prompt Engine (Task Spec)
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
+                  {result.analysis.taskSpec.detectedArchetype || "Engine Spec"}
+                </Badge>
+              </div>
+
+              <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
+                {/* 1. Persyaratan Utama */}
+                <div className="space-y-1.5 p-3 rounded-md bg-muted/20 border border-border/40">
+                  <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider block font-mono">
+                    Persyaratan Utama ({result.analysis.taskSpec.explicitRequirements?.length || 0})
+                  </span>
+                  <ul className="space-y-1 text-muted-foreground">
+                    {result.analysis.taskSpec.explicitRequirements?.slice(0, 4).map((req, i) => (
+                      <li key={i} className="flex items-start gap-1.5 leading-relaxed">
+                        <span className="text-primary font-bold">&bull;</span>
+                        <span>{req}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* 2. Batasan Mutlak */}
+                <div className="space-y-1.5 p-3 rounded-md bg-destructive/5 border border-destructive/20">
+                  <span className="text-[11px] font-semibold text-destructive uppercase tracking-wider block font-mono">
+                    Batasan Mutlak ({result.analysis.taskSpec.negativeConstraints?.length || 0})
+                  </span>
+                  <ul className="space-y-1 text-muted-foreground">
+                    {result.analysis.taskSpec.negativeConstraints?.slice(0, 4).map((con, i) => (
+                      <li key={i} className="flex items-start gap-1.5 leading-relaxed">
+                        <span className="text-destructive font-bold">&times;</span>
+                        <span>{con}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* 3. Keputusan Terbuka */}
+                <div className="space-y-1.5 p-3 rounded-md bg-muted/20 border border-border/40">
+                  <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider block font-mono">
+                    Keputusan Terbuka ({result.analysis.taskSpec.openDecisions?.length || 0})
+                  </span>
+                  <ul className="space-y-1.5 text-muted-foreground">
+                    {result.analysis.taskSpec.openDecisions?.slice(0, 4).map((dec, i) => (
+                      <li key={i} className="flex items-start gap-1.5 leading-relaxed">
+                        <span className="text-amber-500 font-bold shrink-0">?</span>
+                        <div>
+                          <strong className="text-foreground font-medium">{dec.topic}: </strong>
+                          <span>{dec.guidance}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Panel 2: Evaluasi & Perubahan (Intent Guard, Findings, Changes Tracker) */}
@@ -458,6 +525,7 @@ export function ResultDashboard({
               (result.metadata?.model as string) ||
               (result.metadata?.modelTarget as string)
             }
+            taskSpec={result.analysis?.taskSpec}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

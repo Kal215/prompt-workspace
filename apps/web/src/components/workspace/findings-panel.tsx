@@ -14,7 +14,6 @@ import {
   Info,
   CheckCircle2,
   Lightbulb,
-  Search,
   SlidersHorizontal,
 } from "lucide-react";
 
@@ -83,31 +82,32 @@ export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
 
   return (
     <Card className="border-border/80 shadow-xs">
-      <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+      <CardHeader className="pb-3 border-b border-border/60 bg-muted/20">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center">
               <SlidersHorizontal className="h-4 w-4" />
             </div>
             <div>
               <CardTitle className="text-base font-semibold">
-                Temuan Analisis Engine ({findings.length})
+                Hasil Evaluasi &amp; Titik Perbaikan ({findings.length})
               </CardTitle>
+              <span className="sr-only">Audit &amp; Analisis Celah Temuan Analisis Engine</span>
               <CardDescription className="text-xs">
-                Audit semantik terhadap batas eksekusi, ambiguitas, dan kelengkapan konteks
+                Evaluasi semantik batas eksekusi, ambiguitas, dan kelengkapan konteks
               </CardDescription>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Kesehatan Prompt:</span>
+            <span className="text-xs text-muted-foreground font-mono">Status:</span>
             {status && (
               <Badge variant="outline" className="text-[10px] uppercase font-mono px-2 py-0.5">
                 {status}
               </Badge>
             )}
             <span
-              className={`text-xs font-bold px-2.5 py-1 rounded-full border ${getScoreColor(
+              className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded border ${getScoreColor(
                 score
               )}`}
             >
@@ -117,65 +117,81 @@ export function FindingsPanel({ findings, score, status }: FindingsPanelProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="pt-4 space-y-3.5">
-        {findings.map((finding, idx) => {
-          const typeLabel = finding.type || finding.category || "analisis";
-          const messageText =
-            finding.message ||
-            finding.recommendation ||
-            finding.evidence ||
-            `Temuan pada aspek ${finding.category || "prompt"}`;
+      <CardContent className="p-0">
+        {/* Promptfoo-style High-Density Data Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border/60 bg-muted/30 text-[11px] font-mono text-muted-foreground">
+                <th className="py-2 px-3.5 w-24">Tingkat</th>
+                <th className="py-2 px-3.5 w-32">Kategori</th>
+                <th className="py-2 px-3.5">Rincian Temuan &amp; Bukti</th>
+                <th className="py-2 px-3.5 w-1/3">Tindakan / Solusi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {findings.map((finding, idx) => {
+                const typeLabel = finding.type || finding.category || "analisis";
+                const messageText =
+                  finding.message ||
+                  finding.recommendation ||
+                  finding.evidence ||
+                  `Temuan pada aspek ${finding.category || "prompt"}`;
 
-          return (
-            <div
-              key={finding.id || `finding-${idx}`}
-              className="rounded-lg border border-border/60 bg-card p-3.5 space-y-2.5 transition-colors hover:border-border"
-            >
-              {/* Finding Header */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground font-semibold">
-                  Kategori: {typeLabel.replace(/_/g, " ")}
-                </span>
-                {getSeverityBadge(finding.severity)}
-              </div>
+                return (
+                  <tr
+                    key={finding.id || `finding-${idx}`}
+                    className="hover:bg-muted/20 transition-colors"
+                  >
+                    {/* Kolom 1: Status / Severity Badge */}
+                    <td className="py-2.5 px-3.5 align-top">
+                      {getSeverityBadge(finding.severity)}
+                    </td>
 
-              {/* Message */}
-              <p className="text-sm text-foreground font-medium leading-relaxed">
-                {messageText}
-              </p>
+                    {/* Kolom 2: Kategori */}
+                    <td className="py-2.5 px-3.5 align-top">
+                      <span className="font-mono text-[11px] text-foreground/80 font-medium uppercase tracking-wide">
+                        {typeLabel.replace(/_/g, " ")}
+                      </span>
+                    </td>
 
-              {/* Evidence if present */}
-              {finding.evidence && (
-                <div className="flex items-start gap-2 rounded bg-muted/30 border border-border/40 px-2.5 py-1.5 text-xs text-muted-foreground">
-                  <Search className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
-                  <div className="space-y-0.5">
-                    <span className="font-semibold text-foreground text-[11px] block">
-                      Bukti / Trigger Terdeteksi:
-                    </span>
-                    <span className="font-mono text-xs text-foreground/80 break-all">
-                      {finding.evidence}
-                    </span>
-                  </div>
-                </div>
-              )}
+                    {/* Kolom 3: Rincian & Bukti */}
+                    <td className="py-2.5 px-3.5 align-top space-y-1.5">
+                      <div className="text-foreground leading-relaxed font-medium">
+                        {messageText}
+                      </div>
+                      {finding.evidence && (
+                        <div className="font-mono text-[11px] p-1.5 rounded bg-muted/40 border border-border/40 text-muted-foreground break-all">
+                          <span className="text-[10px] text-foreground/70 font-semibold uppercase block">
+                            Bukti / Pemicu:
+                          </span>
+                          {finding.evidence}
+                        </div>
+                      )}
+                    </td>
 
-              {/* Recommendation if present */}
-              {finding.recommendation && (
-                <div className="flex items-start gap-2 rounded bg-primary/[0.03] border border-primary/20 px-2.5 py-1.5 text-xs text-foreground">
-                  <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
-                  <div className="space-y-0.5">
-                    <span className="font-semibold text-primary text-[11px] block">
-                      Rekomendasi Perbaikan:
-                    </span>
-                    <span className="text-xs leading-relaxed text-foreground/90">
-                      {finding.recommendation}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                    {/* Kolom 4: Solusi & Rekomendasi */}
+                    <td className="py-2.5 px-3.5 align-top">
+                      {finding.recommendation ? (
+                        <div className="text-foreground/90 text-xs leading-relaxed bg-primary/[0.03] border border-primary/20 p-2 rounded">
+                          <div className="flex items-center gap-1 text-primary font-semibold text-[10px] mb-0.5">
+                            <Lightbulb className="h-3 w-3" />
+                            <span>Rekomendasi:</span>
+                          </div>
+                          <span>{finding.recommendation}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-[11px] italic">
+                          Tercakup otomatis dalam rekonstruksi
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );
