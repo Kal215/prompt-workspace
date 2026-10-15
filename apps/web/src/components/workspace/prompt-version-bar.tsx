@@ -6,7 +6,7 @@ import {
   History,
   ShieldCheck,
   ShieldAlert,
-  Sparkles,
+  RotateCcw,
   Globe,
   Edit3,
   ChevronRight,
@@ -31,7 +31,7 @@ function getSourceBadge(source?: PromptVersionSource) {
           variant="outline"
           className="text-[9px] font-mono border-primary/40 text-primary bg-primary/5 gap-1 py-0 px-1.5"
         >
-          <Sparkles className="h-2.5 w-2.5" />
+          <RotateCcw className="h-2.5 w-2.5" />
           spider-refinement
         </Badge>
       );

@@ -18,9 +18,9 @@ import {
   Columns,
   GitCompare,
   FileCheck,
+  FileCheck2,
   BookmarkCheck,
   RotateCcw,
-  Sparkles,
   FileDown,
   Loader2,
 } from "lucide-react";
@@ -74,8 +74,8 @@ export function PromptDiffViewer({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Perbandingan Prompt & Hasil Optimasi
+              <FileCheck2 className="h-4 w-4 text-primary" />
+              Perbandingan Prompt & Hasil Rekayasa
             </CardTitle>
             <CardDescription className="text-xs">
               Inspeksi perubahan struktural antara input awal dan hasil rekayasa engine

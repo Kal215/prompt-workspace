@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PromptChange } from "@/types/prompt";
-import { GitCommit, ArrowRight, ShieldAlert, Cpu, Layers, Sparkles } from "lucide-react";
+import { GitCommit, ArrowRight, ShieldAlert, Cpu, Layers, SlidersHorizontal } from "lucide-react";
 
 interface ChangesTrackerProps {
   changes: (PromptChange | string)[];
@@ -24,7 +24,7 @@ export function ChangesTracker({ changes }: ChangesTrackerProps) {
       case "structured_output":
         return <Layers className="h-3.5 w-3.5 text-sky-500" />;
       default:
-        return <Sparkles className="h-3.5 w-3.5 text-primary/80" />;
+        return <SlidersHorizontal className="h-3.5 w-3.5 text-primary/80" />;
     }
   };
 

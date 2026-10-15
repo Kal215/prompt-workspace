@@ -38,7 +38,10 @@ export function TelemetrySummaryBar({ metrics }: TelemetrySummaryBarProps) {
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-primary" />
           <span className="text-xs font-semibold text-foreground">
-            North-Star &amp; Funnel Sesi Pengguna (Tahap 7 Telemetry)
+            Ringkasan Kinerja &amp; Efisiensi Sesi
+          </span>
+          <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
+            (Tahap 7 Telemetry)
           </span>
           <Badge
             variant="outline"
