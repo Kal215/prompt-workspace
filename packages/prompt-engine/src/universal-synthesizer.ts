@@ -302,9 +302,33 @@ function getContextAndAssumptions(
       };
 
     case "software_ecommerce_store":
+    case "software_generic": {
+      const lower = prompt.toLowerCase();
+      const isPortfolio = lower.includes("portofolio") || lower.includes("portfolio");
+      const isCakeOrBakery = lower.includes("kue") || lower.includes("roti") || lower.includes("bakery");
+      const isStore = lower.includes("toko") || lower.includes("belanja") || lower.includes("ecommerce") || lower.includes("katalog");
+
+      let projectName = "[SISTEM APLIKASI WEB SESUAI SPESIFIKASI]";
+      let factCertainty = "Pengguna meminta perancangan sistem aplikasi web responsif berstandar produksi.";
+      let smartAssumption = "Fitur inti disusun modular mencakup navigasi terstruktur, validasi formulir, dan state management.";
+
+      if (isPortfolio) {
+        projectName = "[WEBSITE PORTOFOLIO PROFESIONAL NEUMORPHISM]";
+        factCertainty = "Pengguna meminta perancangan website portofolio profesional dengan estetika neumorphism yang responsif.";
+        smartAssumption = "Fitur inti mencakup showcase proyek interaktif, profil keahlian, formulir kontak terverifikasi, dan navigasi multi-viewport.";
+      } else if (isCakeOrBakery) {
+        projectName = "[NAMA APLIKASI WEB TOKO KUE]";
+        factCertainty = "Pengguna meminta sistem website toko kue end-to-end dengan estetika neumorphism.";
+        smartAssumption = "Fitur minimum mencakup katalog produk, manajemen kategori, keranjang pesanan, dan log audit mutasi tanpa modul POS.";
+      } else if (isStore) {
+        projectName = "[PLATFORM E-COMMERCE & KATALOG PRODUK]";
+        factCertainty = "Pengguna meminta sistem e-commerce web end-to-end dengan estetika antarmuka responsif.";
+        smartAssumption = "Fitur minimum mencakup katalog produk, keranjang pesanan, dan verifikasi checkout atomik.";
+      }
+
       return {
         contextParameters: {
-          "Nama Proyek": "[NAMA APLIKASI WEB TOKO KUE]",
+          "Nama Proyek": projectName,
           "Tema Desain": "Premium Neumorphism / Soft UI (Raised, Inset, Level 0-3 Shadows)",
           "Platform Target": "Desktop, Tablet, dan Mobile Responsif",
           "Tech Stack": "Next.js App Router, TypeScript Strict, Tailwind CSS, PostgreSQL / SQLite",
@@ -312,11 +336,12 @@ function getContextAndAssumptions(
           "Deployment Target": "Vercel / VPS Linux Cloud",
         },
         smartAssumptions: [
-          "FAKTA PASTI: Pengguna meminta sistem website toko kue end-to-end dengan estetika neumorphism.",
-          "ASUMSI CERDAS: Fitur minimum mencakup katalog produk, manajemen kategori, keranjang pesanan, dan log audit mutasi tanpa modul POS.",
-          "KEPUTUSAN TERBUKA: Pemilihan gateway pembayaran (Midtrans/Xendit) akan ditentukan saat integrasi fase komersial.",
+          `FAKTA PASTI: ${factCertainty}`,
+          `ASUMSI CERDAS: ${smartAssumption}`,
+          "KEPUTUSAN TERBUKA: Pemilihan gateway pembayaran atau integrasi layanan pihak ketiga akan ditentukan saat integrasi fase produksi.",
         ],
       };
+    }
 
     case "business_aquaculture_agri":
       return {
@@ -1119,9 +1144,9 @@ function getExecutionPhases(
           phaseNumber: 0,
           name: "Discovery & Requirements Analysis",
           tasks: [
-            "Analisis mendalam kebutuhan bisnis aplikasi website toko kue.",
+            "Analisis mendalam kebutuhan sistem dan tujuan arsitektur aplikasi.",
             "Dokumentasikan batasan ruang lingkup dan pencegahan scope creep.",
-            "Petakan persona pengguna (Pembeli, Admin Toko, Kasir).",
+            "Petakan persona pengguna target dan alur interaksi antarmuka.",
           ],
           deliverables: ["PROJECT_BRIEF.md", "REQUIREMENTS.md", "ASSUMPTIONS.md"],
         },
