@@ -91,13 +91,77 @@ export const SynthesisStylePresetEnum = z.enum([
 ]);
 export type SynthesisStylePreset = z.infer<typeof SynthesisStylePresetEnum>;
 
+// ──────────────────────────────────────────────
+// MEGA TASK ADR-003: Universal Meta-Blueprint & Audience Calibration Contracts
+// ──────────────────────────────────────────────
+
+export const AudienceLevelEnum = z.enum([
+  "student",
+  "academic",
+  "professional",
+  "specialist",
+]);
+export type AudienceLevel = z.infer<typeof AudienceLevelEnum>;
+
+export const DiagramTypeEnum = z.enum([
+  "erd",
+  "flowchart",
+  "dfd",
+  "mindmap",
+  "gantt",
+  "wireframe_spec",
+]);
+export type DiagramType = z.infer<typeof DiagramTypeEnum>;
+
+export const DiagramSpecificationSchema = z.object({
+  id: z.string(),
+  type: DiagramTypeEnum,
+  title: z.string(),
+  mermaidCode: z.string(),
+  description: z.string(),
+  entities: z.array(z.string()).default([]),
+});
+export type DiagramSpecification = z.infer<typeof DiagramSpecificationSchema>;
+
+export const ExecutionPhaseSchema = z.object({
+  phaseNumber: z.number().int().nonnegative(),
+  name: z.string(),
+  description: z.string().optional(),
+  tasks: z.array(z.string()).min(1),
+  deliverables: z.array(z.string()).min(1),
+});
+export type ExecutionPhase = z.infer<typeof ExecutionPhaseSchema>;
+
+export const UniversalBlueprintSpecSchema = z.object({
+  title: z.string(),
+  domain: z.string(),
+  audienceLevel: AudienceLevelEnum,
+  roles: z.array(z.string()).min(1),
+  contextParameters: z.record(z.string()),
+  smartAssumptions: z.array(z.string()),
+  primaryObjectives: z.array(z.string()).min(1),
+  coreSpecification: z.string(),
+  diagrams: z.array(DiagramSpecificationSchema).min(1),
+  executionPhases: z.array(ExecutionPhaseSchema).min(1),
+  negativeConstraints: z.array(z.string()).min(1),
+  executionProtocol: z.array(z.string()).min(1),
+  workManagement: z.object({
+    statusModel: z.array(z.string()),
+    trackingRules: z.array(z.string()),
+  }),
+  definitionOfDone: z.array(z.string()).min(1),
+  renderedMasterPrompt: z.string(),
+});
+export type UniversalBlueprintSpec = z.infer<typeof UniversalBlueprintSpecSchema>;
+
 export const AutoPilotRequestSchema = z.object({
   prompt: z.string().min(1, "prompt tidak boleh kosong"),
   context: z.string().nullable().optional(),
   referenceUrls: z.array(z.string()).max(2).optional(),
   taskType: z.string().optional(),
-  stylePreset: SynthesisStylePresetEnum.optional().default("comprehensive_blueprint"),
-  budgetMode: TokenBudgetModeEnum.optional().default("balanced"),
+  stylePreset: SynthesisStylePresetEnum.optional(),
+  budgetMode: TokenBudgetModeEnum.optional(),
+  audienceLevel: AudienceLevelEnum.optional(),
 });
 export type AutoPilotRequest = z.infer<typeof AutoPilotRequestSchema>;
 
@@ -107,6 +171,8 @@ export const AutoPilotResultSchema = z.object({
   synthesisValidation: MasterPromptValidationResultSchema,
   stylePreset: SynthesisStylePresetEnum,
   budgetMode: TokenBudgetModeEnum,
+  audienceLevel: AudienceLevelEnum.optional(),
+  universalBlueprint: UniversalBlueprintSpecSchema.optional(),
   groundingFacts: z.array(z.any()).default([]),
   spiderReport: z.any().optional().nullable(),
   changes: z.array(z.string()),

@@ -1,51 +1,67 @@
 {
   "requestId": "benchmark-MPS-001",
   "originalPrompt": "Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.",
-  "detectedIntent": "Pengguna meminta pembuatan website toko kue dengan fitur manajemen stok dan laporan penjualan, serta melarang pembuatan sistem POS.",
+  "detectedIntent": "Pengguna meminta pembuatan website toko kue yang mencakup fitur manajemen stok barang dan laporan penjualan, dengan pengecualian pembuatan sistem POS.",
   "analysis": {
     "findings": [
       {
-        "category": "Tujuan",
-        "severity": "major",
-        "evidence": "Prompt hanya menyebutkan \"Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.\"",
-        "recommendation": "Rincikan tujuan secara lengkap, termasuk fitur tambahan (misalnya halaman produk, keranjang belanja), kriteria performa, dan standar UI/UX yang diinginkan.",
-        "type": "tujuan",
-        "message": "Rincikan tujuan secara lengkap, termasuk fitur tambahan (misalnya halaman produk, keranjang belanja), kriteria performa, dan standar UI/UX yang diinginkan."
-      },
-      {
         "category": "Konteks",
-        "severity": "major",
-        "evidence": "Bagian \"Konteks Tambahan: (Tidak ada)\" menunjukkan tidak ada konteks yang diberikan.",
-        "recommendation": "Sertakan konteks seperti siapa pengguna akhir (pelanggan, admin), apakah website akan dihosting di server khusus atau layanan cloud, serta perangkat yang didukung (desktop, mobile).",
+        "severity": "critical",
+        "evidence": "Prompt hanya berisi \"Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.\" tanpa penjelasan konteks tambahan.",
+        "recommendation": "Tambahkan detail konteks seperti siapa pengguna akhir, apakah website akan diakses melalui browser desktop atau mobile, serta lingkungan hosting yang diharapkan.",
         "type": "konteks",
-        "message": "Sertakan konteks seperti siapa pengguna akhir (pelanggan, admin), apakah website akan dihosting di server khusus atau layanan cloud, serta perangkat yang didukung (desktop, mobile)."
+        "message": "Tambahkan detail konteks seperti siapa pengguna akhir, apakah website akan diakses melalui browser desktop atau mobile, serta lingkungan hosting yang diharapkan."
       },
       {
         "category": "Batasan",
         "severity": "critical",
         "evidence": "Prompt tidak menyebutkan teknologi apa pun (misalnya Node.js, Django, React, dll.).",
-        "recommendation": "Tentukan batasan teknis yang jelas, seperti bahasa (PHP, Python), framework (Laravel, Express), database (MySQL, PostgreSQL), serta versi yang harus dipakai.",
+        "recommendation": "Tentukan secara eksplisit bahasa pemrograman dan framework yang diinginkan, serta batasan lain seperti versi, lisensi, atau batas anggaran.",
         "type": "batasan",
-        "message": "Tentukan batasan teknis yang jelas, seperti bahasa (PHP, Python), framework (Laravel, Express), database (MySQL, PostgreSQL), serta versi yang harus dipakai."
+        "message": "Tentukan secara eksplisit bahasa pemrograman dan framework yang diinginkan, serta batasan lain seperti versi, lisensi, atau batas anggaran."
+      },
+      {
+        "category": "Batasan",
+        "severity": "critical",
+        "evidence": "Tidak ada deskripsi parameter, tipe data, atau nilai kembali untuk modul stok barang maupun laporan penjualan.",
+        "recommendation": "Rincikan API atau fungsi yang diperlukan, termasuk parameter masuk, tipe data, nilai kembali, serta contoh payload JSON bila relevan.",
+        "type": "batasan",
+        "message": "Rincikan API atau fungsi yang diperlukan, termasuk parameter masuk, tipe data, nilai kembali, serta contoh payload JSON bila relevan."
+      },
+      {
+        "category": "Batasan",
+        "severity": "critical",
+        "evidence": "Prompt tidak menyebutkan bagaimana sistem harus menangani stok negatif, data penjualan tidak valid, atau kegagalan jaringan.",
+        "recommendation": "Sertakan kebijakan penanganan error, validasi data, dan skenario edge case yang harus dipertimbangkan dalam implementasi.",
+        "type": "batasan",
+        "message": "Sertakan kebijakan penanganan error, validasi data, dan skenario edge case yang harus dipertimbangkan dalam implementasi."
+      },
+      {
+        "category": "Batasan",
+        "severity": "critical",
+        "evidence": "Prompt tidak menyebutkan kebutuhan autentikasi pengguna, hak akses untuk mengelola stok, atau perlindungan data penjualan.",
+        "recommendation": "Definisikan mekanisme keamanan seperti login, peran pengguna, serta kebijakan CORS atau rate limiting bila diperlukan.",
+        "type": "batasan",
+        "message": "Definisikan mekanisme keamanan seperti login, peran pengguna, serta kebijakan CORS atau rate limiting bila diperlukan."
       },
       {
         "category": "Keluaran",
         "severity": "critical",
-        "evidence": "Prompt tidak menyebutkan jenis keluaran yang diinginkan.",
-        "recommendation": "Jelaskan format keluaran yang diharapkan, contohnya \"berikan seluruh kode sumber dalam struktur folder lengkap beserta README.md dalam format markdown\" atau \"kirimkan link repository GitHub\".",
+        "evidence": "Prompt tidak menyebutkan apakah yang diminta berupa kode sumber lengkap, prototipe UI, dokumentasi API, atau contoh data.",
+        "recommendation": "Nyatakan format keluaran yang diinginkan, misalnya kode lengkap dalam struktur folder, file README, atau diagram arsitektur.",
         "type": "keluaran",
-        "message": "Jelaskan format keluaran yang diharapkan, contohnya \"berikan seluruh kode sumber dalam struktur folder lengkap beserta README.md dalam format markdown\" atau \"kirimkan link repository GitHub\"."
+        "message": "Nyatakan format keluaran yang diinginkan, misalnya kode lengkap dalam struktur folder, file README, atau diagram arsitektur."
       },
       {
         "category": "Bukti",
         "severity": "critical",
-        "evidence": "Tidak ada bukti atau artefak yang dilampirkan dalam prompt.",
-        "recommendation": "Lampirkan contoh data produk, skema tabel stok, atau wireframe UI agar solusi dapat disesuaikan dengan kebutuhan spesifik.",
+        "evidence": "Bagian \"Konteks Tambahan\" dinyatakan \"Tidak ada\".",
+        "recommendation": "Jika ada contoh tabel stok, endpoint API, atau desain UI yang sudah ada, lampirkan sebagai referensi untuk menghindari interpretasi yang keliru.",
         "type": "bukti",
-        "message": "Lampirkan contoh data produk, skema tabel stok, atau wireframe UI agar solusi dapat disesuaikan dengan kebutuhan spesifik."
+        "message": "Jika ada contoh tabel stok, endpoint API, atau desain UI yang sudah ada, lampirkan sebagai referensi untuk menghindari interpretasi yang keliru."
       }
     ],
-    "score": 30,
+    "score": 22,
     "status": "needs_optimization",
     "taskSpec": {
       "primaryGoal": "Membangun website toko kue dengan pengelolaan stok barang dan pelaporan penjualan fungsional tanpa sistem POS.",
@@ -155,12 +171,12 @@
     "modelTarget": "openai/gpt-oss-120b",
     "providerId": "groq",
     "model": "openai/gpt-oss-120b",
-    "processingTimeMs": 8408,
-    "latencyMs": 2957,
+    "processingTimeMs": 7943,
+    "latencyMs": 3331,
     "tokensUsed": {
       "promptTokens": 1128,
-      "completionTokens": 970,
-      "totalTokens": 2098
+      "completionTokens": 1191,
+      "totalTokens": 2319
     },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision",

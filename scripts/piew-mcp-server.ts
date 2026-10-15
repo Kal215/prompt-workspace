@@ -76,6 +76,11 @@ const TOOLS = [
           enum: ["eco", "balanced", "deep_audit"],
           description: "Token budget mode (default: balanced)",
         },
+        audienceLevel: {
+          type: "string",
+          enum: ["student", "academic", "professional", "specialist"],
+          description: "Target audience calibration level (default: specialist)",
+        },
       },
       required: ["prompt"],
     },
@@ -200,13 +205,14 @@ async function handleToolCall(name: string, args: Record<string, any>) {
         taskType: args.taskType,
         stylePreset: args.stylePreset as SynthesisStylePreset,
         budgetMode: args.budgetMode as TokenBudgetMode,
+        audienceLevel: args.audienceLevel,
       });
 
       return {
         content: [
           {
             type: "text",
-            text: result.optimizedPrompt,
+            text: result.universalBlueprint?.renderedMasterPrompt || result.optimizedPrompt,
           },
         ],
         isError: false,
@@ -214,9 +220,11 @@ async function handleToolCall(name: string, args: Record<string, any>) {
           score: result.synthesisValidation.overallSynthesisScore,
           stylePreset: result.stylePreset,
           budgetMode: result.budgetMode,
+          audienceLevel: result.audienceLevel,
           cacheHit: result.cacheHit,
           changes: result.changes,
           groundingFactsCount: result.groundingFacts?.length ?? 0,
+          universalBlueprint: result.universalBlueprint,
         },
       };
     }
