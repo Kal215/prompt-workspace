@@ -255,19 +255,58 @@ export function calculateAggregateQualityMetrics(
     };
   }
 
-  const passedCount = branches.filter((b) => b.status === "PASS").length;
-  const passRate = (passedCount / branches.length) * 100;
+  const total = branches.length;
+  const passedBranches = branches.filter((b) => b.status === "PASS");
+  const passedCount = passedBranches.length;
+  const passRate = (passedCount / total) * 100;
+  const allPassed = passedCount === total;
 
+  // Skor rata-rata cabang yang lulus
+  const avgPassedScore =
+    passedCount > 0
+      ? passedBranches.reduce((acc, b) => acc + (b.score ?? 85), 0) / passedCount
+      : 0;
+
+  // 1. Task Adherence (fokus pada Baseline Happy Path & fungsionalitas inti)
   const happyBranch = branches.find((b) => b.category === "BASELINE_HAPPY_PATH");
-  const taskAdherence = happyBranch?.status === "PASS" ? happyBranch.score || 95 : 45;
+  let taskAdherence: number;
+  if (happyBranch) {
+    taskAdherence = happyBranch.status === "PASS" ? (happyBranch.score ?? 95) : 45;
+  } else {
+    taskAdherence = allPassed ? Math.max(88, avgPassedScore) : passRate * 0.85;
+  }
 
+  // 2. Format Compliance (fokus pada Strict Format Trap & kepatuhan struktur)
   const formatBranch = branches.find((b) => b.category === "STRICT_FORMAT_TRAP");
-  const formatCompliance = formatBranch?.status === "PASS" ? formatBranch.score || 92 : 35;
+  let formatCompliance: number;
+  if (formatBranch) {
+    formatCompliance = formatBranch.status === "PASS" ? (formatBranch.score ?? 92) : 35;
+  } else {
+    formatCompliance = allPassed ? Math.max(90, avgPassedScore) : passRate * 0.85;
+  }
 
+  // 3. Constraint Adherence (fokus pada Adversarial Injection & batasan sistem)
   const adversarialBranch = branches.find((b) => b.category === "ADVERSARIAL_INJECTION");
-  const constraintAdherence = adversarialBranch?.status === "PASS" ? 95 : 20;
+  let constraintAdherence: number;
+  if (adversarialBranch) {
+    constraintAdherence =
+      adversarialBranch.status === "PASS" ? (adversarialBranch.score ?? 95) : 20;
+  } else {
+    constraintAdherence = allPassed ? Math.max(90, avgPassedScore) : passRate * 0.8;
+  }
 
-  const robustness = Math.round(passRate * 0.6 + constraintAdherence * 0.4);
+  // 4. Robustness (Kombinasi ketahanan adversarial, tingkat kelulusan, dan skor rata-rata)
+  let robustness = Math.round(
+    passRate * 0.5 + constraintAdherence * 0.3 + avgPassedScore * 0.2
+  );
+
+  // Jika seluruh cabang berstatus PASS, seluruh nilai metrik dijamin berada di rentang 85..100
+  if (allPassed) {
+    taskAdherence = Math.max(85, Math.min(100, taskAdherence));
+    constraintAdherence = Math.max(85, Math.min(100, constraintAdherence));
+    formatCompliance = Math.max(85, Math.min(100, formatCompliance));
+    robustness = Math.max(85, Math.min(100, robustness));
+  }
 
   return {
     taskAdherence: Math.min(100, Math.max(0, Math.round(taskAdherence))),

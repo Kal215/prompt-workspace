@@ -9,6 +9,7 @@ import {
   evaluateBranchExecution,
   runPromptSpider,
   getSpiderTestSuite,
+  calculateAggregateQualityMetrics,
 } from "../src/index.js";
 import {
   computeCriticalGatePassed,
@@ -77,6 +78,61 @@ async function main() {
   console.log(
     `✅ Concurrency Semaphore terbukti membatasi eksekusi: maxActiveRequests = ${maxObservedActiveRequests} <= 2.`
   );
+
+  // Verifikasi kelengkapan metrik pada skenario seluruh cabang lulus (PASS)
+  assert.ok(concurrentReport.qualityMetrics.taskAdherence > 0, "taskAdherence harus > 0 pada skenario lulus");
+  assert.ok(concurrentReport.qualityMetrics.constraintAdherence > 0, "constraintAdherence harus > 0 pada skenario lulus");
+  assert.ok(concurrentReport.qualityMetrics.formatCompliance > 0, "formatCompliance harus > 0 pada skenario lulus");
+  assert.ok(concurrentReport.qualityMetrics.robustness > 0, "robustness > 0 pada skenario lulus");
+
+  assert.ok(
+    concurrentReport.qualityMetrics.taskAdherence >= 85 && concurrentReport.qualityMetrics.taskAdherence <= 100,
+    `taskAdherence (${concurrentReport.qualityMetrics.taskAdherence}) harus di rentang 85..100 saat seluruh cabang PASS`
+  );
+  assert.ok(
+    concurrentReport.qualityMetrics.constraintAdherence >= 85 && concurrentReport.qualityMetrics.constraintAdherence <= 100,
+    `constraintAdherence (${concurrentReport.qualityMetrics.constraintAdherence}) harus di rentang 85..100 saat seluruh cabang PASS`
+  );
+  assert.ok(
+    concurrentReport.qualityMetrics.formatCompliance >= 85 && concurrentReport.qualityMetrics.formatCompliance <= 100,
+    `formatCompliance (${concurrentReport.qualityMetrics.formatCompliance}) harus di rentang 85..100 saat seluruh cabang PASS`
+  );
+  assert.ok(
+    concurrentReport.qualityMetrics.robustness >= 85 && concurrentReport.qualityMetrics.robustness <= 100,
+    `robustness (${concurrentReport.qualityMetrics.robustness}) harus di rentang 85..100 saat seluruh cabang PASS`
+  );
+  console.log(
+    `✅ qualityMetrics skenario lulus valid: taskAdherence=${concurrentReport.qualityMetrics.taskAdherence}, constraintAdherence=${concurrentReport.qualityMetrics.constraintAdherence}, formatCompliance=${concurrentReport.qualityMetrics.formatCompliance}, robustness=${concurrentReport.qualityMetrics.robustness} (seluruh field > 0 dan di rentang 85..100).`
+  );
+
+  // Unit test tambahan untuk calculateAggregateQualityMetrics secara langsung
+  const emptyMetrics = calculateAggregateQualityMetrics([]);
+  assert.equal(emptyMetrics.taskAdherence, 0);
+  assert.equal(emptyMetrics.constraintAdherence, 0);
+  assert.equal(emptyMetrics.formatCompliance, 0);
+  assert.equal(emptyMetrics.robustness, 0);
+
+  const customAllPassMetrics = calculateAggregateQualityMetrics([
+    {
+      caseId: "CUSTOM-01",
+      category: "EDGE_EMPTY_OR_NOISE",
+      severity: "MEDIUM",
+      status: "PASS",
+      score: 90,
+      latencyMs: 50,
+      sanitizedInput: "test",
+      sanitizedOutput: "test",
+      deterministicPass: true,
+    },
+  ]);
+  assert.ok(customAllPassMetrics.taskAdherence >= 85 && customAllPassMetrics.taskAdherence <= 100);
+  assert.ok(customAllPassMetrics.constraintAdherence >= 85 && customAllPassMetrics.constraintAdherence <= 100);
+  assert.ok(customAllPassMetrics.formatCompliance >= 85 && customAllPassMetrics.formatCompliance <= 100);
+  assert.ok(customAllPassMetrics.robustness >= 85 && customAllPassMetrics.robustness <= 100);
+  assert.ok(customAllPassMetrics.taskAdherence > 0);
+  assert.ok(customAllPassMetrics.constraintAdherence > 0);
+  assert.ok(customAllPassMetrics.formatCompliance > 0);
+  assert.ok(customAllPassMetrics.robustness > 0);
 
   // ===========================================================================
   // [2] Testing Pemisahan qualityMetrics vs securityFindings[]

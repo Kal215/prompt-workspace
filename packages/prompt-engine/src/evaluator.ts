@@ -60,12 +60,17 @@ ATURAN KELULUSAN (passed):
 - passed = true HANYA JIKA score >= 70 DAN tidak ada deceptive certainty (tidak mengarang fakta/URL) DAN intent asli terjaga.
 - Jika ada halusinasi/karangan fakta/URL palsu, passed = false.
 
+PEDOMAN BAHASA (BAHASA INDONESIA PROFESIONAL & ALAMI):
+1. Anda WAJIB menuliskan "auditorNotes" dalam Bahasa Indonesia profesional yang natural, jernih, objektif, dan mudah dipahami manusia (kecuali jika pengguna secara eksplisit meminta evaluasi dalam bahasa asing).
+2. DILARANG KERAS menggunakan kalimat bahasa Inggris seperti "The prompt successfully preserves intent...", "Missing context was replaced with placeholders...", dsb. Tuliskan dalam Bahasa Indonesia yang komunikatif dan berwibawa, misalnya: "Maksud asli pengguna berhasil dipertahankan seutuhnya tanpa adanya halusinasi fakta...", "Struktur prompt sangat sistematis dengan batasan operasional yang jelas...".
+3. Hindari kalimat terjemahan mesin yang kaku. Gunakan peristilahan teknis baku dalam konteks kalimat Bahasa Indonesia yang gramatikal.
+
 FORMAT OUTPUT:
 Kembalikan HANYA JSON murni (valid JSON object) tanpa markdown fence, tanpa teks pembuka atau penutup:
 {
   "score": <skor integer 1-100>,
   "passed": <true/false>,
-  "auditorNotes": "<Penjelasan ringkas alasan penilaian, menyoroti penggunaan placeholder atau halusinasi jika ada>",
+  "auditorNotes": "<Penjelasan ringkas alasan penilaian dalam Bahasa Indonesia profesional, menyoroti penggunaan placeholder atau halusinasi jika ada>",
   "intentPreserved": <true/false>,
   "deceptiveCertaintyAvoided": <true/false>,
   "clarityAndStructureScore": <integer 1-100>

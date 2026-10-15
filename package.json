@@ -21,6 +21,7 @@
     "test:closed-loop": "npx tsx packages/prompt-engine/scripts/test-closed-loop.ts",
     "pretest:v2-engines": "node scripts/patch-db-dist.mjs",
     "test:v2-engines": "npm run test:contracts && npm run test:crawler && npm run test:spider && npm run test:closed-loop",
+    "test:multiplatform": "node scripts/verify-multiplatform.mjs",
     "db:backup": "npx tsx packages/database/scripts/backup-db.ts",
     "db:restore": "npx tsx packages/database/scripts/restore-db.ts",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"

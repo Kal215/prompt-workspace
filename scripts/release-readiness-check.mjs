@@ -95,6 +95,11 @@ const REQUIRED_ARTIFACTS = [
   "apps/web/src/components/workspace/crawler-import-modal.tsx",
   "apps/web/src/components/workspace/spider-matrix-panel.tsx",
   "apps/web/src/components/workspace/prompt-version-bar.tsx",
+  // 6. Infrastruktur & Panduan Multi-Platform Packaging (Web, Desktop .exe, Android .apk)
+  "docs/operations/packaging/capacitor.config.json",
+  "docs/operations/packaging/tauri.conf.json",
+  "docs/operations/MULTI-PLATFORM-BUILD-GUIDE.md",
+  "scripts/verify-multiplatform.mjs",
 ];
 
 for (const relPath of REQUIRED_ARTIFACTS) {
@@ -251,6 +256,11 @@ const VERIFICATION_COMMANDS = [
     name: "Web API Regression Tests",
     command: "npm run test:api --workspace=web",
     detail: "79/79 asersi CSRF, Rate-limit, Crawler, Spider, Playground",
+  },
+  {
+    name: "Multi-Platform Packaging Verification",
+    command: "npm run test:multiplatform",
+    detail: "Website, Windows .exe (Tauri), & Android .apk (Capacitor)",
   },
   {
     name: "Monorepo Production Build",

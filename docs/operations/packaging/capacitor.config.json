@@ -1,0 +1,36 @@
+{
+  "$schema": "https://capacitorjs.com/schemas/capacitor.config.schema.json",
+  "appId": "com.promptworkspace.piew",
+  "appName": "PIEW - Prompt Intelligence Engineering Workspace",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "http://localhost:3000",
+    "cleartext": false,
+    "androidScheme": "https",
+    "allowNavigation": [
+      "localhost",
+      "10.0.2.2",
+      "*.prompt-workspace.internal"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#0f172a"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#0f172a",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP"
+    },
+    "Keyboard": {
+      "resize": "body",
+      "style": "DARK"
+    }
+  }
+}
