@@ -254,6 +254,10 @@ Selesai di [MASUKKAN_DEFINISI].
           assert.ok(lower.includes("10 skenario perilaku") || lower.includes("skenario 10"), "Wajib 10 skenario perilaku nyata");
           assert.strictEqual(lower.includes("reviewer independen"), false, "Dilarang mensyaratkan reviewer independen");
           assert.ok(lower.includes("toolchain aktual"), "Wajib instruksikan toolchain aktual");
+          assert.ok(
+            lower.includes("jangan menyatakan semua tes lulus apabila ada tes yang belum dijalankan"),
+            "Wajib memuat aturan kejujuran pengujian: 'jangan menyatakan semua tes lulus apabila ada tes yang belum dijalankan'"
+          );
         });
 
         const resultsDir = path.resolve(process.cwd(), "test-fixtures/results");
