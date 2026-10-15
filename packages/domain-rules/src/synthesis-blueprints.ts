@@ -106,6 +106,7 @@ export const DEBUGGING_INVESTIGATION_BLUEPRINT: DomainSynthesisBlueprint = {
   definitionOfDoneGuidelines: [
     "Bug berhasil direproduksi dan terbukti terselesaikan secara definitif.",
     "Tidak ada regresi fungsi sampingan.",
+    "Kejujuran pelaporan pengujian: jalankan verifikasi reproduksi dan uji regresi pada toolchain aktual; jangan mengklaim tes lulus bila belum dijalankan.",
   ],
 };
 
@@ -200,6 +201,7 @@ export const DATA_ANALYSIS_BLUEPRINT: DomainSynthesisBlueprint = {
   operationalDirectives: [
     "Periksa missing values, pencilan (outliers), dan inkonsistensi tipe data sebelum analisis.",
     "Gunakan metrik ringkasan yang tepat (median vs mean untuk distribusi miring).",
+    "Sajikan temuan melalui tabel atau agregasi yang jelas tanpa memaksakan library grafik tertentu (seperti Chart.js) atau ekspor format tambahan jika tidak diminta pengguna.",
   ],
   negativeConstraintGuidance: [
     "Dilarang mengarang angka, ringkasan statistik, atau memanipulasi data.",
@@ -219,6 +221,7 @@ export const DATA_ANALYSIS_BLUEPRINT: DomainSynthesisBlueprint = {
   definitionOfDoneGuidelines: [
     "Temuan terhubung langsung ke bukti data aktual.",
     "Keterbatasan analisis dinyatakan secara jujur.",
+    "Bebas dari over-prescription atau pemaksaan library grafik dan ekspor yang tidak diminta pengguna.",
   ],
 };
 
@@ -256,6 +259,7 @@ export const UI_UX_DESIGN_BLUEPRINT: DomainSynthesisBlueprint = {
   ],
   definitionOfDoneGuidelines: [
     "Semua alur utama dan edge states antarmuka terpetakan secara tuntas.",
+    "Bebas dari pemaksaan library grafik khusus, framework berat, atau dependensi eksternal yang tidak diminta pengguna.",
   ],
 };
 

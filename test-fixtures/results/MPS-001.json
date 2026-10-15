@@ -7,45 +7,45 @@
       {
         "category": "Konteks",
         "severity": "critical",
-        "evidence": "\"Prompt: \\\"Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.\\\"\" tidak ada informasi tentang siapa pengguna akhir, apakah website akan di‑host di server lokal atau cloud, atau apakah akan diakses lewat desktop atau mobile.",
-        "recommendation": "Tambahkan deskripsi lengkap mengenai target audiens, perangkat yang didukung, serta lingkungan hosting (misalnya: \"Website akan diakses oleh pelanggan melalui browser desktop dan mobile, di‑host pada server Linux dengan Node.js 18\").",
+        "evidence": "Prompt: \"Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.\"",
+        "recommendation": "Tentukan secara eksplisit platform (misalnya Node.js, Django, atau Laravel), bahasa pemrograman, serta framework UI/UX yang diinginkan.",
         "type": "konteks",
-        "message": "Tambahkan deskripsi lengkap mengenai target audiens, perangkat yang didukung, serta lingkungan hosting (misalnya: \"Website akan diakses oleh pelanggan melalui browser desktop dan mobile, di‑host pada server Linux dengan Node.js 18\")."
+        "message": "Tentukan secara eksplisit platform (misalnya Node.js, Django, atau Laravel), bahasa pemrograman, serta framework UI/UX yang diinginkan."
       },
       {
         "category": "Batasan",
-        "severity": "critical",
-        "evidence": "Prompt hanya menyebutkan \"Buat website toko kue\" tanpa menyebutkan bahasa (PHP, JavaScript, Python, dll.) atau framework (React, Laravel, Django, dll.).",
-        "recommendation": "Tentukan secara eksplisit teknologi yang diinginkan, misalnya: \"Gunakan Node.js dengan Express dan React untuk front‑end, serta MongoDB untuk basis data\".",
+        "severity": "major",
+        "evidence": "Prompt tidak mencantumkan persyaratan keamanan, API, atau limitasi lain.",
+        "recommendation": "Sertakan batasan seperti jenis database (MySQL, PostgreSQL), mekanisme autentikasi, serta kebijakan CORS atau rate limiting jika diperlukan.",
         "type": "batasan",
-        "message": "Tentukan secara eksplisit teknologi yang diinginkan, misalnya: \"Gunakan Node.js dengan Express dan React untuk front‑end, serta MongoDB untuk basis data\"."
+        "message": "Sertakan batasan seperti jenis database (MySQL, PostgreSQL), mekanisme autentikasi, serta kebijakan CORS atau rate limiting jika diperlukan."
       },
       {
         "category": "Keluaran",
         "severity": "major",
-        "evidence": "Prompt tidak menyebutkan apakah hasilnya berupa kode sumber lengkap, repository Git, dokumentasi API, atau hanya contoh snippet.",
-        "recommendation": "Jelaskan format keluaran yang diinginkan, contohnya: \"Berikan seluruh struktur proyek dalam format ZIP, sertakan README markdown, serta file konfigurasi Docker\".",
+        "evidence": "Prompt tidak menyebutkan apakah output berupa kode sumber, diagram arsitektur, atau file README.",
+        "recommendation": "Jelaskan format output yang diinginkan, contohnya: \"Berikan kode lengkap dalam struktur folder, beserta file README dalam format Markdown.\"",
         "type": "keluaran",
-        "message": "Jelaskan format keluaran yang diinginkan, contohnya: \"Berikan seluruh struktur proyek dalam format ZIP, sertakan README markdown, serta file konfigurasi Docker\"."
+        "message": "Jelaskan format output yang diinginkan, contohnya: \"Berikan kode lengkap dalam struktur folder, beserta file README dalam format Markdown.\""
       },
       {
         "category": "Bukti",
-        "severity": "major",
-        "evidence": "Prompt tidak menyediakan contoh tabel stok barang atau struktur laporan penjualan yang harus diimplementasikan.",
-        "recommendation": "Sertakan contoh skema tabel (misalnya: tabel `produk`, `stok`, `penjualan`) atau contoh data JSON yang akan diproses, sehingga pengembang memiliki referensi konkret.",
+        "severity": "critical",
+        "evidence": "Bagian \"Konteks Tambahan\" berisi \"Tidak ada\".",
+        "recommendation": "Lampirkan contoh skema basis data, contoh entri produk, atau URL referensi desain yang dapat dijadikan acuan.",
         "type": "bukti",
-        "message": "Sertakan contoh skema tabel (misalnya: tabel `produk`, `stok`, `penjualan`) atau contoh data JSON yang akan diproses, sehingga pengembang memiliki referensi konkret."
+        "message": "Lampirkan contoh skema basis data, contoh entri produk, atau URL referensi desain yang dapat dijadikan acuan."
       },
       {
         "category": "Tujuan",
         "severity": "minor",
-        "evidence": "Prompt hanya menyatakan \"Buat website toko kue dengan fitur stok barang dan laporan penjualan\" tanpa kriteria selesai seperti \"Stok dapat di‑update secara real‑time\" atau \"Laporan menampilkan total penjualan per bulan\".",
-        "recommendation": "Tambahkan kriteria keberhasilan yang terukur, misalnya: \"Fitur stok harus menampilkan sisa barang secara real‑time dan laporan penjualan harus dapat diekspor ke CSV\".",
+        "evidence": "Prompt: \"Buat website toko kue dengan fitur stok barang dan laporan penjualan.\"",
+        "recommendation": "Perjelas ruang lingkup, misalnya \"Buat aplikasi full‑stack dengan UI responsif dan API RESTful untuk manajemen stok dan laporan penjualan.\"",
         "type": "tujuan",
-        "message": "Tambahkan kriteria keberhasilan yang terukur, misalnya: \"Fitur stok harus menampilkan sisa barang secara real‑time dan laporan penjualan harus dapat diekspor ke CSV\"."
+        "message": "Perjelas ruang lingkup, misalnya \"Buat aplikasi full‑stack dengan UI responsif dan API RESTful untuk manajemen stok dan laporan penjualan.\""
       }
     ],
-    "score": 25,
+    "score": 32,
     "status": "needs_optimization",
     "taskSpec": {
       "primaryGoal": "Membangun website toko kue dengan pengelolaan stok barang dan pelaporan penjualan fungsional tanpa sistem POS.",
@@ -155,12 +155,12 @@
     "modelTarget": "openai/gpt-oss-120b",
     "providerId": "groq",
     "model": "openai/gpt-oss-120b",
-    "processingTimeMs": 8442,
-    "latencyMs": 2808,
+    "processingTimeMs": 9054,
+    "latencyMs": 4252,
     "tokensUsed": {
       "promptTokens": 1128,
-      "completionTokens": 1165,
-      "totalTokens": 2293
+      "completionTokens": 1091,
+      "totalTokens": 2219
     },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision",

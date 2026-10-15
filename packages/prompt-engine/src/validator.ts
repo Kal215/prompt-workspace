@@ -247,12 +247,12 @@ export function validateMasterPromptSynthesis(
   }
   if (forbidsScopeCreepAuth || forbidsScopeCreepChart || forbidsScopeCreepWarehouse) {
     failureReasons.push(
-      "Terdeteksi over-prescription / scope creep fitur (JWT, Chart.js, atau lokasi_gudang) yang tidak diminta pengguna."
+      "Pelanggaran noDeceptiveTechFabrication (anti-scope-creep / anti-unrequested-tech-injection): Terdeteksi pemaksaan teknologi/fitur (JWT, Chart.js, atau lokasi_gudang) yang tidak diminta pada originalPrompt."
     );
   }
   if (hasHumanReviewerRequirement) {
     failureReasons.push(
-      "Dilarang mensyaratkan 'reviewer independen' pada Definition of Done untuk AI target otonom."
+      "Pelanggaran noDeceptiveTechFabrication (anti-unrequested-tech-injection): Dilarang mensyaratkan 'reviewer independen' pada Definition of Done untuk AI target otonom."
     );
   }
   if (hasDummyReportDeliverable) {
