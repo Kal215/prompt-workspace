@@ -7,6 +7,10 @@
     "apps/*",
     "packages/*"
   ],
+  "bin": {
+    "piew": "./bin/piew.js",
+    "piew-mcp": "./bin/piew-mcp.js"
+  },
   "scripts": {
     "pretypecheck": "node scripts/patch-db-dist.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -23,6 +27,8 @@
     "test:engine-v2-2": "npx tsx packages/prompt-engine/scripts/test-engine-v2-2.ts",
     "piew": "npx tsx scripts/piew-cli.ts",
     "mcp:start": "npx tsx scripts/piew-mcp-server.ts",
+    "mcp:sse": "npx tsx scripts/piew-mcp-server.ts --sse",
+    "test:open-source": "npx tsx packages/prompt-engine/scripts/test-open-source-readiness.ts",
     "pretest:v2-engines": "node scripts/patch-db-dist.mjs",
     "test:v2-engines": "npm run test:contracts && npm run test:crawler && npm run test:spider && npm run test:closed-loop",
     "test:multiplatform": "node scripts/verify-multiplatform.mjs",

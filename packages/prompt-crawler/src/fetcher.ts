@@ -43,6 +43,7 @@ export interface BoundedFetchResult {
 export interface FetcherOptions {
   customFetch?: typeof fetch;
   skipDnsCheckForTesting?: boolean;
+  customAllowedDomains?: string[];
 }
 
 /**
@@ -62,7 +63,7 @@ export async function streamBoundedFetch(
   const { normalizedUrl } = normalizeTargetUrl(rawUrl);
 
   // 2. Validasi URL target terhadap skema HTTPS, port, dan allowlist domain
-  const validatedUrl = validateTargetUrl(normalizedUrl);
+  const validatedUrl = validateTargetUrl(normalizedUrl, options.customAllowedDomains);
 
   // 3. Verifikasi DNS host publik (Anti-DNS Rebinding) kecuali eksplisit skip saat testing lokal terisolasi
   if (!options.skipDnsCheckForTesting) {

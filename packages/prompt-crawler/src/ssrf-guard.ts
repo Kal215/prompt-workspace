@@ -34,6 +34,22 @@ export const ALLOWED_DOMAINS = [
 export const ALLOWED_CRAWL_HOSTS = ALLOWED_DOMAINS;
 
 /**
+ * Mengembalikan daftar domain yang diizinkan untuk di-crawl.
+ * Menggabungkan domain resmi terkurasi dengan domain kustom dari env PIEW_ALLOWED_DOMAINS.
+ */
+export function getAllowedDomains(customDomains?: string[]): string[] {
+  const envDomains = process.env.PIEW_ALLOWED_DOMAINS
+    ? process.env.PIEW_ALLOWED_DOMAINS.split(",")
+        .map((d) => d.trim().toLowerCase())
+        .filter(Boolean)
+    : [];
+  const additional = customDomains
+    ? customDomains.map((d) => d.trim().toLowerCase()).filter(Boolean)
+    : [];
+  return Array.from(new Set([...ALLOWED_DOMAINS, ...envDomains, ...additional]));
+}
+
+/**
  * Normalisasi URL GitHub blob menjadi direct raw content URL.
  * Contoh: https://github.com/owner/repo/blob/main/prompt.md -> https://raw.githubusercontent.com/owner/repo/main/prompt.md
  */
@@ -67,7 +83,7 @@ export function normalizeTargetUrl(rawUrl: string): { normalizedUrl: string; was
  * - Panjang maksimal 2048 karakter
  * - Hostname harus ada di ALLOWED_DOMAINS
  */
-export function validateTargetUrl(rawUrl: string): URL {
+export function validateTargetUrl(rawUrl: string, customAllowedDomains?: string[]): URL {
   if (typeof rawUrl !== "string" || !rawUrl.trim()) {
     throw new CrawlerSecurityError("targetUrl must be a non-empty string", "INVALID_URL");
   }
@@ -102,13 +118,14 @@ export function validateTargetUrl(rawUrl: string): URL {
     throw new CrawlerSecurityError(`Direct IP literals are forbidden: ${hostname}`, "IP_LITERAL_FORBIDDEN");
   }
 
-  const isAllowed = ALLOWED_DOMAINS.some(
+  const effectiveAllowed = getAllowedDomains(customAllowedDomains);
+  const isAllowed = effectiveAllowed.some(
     (allowed) => hostname === allowed || hostname.endsWith(`.${allowed}`)
   );
 
   if (!isAllowed) {
     throw new CrawlerSecurityError(
-      `Domain "${hostname}" is not in the allowed list: [${ALLOWED_DOMAINS.join(", ")}]`,
+      `Domain "${hostname}" is not in the allowed list: [${effectiveAllowed.join(", ")}]`,
       "DOMAIN_NOT_ALLOWED"
     );
   }
