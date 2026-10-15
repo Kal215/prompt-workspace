@@ -36,6 +36,7 @@ const RawFindingSchema = z.object({
   severity: z.enum(["critical", "major", "minor", "info", "warning"]),
   evidence: z.string(),
   recommendation: z.string(),
+  message: z.string().optional(),
 });
 
 const RawAnalyzerOutputSchema = z.object({
@@ -68,18 +69,25 @@ ATURAN SEVERITY:
 - "minor": Detail pelengkap yang bisa meningkatkan kualitas respons.
 - "info": Catatan tambahan atau konteks opsional.
 
+PEDOMAN BAHASA (BAHASA INDONESIA PROFESIONAL & ALAMI):
+1. Anda WAJIB menuliskan seluruh nilai "detectedIntent", "findings[].message", "findings[].evidence", dan "findings[].recommendation" dalam Bahasa Indonesia profesional yang natural, jernih, dan mudah dipahami manusia (kecuali jika pengguna secara eksplisit meminta output dalam bahasa asing).
+2. DILARANG KERAS menghasilkan frasa bahasa Inggris bawaan seperti "User wants the model to simulate...", "Specify the payment gateway...", "The prompt lacks context...", "Add context...", dsb.
+3. Gunakan Bahasa Indonesia yang lugas dan mengalir, misalnya: "Pengguna ingin model mensimulasikan...", "Tentukan spesifikasi gateway pembayaran...", "Lengkapi konteks arsitektur sistem...".
+4. Hindari kalimat terjemahan mesin yang kaku. Gunakan peristilahan teknis standar industri dalam struktur kalimat Bahasa Indonesia yang gramatikal.
+
 FORMAT OUTPUT:
 Anda WAJIB mengembalikan HANYA JSON murni (valid JSON object) tanpa markdown fence, tanpa teks pembuka atau penutup:
 {
-  "detectedIntent": "Deskripsi maksud asli pengguna secara objektif dan ringkas",
+  "detectedIntent": "Deskripsi maksud asli pengguna secara objektif dan ringkas dalam Bahasa Indonesia",
   "score": <nilai kesehatan prompt antara 10 sampai 70 untuk prompt yang bermasalah>,
   "status": "needs_optimization",
   "findings": [
     {
       "category": "Konteks",
       "severity": "critical",
-      "evidence": "Kutipan dari prompt yang menunjukkan masalah",
-      "recommendation": "Rekomendasi spesifik informasi apa yang harus dilengkapi"
+      "message": "Deskripsi ringkas masalah dalam Bahasa Indonesia",
+      "evidence": "Kutipan dari prompt atau bukti spesifik masalah dalam Bahasa Indonesia",
+      "recommendation": "Rekomendasi spesifik tindakan perbaikan dalam Bahasa Indonesia profesional"
     }
   ]
 }`;

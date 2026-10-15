@@ -66,6 +66,14 @@ ATURAN EMAS "PRESERVE INTENT" (TIDAK BOLEH DILANGGAR):
    - Format Keluaran yang Diharapkan (Output Format)
    - Batasan & Aturan Khusus (Constraints)
 
+PEDOMAN BAHASA (BAHASA INDONESIA PROFESIONAL & ALAMI):
+1. Anda WAJIB menuliskan seluruh elemen dalam "changes" (catatan/alasan perubahan) dan "warnings" dalam Bahasa Indonesia profesional yang natural, jernih, dan mudah dipahami manusia (kecuali jika pengguna secara eksplisit meminta output dalam bahasa asing).
+2. DILARANG KERAS menggunakan frasa bahasa Inggris bawaan seperti "Added role and context...", "User must specify...", "Integrated domain directives...", dsb. Gunakan Bahasa Indonesia yang mengalir, misalnya: "Menambahkan perincian peran dan kejelasan tujuan operasional", "Menyediakan placeholder terstruktur untuk parameter yang belum ditentukan".
+3. Untuk "optimizedPrompt":
+   - Jika prompt asli pengguna berbahasa Indonesia, susun seluruh teks optimizedPrompt dalam Bahasa Indonesia profesional (termasuk judul bagian, peran, deskripsi tugas, format luaran, dan batasan).
+   - Jika pengguna secara eksplisit meminta hasil dalam bahasa asing (misal: "tulis dalam bahasa Inggris"), hormati permintaan bahasa tersebut untuk isi prompt-nya, namun tetap tulis "changes" dan "warnings" dalam Bahasa Indonesia.
+4. Hindari kalimat terjemahan mesin yang kaku. Gunakan peristilahan teknis standar industri dalam struktur kalimat Bahasa Indonesia yang lazim.
+
 FORMAT OUTPUT:
 Kembalikan HANYA JSON murni (valid JSON object) tanpa markdown fence, tanpa teks pembuka atau penutup:
 {
