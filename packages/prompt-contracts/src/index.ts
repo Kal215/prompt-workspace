@@ -58,8 +58,27 @@ export type PromptOptimizationRequest = z.infer<
   typeof PromptOptimizationRequestSchema
 >;
 
+import {
+  TaskArchetypeEnum,
+  TaskArchetype,
+  TaskComplexityEnum,
+  TaskComplexity,
+  OpenDecisionStrategyEnum,
+  OpenDecisionStrategy,
+  OpenDecisionItemSchema,
+  OpenDecisionItem,
+  LogicalTensionItemSchema,
+  LogicalTensionItem,
+  TaskSpecificationMapSchema,
+  TaskSpecificationMap,
+  MasterPromptValidationResultSchema,
+  MasterPromptValidationResult,
+} from "./task-spec.js";
+
+export * from "./task-spec.js";
+
 // ──────────────────────────────────────────────
-// Blueprint v1.0 Bagian 5.4 — Taksonomi Temuan
+// Blueprint v1.0 Bagian 5.2 — Finding Taxonomy
 // ──────────────────────────────────────────────
 
 export const FindingCategoryEnum = z.enum([
@@ -129,6 +148,9 @@ export const PromptAnalysisSchema = z.object({
 
   /** Status analisis prompt */
   status: z.string().optional().default("analyzed"),
+
+  /** Spesifikasi tugas master prompt synthesis (Task #44) */
+  taskSpec: TaskSpecificationMapSchema.optional(),
 });
 export type PromptAnalysis = z.infer<typeof PromptAnalysisSchema>;
 
@@ -208,6 +230,9 @@ export const PromptOptimizationResultSchema = z.object({
 
   /** Hasil audit evaluasi kualitas / LLM-as-a-Judge (opsional) */
   evaluation: OptimizationEvaluationSchema.optional(),
+
+  /** Hasil validasi deterministik Master Prompt Synthesis (Task #44) */
+  synthesisValidation: MasterPromptValidationResultSchema.optional(),
 
   /** Metadata tambahan (model target, waktu pemrosesan, token, dll.) */
   metadata: PromptMetadataSchema.optional(),

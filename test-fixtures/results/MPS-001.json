@@ -1,0 +1,171 @@
+{
+  "requestId": "benchmark-MPS-001",
+  "originalPrompt": "Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.",
+  "detectedIntent": "Pengguna meminta pembuatan website toko kue dengan fitur manajemen stok barang dan laporan penjualan, serta menegaskan agar tidak termasuk modul POS.",
+  "analysis": {
+    "findings": [
+      {
+        "category": "Konteks",
+        "severity": "critical",
+        "evidence": "Konteks Tambahan: (Tidak ada)",
+        "recommendation": "Tentukan secara jelas apakah website akan dijalankan di browser standar, server Node.js, atau platform lain, serta siapa pengguna utama (pemilik toko, staf, pelanggan).",
+        "type": "konteks",
+        "message": "Tentukan secara jelas apakah website akan dijalankan di browser standar, server Node.js, atau platform lain, serta siapa pengguna utama (pemilik toko, staf, pelanggan)."
+      },
+      {
+        "category": "Batasan",
+        "severity": "critical",
+        "evidence": "Prompt hanya berisi \"Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.\" tanpa menyebutkan teknologi apa yang dipilih.",
+        "recommendation": "Sertakan pilihan bahasa (misalnya JavaScript, Python) dan framework (React, Vue, Django, Laravel, dsb.), serta batasan versi, library, atau kebijakan lisensi yang relevan.",
+        "type": "batasan",
+        "message": "Sertakan pilihan bahasa (misalnya JavaScript, Python) dan framework (React, Vue, Django, Laravel, dsb.), serta batasan versi, library, atau kebijakan lisensi yang relevan."
+      },
+      {
+        "category": "Keluaran",
+        "severity": "major",
+        "evidence": "Prompt tidak menjelaskan apakah yang diminta berupa kode sumber lengkap, repository Git, dokumentasi API, atau prototipe UI.",
+        "recommendation": "Jelaskan secara spesifik apa yang harus diserahkan: misalnya file HTML/CSS/JS, struktur folder proyek, README, serta contoh data dummy untuk stok dan penjualan.",
+        "type": "keluaran",
+        "message": "Jelaskan secara spesifik apa yang harus diserahkan: misalnya file HTML/CSS/JS, struktur folder proyek, README, serta contoh data dummy untuk stok dan penjualan."
+      },
+      {
+        "category": "Bukti",
+        "severity": "critical",
+        "evidence": "Tidak ada bukti yang dilampirkan dalam prompt.",
+        "recommendation": "Lampirkan contoh skema tabel (misalnya tabel `produk`, `stok`, `penjualan`), contoh endpoint API, atau tautan ke desain UI yang diinginkan.",
+        "type": "bukti",
+        "message": "Lampirkan contoh skema tabel (misalnya tabel `produk`, `stok`, `penjualan`), contoh endpoint API, atau tautan ke desain UI yang diinginkan."
+      },
+      {
+        "category": "Tujuan",
+        "severity": "minor",
+        "evidence": "Fitur yang disebutkan hanya \"laporan penjualan\" tanpa menjelaskan isi laporan (periode, format, grafik, dll.).",
+        "recommendation": "Rincikan kebutuhan laporan penjualan: misalnya laporan harian/bulanan, total pendapatan, grafik penjualan, serta format output (PDF, CSV, dashboard).",
+        "type": "tujuan",
+        "message": "Rincikan kebutuhan laporan penjualan: misalnya laporan harian/bulanan, total pendapatan, grafik penjualan, serta format output (PDF, CSV, dashboard)."
+      }
+    ],
+    "score": 30,
+    "status": "needs_optimization",
+    "taskSpec": {
+      "primaryGoal": "Membangun website toko kue dengan pengelolaan stok barang dan pelaporan penjualan fungsional tanpa sistem POS.",
+      "detectedArchetype": "software_engineering",
+      "complexity": "complex",
+      "explicitRequirements": [
+        "Katalog dan manajemen produk toko kue",
+        "Pencatatan dan pemantauan stok barang",
+        "Penyusunan laporan penjualan terstruktur"
+      ],
+      "negativeConstraints": [
+        "Jangan buat POS"
+      ],
+      "operationalExpansions": [
+        "Validasi input stok (mencegah nilai negatif, desimal tidak valid, dan data korup)",
+        "Pencatatan jejak riwayat mutasi/perubahan stok (penambahan stok masuk, pengurangan stok keluar)",
+        "Penyaringan rentang tanggal pada laporan penjualan (harian, mingguan, bulanan)",
+        "Pemisahan perhitungan metrik keuangan secara akurat (omzet kotor vs laba keuntungan)",
+        "Penanganan keadaan tanpa data (zero-state / empty-state) pada antarmuka stok dan laporan"
+      ],
+      "logicalTensions": [
+        {
+          "tension": "Pengguna membutuhkan laporan penjualan yang akurat, namun secara tegas melarang pembangunan sistem kasir/POS.",
+          "resolutionStrategy": "Sediakan formulir atau mekanisme pencatatan data transaksi penjualan paling sederhana untuk sumber data laporan tanpa membangun modul kasir/checkout/POS."
+        }
+      ],
+      "openDecisions": [
+        {
+          "topic": "Pilihan Framework & Teknologi Web",
+          "handlingStrategy": "inspect_existing_project",
+          "guidance": "Periksa repositori proyek untuk mendeteksi stack/framework yang sudah terpasang. Gunakan fondasi yang ada; jika repositori kosong, pilih stack modern standar dan dokumentasikan alasannya."
+        },
+        {
+          "topic": "Pilihan Skema & Basis Data",
+          "handlingStrategy": "inspect_existing_project",
+          "guidance": "Periksa skema basis data existing. Sesuaikan model data stok dan penjualan dengan relasi yang sudah ada."
+        },
+        {
+          "topic": "Mekanisme Akses & Autentikasi Pengguna",
+          "handlingStrategy": "document_assumption",
+          "guidance": "Dokumentasikan asumsi apakah pencatatan stok dan pelaporan diakses oleh staf internal toko atau membutuhkan peran multi-pengguna."
+        }
+      ],
+      "requiredDeliverables": [
+        "Source code implementasi modul stok barang dan laporan penjualan lengkap",
+        "Definisi model data / skema basis data relasional",
+        "Komponen antarmuka pengguna fungsional (bukan sekadar mockup statis)",
+        "Rangkaian skenario pengujian unit atau integrasi"
+      ],
+      "verificationScenarios": [
+        "Skenario 1: Verifikasi penambahan stok produk baru dengan kuantitas valid",
+        "Skenario 2: Verifikasi pencegahan input stok bernilai negatif atau format tidak valid",
+        "Skenario 3: Verifikasi pengurangan kuantitas stok saat transaksi penjualan dicatat",
+        "Skenario 4: Verifikasi penolakan pencatatan penjualan jika kuantitas melebihi stok yang tersedia",
+        "Skenario 5: Verifikasi pencatatan log mutasi stok berjalan otomatis dan tidak bisa dimanipulasi",
+        "Skenario 6: Verifikasi pembuatan laporan penjualan berdasarkan filter rentang tanggal tertentu",
+        "Skenario 7: Verifikasi pemisahan akurat antara total omzet kotor dan estimasi laba keuntungan",
+        "Skenario 8: Verifikasi tampilan zero-state saat belum ada data transaksi penjualan",
+        "Skenario 9: Verifikasi bahwa batasan mutlak ditaati: sistem POS/kasir checkout tidak dibangun"
+      ],
+      "definitionOfDone": [
+        "Seluruh persyaratan fungsional (stok barang dan laporan penjualan) terimplementasi fungsional.",
+        "Batasan mutlak larangan POS ditaati 100% tanpa adanya modul kasir tersembunyi.",
+        "Laporan penjualan menghitung data aktual secara dinamis, tanpa data hardcoded.",
+        "Zero token placeholder kosong dalam kode yang diserahkan.",
+        "Semua skenario pengujian perilaku diverifikasi dan dilaporkan secara transparan."
+      ]
+    }
+  },
+  "optimizedPrompt": "1. **Peran dan Tujuan**\n   - Peran: Tim pengembang web full‑stack yang bertanggung jawab merancang, mengimplementasikan, dan menyerahkan website toko kue dengan manajemen stok barang serta laporan penjualan yang akurat, tanpa membangun sistem kasir/POS.\n   - Tujuan: Menyediakan platform online yang memungkinkan pemilik toko mengelola katalog produk kue, memantau persediaan secara real‑time, dan menghasilkan laporan penjualan terstruktur untuk analisis bisnis.\n\n2. **Persyaratan Utama**\n   1. Katalog produk kue lengkap dengan atribut nama, deskripsi, harga, gambar, dan kategori.\n   2. Sistem pencatatan dan pemantauan stok barang yang memperbarui kuantitas secara otomatis saat transaksi penjualan dicatat.\n   3. Mekanisme pencatatan transaksi penjualan paling sederhana (formulir input manual) yang menghasilkan data untuk laporan tanpa melibatkan alur checkout/POS.\n   4. Laporan penjualan terstruktur yang dapat menampilkan total penjualan harian, bulanan, grafik tren, serta ekspor dalam format CSV atau PDF.\n\n3. **Batasan Mutlak**\n   - **Larangan tegas:** Tidak boleh membangun atau menyertakan modul kasir/POS, termasuk fitur checkout otomatis, pembayaran online, atau integrasi mesin kasir.\n   - **Resolusi ketegangan desain:** Gantikan fungsi POS dengan formulir pencatatan transaksi manual yang mencakup tanggal, produk terjual, kuantitas, dan total harga. Data ini disimpan di tabel `penjualan` dan menjadi sumber utama laporan.\n\n4. **Tahap Pertama: Pemeriksaan Proyek dan Perencanaan**\n   - Inspeksi struktur direktori proyek yang ada (jika ada), file `package.json`/`requirements.txt`, dan konfigurasi basis data.\n   - Identifikasi stack teknologi yang sudah terpasang (misalnya Node.js + Express, Django, Laravel, atau lainnya). Jika repositori kosong, pilih stack modern standar (misalnya React + Node.js atau Vue + Laravel) dan dokumentasikan alasan pemilihannya.\n   - Catat asumsi mengenai pengguna (staf internal toko) dan tingkat akses (admin vs staff).\n   - Buat rencana kerja terperinci dengan estimasi waktu tiap fase.\n\n5. **Tahap Perancangan Modul dan Data Inti**\n   - **Model Data:** Rancang skema tabel minimal:\n     * `produk` (id, nama, deskripsi, harga, gambar, kategori)\n     * `stok` (produk_id, kuantitas, lokasi_gudang)\n     * `penjualan` (id, tanggal, produk_id, kuantitas, total_harga)\n   - Validasi nilai negatif pada kuantitas dan harga; terapkan constraint integritas referensial.\n   - Buat API endpoint dasar untuk CRUD produk, pembaruan stok, dan pencatatan penjualan.\n   - Dokumentasikan asumsi bila skema basis data existing berbeda; sesuaikan migrasi.\n\n6. **Tahap Mekanisme Pendukung & Integrasi Antar‑Fitur**\n   - Implementasikan middleware autentikasi sederhana (misalnya JWT atau session) untuk membatasi akses ke staf internal.\n   - Buat layanan pencatatan transaksi penjualan yang dipicu oleh pengisian formulir manual; layanan ini otomatis mengurangi kuantitas di tabel `stok`.\n   - Pastikan logging mutasi data (pencatatan perubahan stok dan penjualan) untuk audit.\n\n7. **Tahap Pelaporan dan Perhitungan Aktual**\n   - Kembangkan modul laporan yang mengkonsumsi data `penjualan` dan `stok` untuk menghasilkan:\n     * Ringkasan penjualan harian, mingguan, bulanan.\n     * Total pendapatan vs total biaya (jika data biaya disediakan).\n     * Grafik batang atau garis menggunakan library chart (misalnya Chart.js).\n   - Sediakan opsi ekspor laporan ke CSV dan PDF.\n   - Pastikan laporan tidak mengandalkan data mockup; gunakan data nyata yang tercatat melalui formulir transaksi.\n\n8. **Tahap Antarmuka dan Pengalaman Pengguna**\n   - Desain UI responsif dengan halaman:\n     * Dashboard utama (ringkasan stok & penjualan).\n     * Katalog produk (tabel/grid dengan aksi edit/hapus).\n     * Formulir pencatatan penjualan (pilih produk, masukkan kuantitas, otomatis hitung total).\n     * Halaman laporan (filter periode, visualisasi grafik, tombol ekspor).\n   - Tampilkan status stok secara real‑time pada halaman produk.\n   - Berikan umpan balik visual saat transaksi berhasil dicatat.\n\n9. **Tahap Pengujian dan Verifikasi Perilaku**\n   - Siapkan minimal 8 skenario pengujian, termasuk:\n     1. Tambah, ubah, hapus produk.\n     2. Penambahan stok dan penurunan stok melalui transaksi.\n     3. Penolakan transaksi bila kuantitas melebihi stok tersedia.\n     4. Validasi nilai negatif pada input.\n     5. Autentikasi: akses terbatas untuk pengguna tidak berwenang.\n     6. Generasi laporan harian dengan data transaksi nyata.\n     7. Ekspor laporan ke CSV dan PDF.\n     8. Edge case: transaksi pada tanggal akhir bulan, produk tanpa gambar.\n   - Gunakan framework testing yang sesuai (Jest, PyTest, atau PHPUnit) dan dokumentasikan hasil.\n\n10. **Deliverables**\n    - Repository Git lengkap dengan struktur folder standar (src/, public/, docs/).\n    - Kode sumber lengkap (HTML, CSS, JavaScript/TypeScript atau Python/PHP) yang dapat dijalankan secara lokal.\n    - File migrasi basis data (SQL atau ORM migration) untuk tabel `produk`, `stok`, `penjualan`.\n    - Dokumentasi API (OpenAPI/Swagger) dan README berisi cara instalasi, konfigurasi, dan menjalankan aplikasi.\n    - Contoh data dummy untuk produk, stok, dan beberapa transaksi penjualan.\n    - Laporan contoh (PDF/CSV) yang dihasilkan dari data dummy.\n    - Skrip atau petunjuk untuk menjalankan pengujian otomatis.\n\n11. **Definition of Done**\n    - Semua persyaratan utama terpenuhi dan berfungsi sesuai spesifikasi.\n    - Tidak ada kode atau modul yang mengimplementasikan POS atau checkout otomatis.\n    - Semua unit dan integrasi test lulus dengan coverage ≥ 80%.\n    - Dokumentasi lengkap tersedia dan dapat diikuti oleh developer lain.\n    - Aplikasi dapat dijalankan pada lingkungan pengembangan standar (Node.js v18+ atau Python 3.10+ atau PHP 8.2) tanpa error.\n    - Laporan penjualan dapat dihasilkan, difilter, dan diekspor sesuai kebutuhan.\n    - Review kode selesai dan disetujui oleh minimal satu reviewer independen.",
+  "changes": [
+    "Menetapkan peran profesional, tujuan terukur, dan batasan mutlak yang menegaskan larangan POS.",
+    "Menyusun tahapan operasional lengkap mulai dari inspeksi proyek, perancangan data, hingga pengujian dengan skenario nyata dan edge case.",
+    "Menambahkan detail model data, mekanisme pencatatan transaksi manual, dan spesifikasi deliverables serta Definition of Done."
+  ],
+  "warnings": [
+    "Pastikan melakukan inspeksi repositori atau stack teknologi yang sudah ada sebelum memulai implementasi; penyesuaian arsitektur mungkin diperlukan."
+  ],
+  "appliedDomainRule": {
+    "domainId": "coding",
+    "ruleVersion": "1.0.0",
+    "name": "Pengembangan Perangkat Lunak / Coding"
+  },
+  "providerId": "groq",
+  "model": "openai/gpt-oss-120b",
+  "synthesisValidation": {
+    "passed": true,
+    "overallSynthesisScore": 100,
+    "checks": {
+      "intentPreserved": true,
+      "explicitRequirementsCovered": true,
+      "negativeConstraintsEnforced": true,
+      "notShallowRewrite": true,
+      "notPlaceholderDumping": true,
+      "hasOperationalStages": true,
+      "hasVerificationAndDoD": true,
+      "noDeceptiveTechFabrication": true
+    },
+    "missingRequirements": [],
+    "violatedNegativeConstraints": [],
+    "failureReasons": [],
+    "repairPassesTriggered": 0
+  },
+  "metadata": {
+    "modelTarget": "openai/gpt-oss-120b",
+    "providerId": "groq",
+    "model": "openai/gpt-oss-120b",
+    "processingTimeMs": 9540,
+    "latencyMs": 9534,
+    "tokensUsed": {
+      "promptTokens": 2997,
+      "completionTokens": 3280,
+      "totalTokens": 6277
+    },
+    "confidenceScore": 0.95,
+    "estimatedTokenSavings": "+24% precision",
+    "appliedDomainRule": {
+      "domainId": "coding",
+      "ruleVersion": "1.0.0",
+      "name": "Pengembangan Perangkat Lunak / Coding"
+    }
+  }
+}

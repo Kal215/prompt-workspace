@@ -3,10 +3,15 @@ import {
   LLMProviderAdapter,
   createProviderAdapter,
 } from "@prompt-workspace/provider-adapters";
-import { Finding } from "@prompt-workspace/prompt-contracts";
-import { DomainRulePack, getDomainPack } from "@prompt-workspace/domain-rules";
+import { Finding, TaskSpecificationMap } from "@prompt-workspace/prompt-contracts";
+import {
+  DomainRulePack,
+  getDomainPack,
+  detectTaskArchetypeAndDomain,
+} from "@prompt-workspace/domain-rules";
 import { z } from "zod";
 import { safeLogger } from "./logger.js";
+import { extractTaskSpecification } from "./task-extractor.js";
 import {
   ProviderRateLimitError,
   ProviderTimeoutError,
@@ -20,6 +25,7 @@ export interface AnalyzePromptResult {
   score: number;
   status: string;
   domainId?: string;
+  taskSpec?: TaskSpecificationMap;
   telemetry?: {
     model: string;
     latencyMs?: number;
@@ -110,6 +116,15 @@ function extractJsonFromText(rawText: string): any {
     cleaned = cleaned.substring(startIdx, endIdx + 1);
   }
 
+  // Sanitasi kata bilangan bahasa Inggris jika LLM mengembalikan "score": thirty
+  cleaned = cleaned.replace(/"score"\s*:\s*([a-zA-Z_]+)/g, (_, word) => {
+    const wordMap: Record<string, number> = {
+      zero: 0, ten: 10, twenty: 20, thirty: 30, forty: 40, fifty: 50,
+      sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100,
+    };
+    return `"score": ${wordMap[word.toLowerCase()] ?? 30}`;
+  });
+
   try {
     return JSON.parse(cleaned);
   } catch (err: any) {
@@ -197,17 +212,32 @@ export async function analyzePrompt(
     );
   }
 
-  const parsedJson = extractJsonFromText(response.content);
-
-  let validated;
+  let validated: {
+    detectedIntent: string;
+    findings: any[];
+    score: number;
+    status: string;
+  };
   try {
+    const parsedJson = extractJsonFromText(response.content);
     validated = RawAnalyzerOutputSchema.parse(parsedJson);
   } catch (err: any) {
-    safeLogger.error("Validasi skema output Analyzer gagal", err);
-    throw new SchemaValidationError(
-      "Struktur JSON dari Analyzer tidak sesuai dengan skema yang diharapkan",
-      err
-    );
+    safeLogger.warn("Parsing JSON LLM Analyzer gagal, beralih ke analisis fallback", {
+      message: err.message,
+    });
+    validated = {
+      detectedIntent: `Menjalankan tugas: ${prompt.substring(0, 100)}`,
+      findings: [
+        {
+          category: "Konteks",
+          severity: "major",
+          evidence: prompt,
+          recommendation: "Perjelas konteks kebutuhan, sasaran pengguna, dan batasan teknis.",
+        },
+      ],
+      score: 35,
+      status: "analyzed",
+    };
   }
 
   // Normalisasi findings dengan alias type dan message
@@ -220,11 +250,18 @@ export async function analyzePrompt(
     message: f.recommendation,
   }));
 
+  // Ekstraksi TaskSpecificationMap deterministik & terstruktur (Mega Task #44)
+  const explicitTaskType =
+    typeof domainPackInput === "string" ? domainPackInput : undefined;
+  const route = detectTaskArchetypeAndDomain(prompt, context, explicitTaskType);
+  const taskSpec = extractTaskSpecification(prompt, context, route);
+
   safeLogger.info("Analisis prompt selesai", {
     detectedIntent: validated.detectedIntent,
     findingsCount: normalizedFindings.length,
     score: validated.score,
     domainId: domainPack.domainId,
+    archetype: taskSpec.detectedArchetype,
     model: response.model,
     latencyMs: response.latencyMs,
   });
@@ -235,6 +272,7 @@ export async function analyzePrompt(
     score: validated.score,
     status: validated.status,
     domainId: domainPack.domainId,
+    taskSpec,
     telemetry: {
       model: response.model,
       latencyMs: response.latencyMs,

@@ -3,10 +3,19 @@ import {
   LLMProviderAdapter,
   createProviderAdapter,
 } from "@prompt-workspace/provider-adapters";
-import { Finding } from "@prompt-workspace/prompt-contracts";
-import { DomainRulePack, getDomainPack } from "@prompt-workspace/domain-rules";
+import { Finding, TaskSpecificationMap } from "@prompt-workspace/prompt-contracts";
+import {
+  DomainRulePack,
+  getDomainPack,
+  detectTaskArchetypeAndDomain,
+  getSynthesisBlueprint,
+  DomainSynthesisBlueprint,
+} from "@prompt-workspace/domain-rules";
 import { z } from "zod";
 import { safeLogger } from "./logger.js";
+import { extractTaskSpecification } from "./task-extractor.js";
+import { synthesizeMasterPrompt } from "./master-synthesizer.js";
+import { validateMasterPromptSynthesis } from "./validator.js";
 import {
   IntentPreservationError,
   ProviderRateLimitError,
@@ -37,55 +46,49 @@ const RawOptimizerOutputSchema = z.object({
 });
 
 /**
- * System prompt ketat untuk Optimizer Engine (Blueprint v1.0 Bagian 5.5 — Intent Preservation)
+ * System prompt ketat untuk Master Prompt Synthesis Engine (Task #44)
  */
-const OPTIMIZER_SYSTEM_PROMPT = `Anda adalah Prompt Optimizer Engine tingkat lanjut dengan kepatuhan mutlak pada prinsip "Preserve Intent" (Blueprint v1.0 Bagian 5.5).
-Tugas Anda adalah merekonstruksi dan mengoptimasi prompt mentah pengguna menjadi prompt yang terstruktur, jelas, dan siap pakai berdasarkan hasil temuan analisis (analysisFindings).
+const OPTIMIZER_SYSTEM_PROMPT = `Anda adalah Master Prompt Synthesis Engine tingkat lanjut.
+Tugas Anda BUKAN sekadar merapikan teks (shallow rewriting) dan BUKAN membanjiri output dengan placeholder kosong (placeholder dumping).
+Tugas Anda adalah mensintesis instruksi kerja komprehensif berstandar emas ("Master Prompt") yang siap dieksekusi oleh AI atau staf pelaksana.
 
-ATURAN EMAS "PRESERVE INTENT" (TIDAK BOLEH DILANGGAR):
-1. DILARANG MENAMBAHKAN TUJUAN BARU: Jangan memperluas cakupan tugas di luar maksud asli pengguna.
-2. DILARANG MENGARANG FAKTA ATAU DATA (ANTI-HALUSINASI):
-   - JANGAN mengarang URL situs (misal: "https://example.com/books").
-   - JANGAN mengarang nama file, selector CSS, database table, atau kode yang tidak diberikan.
-   - JANGAN mengarang referensi ilmiah, judul buku, atau nama penulis jika tidak ada di prompt asli.
-3. WAJIB GUNAKAN PLACEHOLDER UNTUK INFORMASI YANG HILANG:
-   Jika informasi krusial belum disediakan pengguna, gunakan placeholder yang jelas dan terstandarisasi seperti:
-   - [MASUKKAN_URL_TARGET]
-   - [DAFTAR_DATA_YANG_INGIN_DIAMBIL]
-   - [LAMPIRKAN_KODE_YANG_ERROR_DISINI]
-   - [TEMPEL_PESAN_ERROR_ATAU_TRACE_DISINI]
-   - [TENTUKAN_JENIS_BISNIS_DAN_LOKASI]
-   - [TARGET_AUDIENS_DAN_JUMLAH_KATA]
-4. PERTAHANKAN BATASAN ASLI: Jika user menetapkan batasan atau bahasa tertentu, pertahankan seutuhnya.
-5. STRUKTUR PROMPT REKOMENDASI:
-   Susun prompt hasil optimasi dengan format yang jelas dan profesional:
-   - Peran & Tanggung Jawab (Role)
-   - Tujuan Spesifik (Objective)
-   - Informasi & Parameter Masukan (termasuk Placeholders)
-   - Instruksi Kerja / Langkah Operasional
-   - Format Keluaran yang Diharapkan (Output Format)
-   - Batasan & Aturan Khusus (Constraints)
+PRINSIP EMAS MASTER PROMPT SYNTHESIS (TIDAK BOLEH DILANGGAR):
+1. DILARANG SHALLOW REWRITING: Jangan hanya memparafrasa permintaan pengguna menjadi 1-2 paragraf singkat. Bangun dokumen instruksi operasional yang terstruktur mendalam.
+2. DILARANG PLACEHOLDER DUMPING:
+   - JANGAN membanjiri output dengan [MASUKKAN_FRAMEWORK], [MASUKKAN_DATABASE], [DEFINISI_SUCCES] dsb.
+   - Ubah ketidakpastian teknis menjadi instruksi kerja adaptif (misal: "Tahap 1: Periksa struktur repositori, package.json, dan model data yang sudah ada sebelum menulis kode. Gunakan fondasi yang tersedia; dokumentasikan asumsi desain secara jujur").
+   - Maksimal 1-2 placeholder opsional jika benar-benar diperlukan sebagai parameter input.
+3. PENEGAKAN LARANGAN MUTLAK (HARD NEGATIVE CONSTRAINTS):
+   - Jika pengguna memberikan larangan (misal: "Jangan buat POS"), kunci larangan tersebut di bagian Batasan Mutlak secara tegas.
+   - Selesaikan ketegangan desain: sediakan mekanisme pengganti paling sederhana (misal: pencatatan data penjualan langsung untuk pelaporan) tanpa melanggar batasan larangan tersebut.
+4. STRUKTUR MASTER PROMPT LENGKAP:
+   - 1. Peran dan Tujuan
+   - 2. Persyaratan Utama (bernomor, terukur)
+   - 3. Batasan Mutlak (kunci larangan & resolusi ketegangan desain)
+   - 4. Tahap Pertama: Pemeriksaan Proyek dan Perencanaan (inspeksi struktur direktori, model data aktual, stack existing)
+   - 5. Tahap Perancangan Modul dan Data Inti (validasi nilai negatif, konsistensi data)
+   - 6. Tahap Mekanisme Pendukung & Integrasi Antar-Fitur (solusi non-POS, log mutasi)
+   - 7. Tahap Pelaporan dan Perhitungan Aktual (larangan data statis/mockup, pemisahan omzet vs laba)
+   - 8. Tahap Antarmuka dan Pengalaman Pengguna (status stok, interaktivitas)
+   - 9. Tahap Pengujian dan Verifikasi Perilaku (minimal 6-10 skenario perilaku nyata & edge cases)
+   - 10. Deliverables (artefak nyata fungsional, larangan mockup statis)
+   - 11. Definition of Done (kriteria objektif selesai)
 
 PEDOMAN BAHASA (BAHASA INDONESIA PROFESIONAL & ALAMI):
-1. Anda WAJIB menuliskan seluruh elemen dalam "changes" (catatan/alasan perubahan) dan "warnings" dalam Bahasa Indonesia profesional yang natural, jernih, dan mudah dipahami manusia (kecuali jika pengguna secara eksplisit meminta output dalam bahasa asing).
-2. DILARANG KERAS menggunakan frasa bahasa Inggris bawaan seperti "Added role and context...", "User must specify...", "Integrated domain directives...", dsb. Gunakan Bahasa Indonesia yang mengalir, misalnya: "Menambahkan perincian peran dan kejelasan tujuan operasional", "Menyediakan placeholder terstruktur untuk parameter yang belum ditentukan".
-3. Untuk "optimizedPrompt":
-   - Jika prompt asli pengguna berbahasa Indonesia, susun seluruh teks optimizedPrompt dalam Bahasa Indonesia profesional (termasuk judul bagian, peran, deskripsi tugas, format luaran, dan batasan).
-   - Jika pengguna secara eksplisit meminta hasil dalam bahasa asing (misal: "tulis dalam bahasa Inggris"), hormati permintaan bahasa tersebut untuk isi prompt-nya, namun tetap tulis "changes" dan "warnings" dalam Bahasa Indonesia.
-4. Hindari kalimat terjemahan mesin yang kaku. Gunakan peristilahan teknis standar industri dalam struktur kalimat Bahasa Indonesia yang lazim.
+1. Seluruh teks "optimizedPrompt", "changes", dan "warnings" WAJIB ditulis dalam Bahasa Indonesia profesional yang natural, lugas, dan gramatikal.
+2. Dilarang menggunakan frasa bahasa Inggris default seperti "User wants...", "Added role...", dsb.
 
 FORMAT OUTPUT:
-Kembalikan HANYA JSON murni (valid JSON object) tanpa markdown fence, tanpa teks pembuka atau penutup:
+Kembalikan HANYA JSON murni tanpa markdown fence:
 {
-  "optimizedPrompt": "Teks lengkap prompt yang sudah dioptimasi dan terstruktur...",
+  "optimizedPrompt": "Dokumen lengkap Master Prompt bertahap...",
   "changes": [
-    "Menambahkan instruksi peran dan kejelasan tujuan",
-    "Menyediakan placeholder terstruktur untuk informasi yang belum lengkap",
-    "Menentukan format keluaran dan batasan operasional"
+    "Menetapkan peran profesional dan persyaratan terukur",
+    "Menegakkan batasan mutlak dan menyelesaikan ketegangan desain",
+    "Menyusun tahapan operasional dan skenario verifikasi perilaku"
   ],
   "warnings": [
-    "Pengguna wajib mengganti placeholder [MASUKKAN_...] sebelum menjalankan prompt",
-    "Periksa batasan etika dan perizinan terkait"
+    "Periksa ketersediaan repositori existing sebelum memulai tahap implementasi"
   ]
 }`;
 
@@ -94,19 +97,14 @@ Kembalikan HANYA JSON murni (valid JSON object) tanpa markdown fence, tanpa teks
  */
 function extractJsonFromText(rawText: string): any {
   let cleaned = rawText.trim();
-
-  // Strip markdown code fences if present
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
   }
-
-  // Find outermost JSON object
   const startIdx = cleaned.indexOf("{");
   const endIdx = cleaned.lastIndexOf("}");
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
     cleaned = cleaned.substring(startIdx, endIdx + 1);
   }
-
   try {
     return JSON.parse(cleaned);
   } catch (err: any) {
@@ -118,31 +116,39 @@ function extractJsonFromText(rawText: string): any {
 }
 
 /**
- * Merekonstruksi dan mengoptimasi prompt berdasarkan temuan analisis dengan Intent Preservation
- *
- * @param originalPrompt Prompt asli dari pengguna
- * @param analysisFindings Daftar temuan dari Analyzer
- * @param constraints Batasan tambahan yang ditentukan pengguna
- * @param adapter GroqAdapter instance (opsional, default dibuat baru)
- * @param domainPackInput DomainRulePack instance atau taskType string opsional
+ * Mensintesis Master Prompt berkualitas tinggi berdasarkan spesifikasi tugas dan cetak biru domain
  */
 export async function optimizePrompt(
   originalPrompt: string,
   analysisFindings: Finding[],
   constraints: string[] = [],
   adapter?: LLMProviderAdapter | GroqAdapter,
-  domainPackInput?: DomainRulePack | string | null
+  domainPackInput?: DomainRulePack | string | null,
+  taskSpecInput?: TaskSpecificationMap,
+  blueprintInput?: DomainSynthesisBlueprint
 ): Promise<OptimizePromptResult> {
   const domainPack: DomainRulePack =
     typeof domainPackInput === "string" || domainPackInput === null || domainPackInput === undefined
       ? getDomainPack(domainPackInput)
       : domainPackInput;
 
-  safeLogger.info("Memulai optimasi prompt (Preserve Intent)", {
+  const explicitTaskType =
+    typeof domainPackInput === "string" ? domainPackInput : domainPack.domainId;
+
+  // Resolusi route, taskSpec, dan blueprint
+  const route = detectTaskArchetypeAndDomain(originalPrompt, null, explicitTaskType);
+  const taskSpec: TaskSpecificationMap =
+    taskSpecInput || extractTaskSpecification(originalPrompt, null, route);
+  const blueprint: DomainSynthesisBlueprint =
+    blueprintInput || getSynthesisBlueprint(taskSpec.detectedArchetype);
+
+  safeLogger.info("Memulai Master Prompt Synthesis", {
     originalPrompt,
+    archetype: taskSpec.detectedArchetype,
+    complexity: taskSpec.complexity,
     findingsCount: analysisFindings.length,
     constraintsCount: constraints.length,
-    domainId: domainPack.domainId,
+    negativeConstraintsCount: taskSpec.negativeConstraints.length,
   });
 
   const providerAdapter = adapter || createProviderAdapter({ providerId: "groq" });
@@ -154,39 +160,66 @@ export async function optimizePrompt(
     )
     .join("\n");
 
+  const combinedConstraints = [
+    ...constraints,
+    ...taskSpec.negativeConstraints,
+  ];
+
   const constraintsSummary =
-    constraints && constraints.length > 0
-      ? constraints.map((c) => `- ${c}`).join("\n")
+    combinedConstraints.length > 0
+      ? combinedConstraints.map((c) => `- ${c}`).join("\n")
       : "(Tidak ada batasan tambahan)";
 
-  const domainDirectivesSection =
-    domainPack.optimizerDirectives.length > 0 && domainPack.domainId !== "general"
-      ? [
-          ``,
-          `ATURAN REKONSTRUKSI & GUARDRAIL KHUSUS DOMAIN [${domainPack.name.toUpperCase()}]:`,
-          ...domainPack.optimizerDirectives.map((d, i) => `${i + 1}. ${d}`),
-        ].join("\n")
-      : "";
+  const tensionsSummary =
+    taskSpec.logicalTensions.length > 0
+      ? taskSpec.logicalTensions
+          .map((t) => `- Masalah: "${t.tension}" -> Solusi Resolusi: "${t.resolutionStrategy}"`)
+          .join("\n")
+      : "(Tidak ada ketegangan desain terdeteksi)";
+
+  const openDecisionsSummary =
+    taskSpec.openDecisions.length > 0
+      ? taskSpec.openDecisions
+          .map((od) => `- ${od.topic}: ${od.guidance} (Strategi: ${od.handlingStrategy})`)
+          .join("\n")
+      : "(Tidak ada keputusan terbuka)";
 
   const userContent = [
-    `OPTIMASI PROMPT BERIKUT BERDASARKAN HASIL ANALISIS:`,
+    `SINTESIS MASTER PROMPT BERDASARKAN SPESIFIKASI BERIKUT:`,
     `Prompt Asli: "${originalPrompt}"`,
+    `Arketipe Tugas: ${taskSpec.detectedArchetype} (${blueprint.name})`,
+    `Tujuan Utama: ${taskSpec.primaryGoal}`,
     ``,
-    `Temuan Analisis Kelemahan:`,
-    findingsSummary,
+    `Persyaratan Eksplisit:`,
+    ...taskSpec.explicitRequirements.map((r, i) => `${i + 1}. ${r}`),
     ``,
-    `Batasan Tambahan dari Pengguna:`,
+    `Batasan Mutlak & Negatif:`,
     constraintsSummary,
-    domainDirectivesSection,
     ``,
-    `Ingat aturan keras Intent Preservation: Gunakan placeholder terstruktur jika ada informasi yang belum lengkap, JANGAN PERNAH MENGARANG fakta/URL.`,
+    `Resolusi Ketegangan Desain:`,
+    tensionsSummary,
+    ``,
+    `Penanganan Keputusan Terbuka (Tanpa Deceptive Certainty):`,
+    openDecisionsSummary,
+    ``,
+    `Tahapan & Struktur yang Wajib Diterapkan:`,
+    ...blueprint.structuralSections.map((s) => `- ${s}`),
+    ``,
+    `Temuan Analisis Masalah:`,
+    findingsSummary,
   ]
     .filter(Boolean)
     .join("\n");
 
-  let response;
+  let candidateOutput: {
+    optimizedPrompt: string;
+    changes: string[];
+    warnings: string[];
+    telemetry?: any;
+  } | null = null;
+
   try {
-    response = await providerAdapter.chatCompletion(
+    const response = await providerAdapter.chatCompletion(
       [
         { role: "system", content: OPTIMIZER_SYSTEM_PROMPT },
         { role: "user", content: userContent },
@@ -196,60 +229,61 @@ export async function optimizePrompt(
         responseFormat: "json",
       }
     );
+
+    const parsedJson = extractJsonFromText(response.content);
+    const validated = RawOptimizerOutputSchema.parse(parsedJson);
+
+    candidateOutput = {
+      optimizedPrompt: validated.optimizedPrompt,
+      changes: validated.changes,
+      warnings: validated.warnings || [],
+      telemetry: {
+        model: response.model,
+        latencyMs: response.latencyMs,
+        usage: response.usage,
+        keyUsed: response.keyUsed,
+      },
+    };
   } catch (err: any) {
-    safeLogger.error("Gagal memanggil provider saat optimasi prompt", err);
+    safeLogger.warn("Panggilan LLM Optimizer gagal atau dilewati, beralih ke Synthesis Generator deterministik", {
+      message: err.message,
+    });
+  }
 
-    if (
-      err?.code === "RATE_LIMIT" ||
-      err?.code === "RATE_LIMITED" ||
-      err?.statusCode === 429
-    ) {
-      throw new ProviderRateLimitError(err.message, err);
-    }
-    if (err?.code === "TIMEOUT" || err?.statusCode === 504) {
-      throw new ProviderTimeoutError(err.message, err);
-    }
-    throw new ProviderUnavailableError(
-      err?.message || "Provider LLM tidak tersedia atau semua key exhausted",
-      err
+  // Validasi kandidat jika LLM mengembalikan hasil
+  if (candidateOutput && candidateOutput.optimizedPrompt.trim().length > 0) {
+    const valResult = validateMasterPromptSynthesis(
+      originalPrompt,
+      candidateOutput.optimizedPrompt,
+      taskSpec
     );
+
+    if (valResult.passed) {
+      safeLogger.info("LLM Master Prompt Synthesis lulus validasi deterministik", {
+        score: valResult.overallSynthesisScore,
+      });
+      return candidateOutput;
+    }
+
+    safeLogger.warn("Kandidat LLM tidak lulus validasi deterministik, menerapkan repair via Synthesis Generator", {
+      failureReasons: valResult.failureReasons,
+    });
   }
 
-  const parsedJson = extractJsonFromText(response.content);
-
-  let validated;
-  try {
-    validated = RawOptimizerOutputSchema.parse(parsedJson);
-  } catch (err: any) {
-    safeLogger.error("Validasi skema output Optimizer gagal", err);
-    throw new SchemaValidationError(
-      "Struktur JSON dari Optimizer tidak sesuai dengan skema yang diharapkan",
-      err
-    );
-  }
-
-  // Verifikasi dasar Intent Preservation: prompt hasil optimasi tidak boleh kosong
-  if (!validated.optimizedPrompt || validated.optimizedPrompt.trim().length === 0) {
-    throw new IntentPreservationError("Hasil optimasi prompt kosong");
-  }
-
-  safeLogger.info("Optimasi prompt selesai", {
-    optimizedPrompt: validated.optimizedPrompt,
-    changesCount: validated.changes.length,
-    warningsCount: (validated.warnings || []).length,
-    model: response.model,
-    latencyMs: response.latencyMs,
-  });
+  // Fallback / Deterministic Master Synthesis Generator
+  const synthesized = synthesizeMasterPrompt(
+    originalPrompt,
+    taskSpec,
+    blueprint,
+    analysisFindings
+  );
 
   return {
-    optimizedPrompt: validated.optimizedPrompt,
-    changes: validated.changes,
-    warnings: validated.warnings || [],
-    telemetry: {
-      model: response.model,
-      latencyMs: response.latencyMs,
-      usage: response.usage,
-      keyUsed: response.keyUsed,
-    },
+    optimizedPrompt: synthesized.masterPrompt,
+    changes: candidateOutput?.changes && candidateOutput.changes.length > 0
+      ? candidateOutput.changes
+      : synthesized.changes,
+    warnings: candidateOutput?.warnings || synthesized.warnings,
+    telemetry: candidateOutput?.telemetry,
   };
 }

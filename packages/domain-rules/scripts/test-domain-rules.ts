@@ -122,6 +122,130 @@ for (const pack of allPacks) {
   }
 }
 
+// ── Test 8: Task #44 Intelligent Task Router ───────────────────
+console.log("\n▶ [Test 8] Auto-Detecting Task Router");
+import {
+  detectTaskArchetypeAndDomain,
+  getSynthesisBlueprint,
+  listSynthesisBlueprints,
+} from "../src/index.js";
+
+// a. Software Engineering
+const routeSoftware = detectTaskArchetypeAndDomain(
+  "Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS."
+);
+assert(
+  routeSoftware.archetype === "software_engineering",
+  `Website toko kue -> software_engineering (actual: ${routeSoftware.archetype})`
+);
+assert(
+  routeSoftware.domainId === "coding",
+  `Website toko kue -> coding domain (actual: ${routeSoftware.domainId})`
+);
+assert(routeSoftware.signals.length > 0, "Website toko kue: signals detected");
+
+// b. Debugging & Investigasi
+const routeDebug = detectTaskArchetypeAndDomain(
+  "Perbaiki bug login yang kadang gagal."
+);
+assert(
+  routeDebug.archetype === "debugging_investigation",
+  `Bug login -> debugging_investigation (actual: ${routeDebug.archetype})`
+);
+assert(
+  routeDebug.domainId === "debugging",
+  `Bug login -> debugging domain (actual: ${routeDebug.domainId})`
+);
+
+// c. Riset & Perbandingan
+const routeResearch = detectTaskArchetypeAndDomain(
+  "Bandingkan beberapa database yang cocok untuk aplikasi kecil."
+);
+assert(
+  routeResearch.archetype === "research_comparison",
+  `Bandingkan database -> research_comparison (actual: ${routeResearch.archetype})`
+);
+assert(
+  routeResearch.domainId === "academic_writing",
+  `Bandingkan database -> academic_writing domain (actual: ${routeResearch.domainId})`
+);
+
+// d. Pendidikan & Kurikulum
+const routeEdu = detectTaskArchetypeAndDomain(
+  "Ajari saya dasar machine learning dari nol."
+);
+assert(
+  routeEdu.archetype === "education_curriculum",
+  `Ajari machine learning -> education_curriculum (actual: ${routeEdu.archetype})`
+);
+
+// e. Analisis Data
+const routeData = detectTaskArchetypeAndDomain(
+  "Analisis data penjualan ini dan cari pola yang menarik."
+);
+assert(
+  routeData.archetype === "data_analysis",
+  `Analisis data penjualan -> data_analysis (actual: ${routeData.archetype})`
+);
+
+// f. Desain UI/UX
+const routeDesign = detectTaskArchetypeAndDomain(
+  "Buat dashboard modern untuk aplikasi manajemen proyek."
+);
+assert(
+  routeDesign.archetype === "ui_ux_design",
+  `Dashboard modern -> ui_ux_design (actual: ${routeDesign.archetype})`
+);
+
+// Fallback & explicit override
+const routeExplicit = detectTaskArchetypeAndDomain(
+  "Tolong analisa sistem ini",
+  null,
+  "software_development"
+);
+assert(
+  routeExplicit.archetype === "software_engineering",
+  `Explicit software_development -> software_engineering`
+);
+
+// ── Test 9: Task #44 Domain Synthesis Blueprints ───────────────
+console.log("\n▶ [Test 9] Domain Synthesis Blueprints");
+const allBlueprints = listSynthesisBlueprints();
+assert(
+  allBlueprints.length >= 8,
+  `listSynthesisBlueprints() mengembalikan minimal 8 blueprints (actual: ${allBlueprints.length})`
+);
+
+const seBlueprint = getSynthesisBlueprint("software_engineering");
+assert(
+  seBlueprint.structuralSections.length === 11,
+  `software_engineering memiliki 11 structuralSections (actual: ${seBlueprint.structuralSections.length})`
+);
+assert(
+  seBlueprint.structuralSections.some((s) => s.includes("Pemeriksaan Proyek")),
+  "SE Blueprint memiliki tahap pemeriksaan proyek aktual"
+);
+assert(
+  seBlueprint.structuralSections.some((s) => s.includes("Batasan Mutlak")),
+  "SE Blueprint memiliki Batasan Mutlak"
+);
+assert(
+  seBlueprint.structuralSections.some((s) => s.includes("Definition of Done")),
+  "SE Blueprint memiliki Definition of Done"
+);
+
+const debugBlueprint = getSynthesisBlueprint("debugging_investigation");
+assert(
+  debugBlueprint.structuralSections.length === 9,
+  `debugging_investigation memiliki 9 structuralSections (actual: ${debugBlueprint.structuralSections.length})`
+);
+
+const researchBlueprint = getSynthesisBlueprint("research_comparison");
+assert(
+  researchBlueprint.structuralSections.length === 6,
+  `research_comparison memiliki 6 structuralSections (actual: ${researchBlueprint.structuralSections.length})`
+);
+
 // ── Summary ────────────────────────────────────────────────────
 console.log(
   "\n═══════════════════════════════════════════════════════════════════"

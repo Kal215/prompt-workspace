@@ -18,3 +18,23 @@ export {
   listDomainPacks,
   resolveDomainId,
 } from "./registry.js";
+
+// Task #44: Intelligent Task Router & Synthesis Blueprints
+export {
+  detectTaskArchetypeAndDomain,
+  type TaskRouteResult,
+} from "./router.js";
+
+export {
+  getSynthesisBlueprint,
+  listSynthesisBlueprints,
+  type DomainSynthesisBlueprint,
+  SOFTWARE_ENGINEERING_BLUEPRINT,
+  DEBUGGING_INVESTIGATION_BLUEPRINT,
+  RESEARCH_COMPARISON_BLUEPRINT,
+  EDUCATION_CURRICULUM_BLUEPRINT,
+  DATA_ANALYSIS_BLUEPRINT,
+  UI_UX_DESIGN_BLUEPRINT,
+  BUSINESS_STRATEGY_BLUEPRINT,
+  GENERAL_OPERATIONAL_BLUEPRINT,
+} from "./synthesis-blueprints.js";
