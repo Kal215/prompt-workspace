@@ -113,8 +113,8 @@ export function extractTaskSpecification(
   if (route.archetype === "software_engineering") {
     operationalExpansions.push("Validasi input stok (mencegah nilai negatif, desimal tidak valid, dan data korup)");
     operationalExpansions.push("Pencatatan jejak riwayat mutasi/perubahan stok (penambahan stok masuk, pengurangan stok keluar)");
-    operationalExpansions.push("Penyaringan rentang tanggal pada laporan penjualan (harian, mingguan, bulanan)");
-    operationalExpansions.push("Pemisahan perhitungan metrik keuangan secara akurat (omzet kotor vs laba keuntungan)");
+    operationalExpansions.push("Konsistensi transaksi penjualan dan stok: Periksa konsistensi antara kuantitas produk, harga yang digunakan untuk perhitungan, dan nilai penjualan yang tersimpan. Jangan membiarkan stok berubah secara tidak konsisten akibat proses pencatatan yang berulang atau gagal di tengah jalan. Jangan mengarang integrasi pembayaran eksternal apabila tidak diminta.");
+    operationalExpansions.push("Integritas metrik laporan penjualan: Tentukan definisi setiap metrik dengan jelas. Jangan menyamakan omzet dengan keuntungan. Jika modal, harga pokok penjualan (HPP), dan biaya belum tersedia, jangan menghasilkan angka keuntungan seolah-olah sudah dapat dihitung dengan benar. Sediakan penanganan untuk kondisi tanpa data, tanggal yang tidak valid, dan rentang laporan yang tidak menghasilkan penjualan.");
     operationalExpansions.push("Penanganan keadaan tanpa data (zero-state / empty-state) pada antarmuka stok dan laporan");
   } else {
     operationalExpansions.push(...blueprint.operationalDirectives);
@@ -132,19 +132,19 @@ export function extractTaskSpecification(
       topic: "Pilihan Framework & Teknologi Web",
       handlingStrategy: "inspect_existing_project",
       guidance:
-        "Periksa repositori proyek untuk mendeteksi stack/framework yang sudah terpasang. Gunakan fondasi yang ada; jika repositori kosong, pilih stack modern standar dan dokumentasikan alasannya.",
+        "Periksa repositori proyek untuk mendeteksi stack/framework yang sudah terpasang. Gunakan fondasi yang ada; jika repositori kosong, pilih stack modern standar dan dokumentasikan alasannya tanpa menambahkan dependensi berlebih.",
     });
     openDecisions.push({
       topic: "Pilihan Skema & Basis Data",
       handlingStrategy: "inspect_existing_project",
       guidance:
-        "Periksa skema basis data existing. Sesuaikan model data stok dan penjualan dengan relasi yang sudah ada.",
+        "Periksa arsitektur atau skema model data yang sudah ada terlebih dahulu. Jangan mendikte nama tabel kaku atau menambahkan banyak field/modul tambahan tanpa manfaat yang jelas.",
     });
     openDecisions.push({
-      topic: "Mekanisme Akses & Autentikasi Pengguna",
+      topic: "Mekanisme Akses Pengguna",
       handlingStrategy: "document_assumption",
       guidance:
-        "Dokumentasikan asumsi apakah pencatatan stok dan pelaporan diakses oleh staf internal toko atau membutuhkan peran multi-pengguna.",
+        "Dokumentasikan asumsi bahwa pengelolaan stok dan laporan diakses staf internal toko; jangan menambahkan modul autentikasi atau dependensi rumit di luar kebutuhan fungsional yang diminta pengguna.",
     });
   } else {
     openDecisions.push({
@@ -159,27 +159,26 @@ export function extractTaskSpecification(
   const requiredDeliverables: string[] = [];
   if (route.archetype === "software_engineering") {
     requiredDeliverables.push("Source code implementasi modul stok barang dan laporan penjualan lengkap");
-    requiredDeliverables.push("Definisi model data / skema basis data relasional");
-    requiredDeliverables.push("Komponen antarmuka pengguna fungsional (bukan sekadar mockup statis)");
-    requiredDeliverables.push("Rangkaian skenario pengujian unit atau integrasi");
+    requiredDeliverables.push("Definisi model data / skema basis data yang terintegrasi dengan arsitektur proyek");
+    requiredDeliverables.push("Komponen antarmuka pengguna fungsional (katalog produk, formulir transaksi penjualan sederhana, dan laporan penjualan)");
+    requiredDeliverables.push("Rangkaian skenario pengujian perilaku terintegrasi");
   } else {
     requiredDeliverables.push(...blueprint.deliverableRequirements);
   }
 
-  // 7. Verification Scenarios (Minimal 6-10 Skenario Perilaku Nyata & Edge Cases)
+  // 7. Verification Scenarios (10 Skenario Perilaku Nyata & Edge Cases)
   const verificationScenarios: string[] = [];
   if (route.archetype === "software_engineering") {
-    verificationScenarios.push("Skenario 1: Verifikasi penambahan stok produk baru dengan kuantitas valid");
-    verificationScenarios.push("Skenario 2: Verifikasi pencegahan input stok bernilai negatif atau format tidak valid");
-    verificationScenarios.push("Skenario 3: Verifikasi pengurangan kuantitas stok saat transaksi penjualan dicatat");
-    verificationScenarios.push("Skenario 4: Verifikasi penolakan pencatatan penjualan jika kuantitas melebihi stok yang tersedia");
-    verificationScenarios.push("Skenario 5: Verifikasi pencatatan log mutasi stok berjalan otomatis dan tidak bisa dimanipulasi");
-    verificationScenarios.push("Skenario 6: Verifikasi pembuatan laporan penjualan berdasarkan filter rentang tanggal tertentu");
-    verificationScenarios.push("Skenario 7: Verifikasi pemisahan akurat antara total omzet kotor dan estimasi laba keuntungan");
-    verificationScenarios.push("Skenario 8: Verifikasi tampilan zero-state saat belum ada data transaksi penjualan");
-    if (forbidsPOS) {
-      verificationScenarios.push("Skenario 9: Verifikasi bahwa batasan mutlak ditaati: sistem POS/kasir checkout tidak dibangun");
-    }
+    verificationScenarios.push("Skenario 1: Verifikasi penambahan produk baru dan penolakan produk dengan format input tidak valid");
+    verificationScenarios.push("Skenario 2: Verifikasi pencegahan input stok bernilai negatif atau format kuantitas yang korup");
+    verificationScenarios.push("Skenario 3: Verifikasi akurasi perubahan stok: stok berkurang tepat sesuai kuantitas saat transaksi penjualan dicatat");
+    verificationScenarios.push("Skenario 4: Verifikasi penolakan pencatatan transaksi jika kuantitas penjualan melebihi sisa stok yang tersedia");
+    verificationScenarios.push("Skenario 5: Verifikasi ketahanan transaksi: transaksi yang gagal di tengah jalan atau berulang tidak merusak konsistensi stok");
+    verificationScenarios.push("Skenario 6: Verifikasi konsistensi rentang tanggal laporan penjualan (filter harian, mingguan, bulanan)");
+    verificationScenarios.push("Skenario 7: Verifikasi integritas metrik laporan: pemisahan tegas omzet vs keuntungan tanpa mengarang angka profit jika HPP/biaya tidak tersedia");
+    verificationScenarios.push("Skenario 8: Verifikasi penanganan kondisi tanpa data (zero-state / empty-state) pada tabel stok dan halaman laporan");
+    verificationScenarios.push("Skenario 9: Verifikasi bahwa batasan mutlak ditaati: tidak ada alur POS, kasir otomatis, atau checkout yang dibangun");
+    verificationScenarios.push("Skenario 10: Verifikasi non-regresi: seluruh fungsionalitas aplikasi yang sudah ada sebelumnya tetap bekerja normal");
   } else {
     verificationScenarios.push(...blueprint.verificationGuidelines);
   }
@@ -187,13 +186,13 @@ export function extractTaskSpecification(
   // 8. Definition of Done
   const definitionOfDone: string[] = [];
   if (route.archetype === "software_engineering") {
-    definitionOfDone.push("Seluruh persyaratan fungsional (stok barang dan laporan penjualan) terimplementasi fungsional.");
+    definitionOfDone.push("Semua persyaratan fungsional utama (katalog produk, stok barang, dan laporan penjualan) terimplementasi fungsional.");
     if (forbidsPOS) {
-      definitionOfDone.push("Batasan mutlak larangan POS ditaati 100% tanpa adanya modul kasir tersembunyi.");
+      definitionOfDone.push("Batasan mutlak larangan POS ditaati 100% tanpa adanya modul kasir atau checkout tersembunyi.");
     }
-    definitionOfDone.push("Laporan penjualan menghitung data aktual secara dinamis, tanpa data hardcoded.");
-    definitionOfDone.push("Zero token placeholder kosong dalam kode yang diserahkan.");
-    definitionOfDone.push("Semua skenario pengujian perilaku diverifikasi dan dilaporkan secara transparan.");
+    definitionOfDone.push("Integritas metrik laporan terjaga: omzet tidak disamakan dengan keuntungan, dan perhitungan bersumber dari data aktual.");
+    definitionOfDone.push("Zero token placeholder kosong dan tidak ada fitur liar di luar lingkup permintaan pengguna.");
+    definitionOfDone.push("Kejujuran pelaporan pengujian: Jalankan tes yang tersedia di proyek, pemeriksaan tipe, lint, atau verifikasi lainnya yang sesuai dengan toolchain aktual. Laporkan pengujian yang benar-benar dijalankan dan hasilnya. Jangan menyatakan semua tes lulus apabila ada tes yang belum dijalankan.");
   } else {
     definitionOfDone.push(...blueprint.definitionOfDoneGuidelines);
   }

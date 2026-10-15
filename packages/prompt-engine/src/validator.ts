@@ -144,7 +144,10 @@ export function validateMasterPromptSynthesis(
     lowerOptimized.includes("langkah") ||
     lowerOptimized.includes("fase") ||
     lowerOptimized.includes("implementasi") ||
-    lowerOptimized.includes("perancangan");
+    lowerOptimized.includes("perancangan") ||
+    lowerOptimized.includes("kriteria perbandingan") ||
+    lowerOptimized.includes("kajian") ||
+    lowerOptimized.includes("metodologi");
 
   if (!hasOperationalStages) {
     failureReasons.push("Tidak memuat tahapan operasional kerja yang konkret.");
@@ -180,18 +183,96 @@ export function validateMasterPromptSynthesis(
     );
   }
 
-  // 8. No Deceptive Tech Fabrication
+  // 8. No Deceptive Tech Fabrication & Anti-Scope Creep
   const fakeUrlRegex = /https?:\/\/(?:www\.)?(?:contoh-palsu|fake-url|example-dummy-db)\.[a-z]+/i;
   const claimsUnrunTests =
     lowerOptimized.includes("saya telah menjalankan tes") ||
     lowerOptimized.includes("semua tes telah berhasil dilewati");
 
-  const noDeceptiveTechFabrication =
-    !fakeUrlRegex.test(optimizedPrompt) && !claimsUnrunTests;
+  // Deteksi Scope Creep & Over-Prescription untuk arketipe software_engineering
+  const forbidsScopeCreepAuth =
+    !lowerOriginal.includes("jwt") &&
+    !lowerOriginal.includes("auth") &&
+    !lowerOriginal.includes("login") &&
+    lowerOptimized.includes("jwt");
 
-  if (!noDeceptiveTechFabrication) {
+  const forbidsScopeCreepChart =
+    !lowerOriginal.includes("chart") &&
+    !lowerOriginal.includes("grafik") &&
+    lowerOptimized.includes("chart.js");
+
+  const forbidsScopeCreepWarehouse =
+    !lowerOriginal.includes("gudang") &&
+    lowerOptimized.includes("lokasi_gudang");
+
+  const hasHumanReviewerRequirement =
+    lowerOptimized.includes("reviewer independen");
+
+  const hasDummyReportDeliverable =
+    lowerOptimized.includes("yang dihasilkan dari data dummy") ||
+    lowerOptimized.includes("laporan contoh (pdf/csv)");
+
+  const hasMetricIntegrity =
+    !lowerOriginal.includes("laporan penjualan") ||
+    (lowerOptimized.includes("omzet") &&
+      lowerOptimized.includes("keuntungan") &&
+      (lowerOptimized.includes("hpp") || lowerOptimized.includes("harga pokok")));
+
+  const hasTransactionConsistency =
+    taskSpec.detectedArchetype !== "software_engineering" ||
+    lowerOptimized.includes("gagal di tengah jalan");
+
+  const hasHonestTestingGuidance =
+    taskSpec.detectedArchetype !== "software_engineering" ||
+    lowerOptimized.includes("toolchain aktual") ||
+    lowerOptimized.includes("benar-benar dijalankan") ||
+    lowerOptimized.includes("kejujuran pelaporan");
+
+  let noDeceptiveTechFabrication =
+    !fakeUrlRegex.test(optimizedPrompt) &&
+    !claimsUnrunTests &&
+    !forbidsScopeCreepAuth &&
+    !forbidsScopeCreepChart &&
+    !forbidsScopeCreepWarehouse &&
+    !hasHumanReviewerRequirement &&
+    !hasDummyReportDeliverable &&
+    hasMetricIntegrity &&
+    hasTransactionConsistency &&
+    hasHonestTestingGuidance;
+
+  if (fakeUrlRegex.test(optimizedPrompt) || claimsUnrunTests) {
     failureReasons.push(
       "Mengandung kepastian teknis palsu (URL fabrikasi atau klaim eksekusi tes yang belum dilakukan)."
+    );
+  }
+  if (forbidsScopeCreepAuth || forbidsScopeCreepChart || forbidsScopeCreepWarehouse) {
+    failureReasons.push(
+      "Terdeteksi over-prescription / scope creep fitur (JWT, Chart.js, atau lokasi_gudang) yang tidak diminta pengguna."
+    );
+  }
+  if (hasHumanReviewerRequirement) {
+    failureReasons.push(
+      "Dilarang mensyaratkan 'reviewer independen' pada Definition of Done untuk AI target otonom."
+    );
+  }
+  if (hasDummyReportDeliverable) {
+    failureReasons.push(
+      "Dilarang meminta laporan contoh dari data dummy di bagian Deliverables."
+    );
+  }
+  if (!hasMetricIntegrity) {
+    failureReasons.push(
+      "Integritas metrik laporan belum terpenuhi (wajib membedakan omzet vs keuntungan dan penanganan tanpa data)."
+    );
+  }
+  if (!hasTransactionConsistency) {
+    failureReasons.push(
+      "Konsistensi stok belum terjaga terhadap kegagalan transaksi di tengah jalan."
+    );
+  }
+  if (!hasHonestTestingGuidance) {
+    failureReasons.push(
+      "Petunjuk kejujuran pelaporan pengujian berbasis toolchain aktual belum disertakan."
     );
   }
 
