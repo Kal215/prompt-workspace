@@ -252,6 +252,13 @@ export async function POST(request: Request) {
       }
     }
 
+    const passedCount = spiderReport.branches.filter((b) => b.status === "PASS").length;
+    const totalCount = spiderReport.branches.length;
+    const passRateRatio = totalCount > 0 ? passedCount / totalCount : 0;
+    const avgLatency = Math.round(
+      spiderReport.branches.reduce((acc, b) => acc + (b.latencyMs || 0), 0) / (totalCount || 1)
+    );
+
     // 9. Format Respons View-Model Klien
     const responseData = {
       runId: savedRunId,
@@ -263,6 +270,12 @@ export async function POST(request: Request) {
       qualityMetrics: {
         ...spiderReport.qualityMetrics,
         robustnessScore: spiderReport.qualityMetrics.robustness,
+        instructionAdherenceScore: spiderReport.qualityMetrics.taskAdherence,
+        consistencyScore: spiderReport.qualityMetrics.formatCompliance,
+        passedTestCases: passedCount,
+        totalTestCases: totalCount,
+        passRate: passRateRatio,
+        averageLatencyMs: avgLatency,
       },
       securityFindings: spiderReport.securityFindings,
       testCases: spiderReport.branches.map((b) => ({

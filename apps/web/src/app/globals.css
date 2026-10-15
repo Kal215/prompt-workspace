@@ -122,9 +122,101 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground selection:bg-primary/20 selection:text-primary;
   }
   html {
-    @apply font-sans;
+    @apply font-sans scroll-smooth;
   }
+}
+
+/* Custom Interactive Bento Spotlight Effect */
+.bento-spotlight {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--card);
+  transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bento-spotlight::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px),
+    rgba(var(--spotlight-color, 99, 102, 241), 0.12),
+    transparent 45%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.bento-spotlight:hover::before {
+  opacity: 1;
+}
+
+.dark .bento-spotlight {
+  --spotlight-color: 147, 197, 253;
+}
+
+:root:not(.dark) .bento-spotlight {
+  --spotlight-color: 59, 130, 246;
+}
+
+/* Ambient Subtle Background Glow */
+.ambient-glow {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  max-width: 1400px;
+  height: 480px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+  filter: blur(100px);
+  background: radial-gradient(
+    circle at 50% 20%,
+    rgba(99, 102, 241, 0.12) 0%,
+    rgba(14, 165, 233, 0.08) 35%,
+    transparent 70%
+  );
+}
+
+.dark .ambient-glow {
+  background: radial-gradient(
+    circle at 50% 20%,
+    rgba(56, 189, 248, 0.08) 0%,
+    rgba(99, 102, 241, 0.06) 40%,
+    transparent 70%
+  );
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Mobile Safe Area Inset */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }

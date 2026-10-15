@@ -13,7 +13,7 @@ import {
   ShieldAlert,
   HelpCircle,
   Bug,
-  Sparkles,
+  Workflow,
 } from "lucide-react";
 
 export function UserGuideSection() {
@@ -56,7 +56,7 @@ export function UserGuideSection() {
             {/* 1. Alur Kerja Langkah Demi Langkah */}
             <div className="space-y-3">
               <h4 className="font-semibold text-foreground flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <Workflow className="h-3.5 w-3.5 text-primary" />
                 <span>Alur Kerja 4 Langkah Penggunaan Workspace</span>
               </h4>
 

@@ -11,7 +11,7 @@ import {
   CheckCircle2,
   ExternalLink,
   Loader2,
-  Sparkles,
+  FileText,
   ArrowRight,
   Database,
   Info,
@@ -290,7 +290,7 @@ export function CrawlerImportModal({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <FileText className="h-3.5 w-3.5" />
                     <span>Ekstrak Konten</span>
                   </>
                 )}

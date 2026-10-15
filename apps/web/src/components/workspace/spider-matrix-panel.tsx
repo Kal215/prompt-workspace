@@ -12,7 +12,7 @@ import {
   XCircle,
   HelpCircle,
   RefreshCw,
-  Sparkles,
+  RotateCcw,
   Activity,
   Bug,
 } from "lucide-react";
@@ -228,9 +228,9 @@ export function SpiderMatrixPanel({
               data-testid="spider-refine-button"
               onClick={() => onRequestRefinement(findings)}
               disabled={isLoading || !hasActionableFindings}
-              className="text-xs h-8 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+              className="text-xs h-8 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer shadow-xs"
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" />
               <span>Perbaiki dari Temuan Spider (Buat Versi Baru)</span>
             </Button>
           )}
@@ -308,46 +308,96 @@ export function SpiderMatrixPanel({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="p-3 rounded-md border border-border/50 bg-background/50 space-y-1">
-              <span className="text-[10px] text-muted-foreground block">
-                Skor Ketahanan (Robustness)
-              </span>
-              <span className="text-lg font-bold font-mono text-foreground">
-                {report?.qualityMetrics.robustnessScore ?? 0}
-                <span className="text-xs text-muted-foreground font-normal">/100</span>
-              </span>
-            </div>
+          {/* Grid 4 Metrik Kualitas */}
+          {(() => {
+            const robustness = report?.qualityMetrics.robustnessScore ?? 0;
+            const passRateVal = report?.qualityMetrics.passRate !== undefined
+              ? Math.round(report.qualityMetrics.passRate * 100)
+              : (report?.testCases?.length
+                ? Math.round((report.testCases.filter((t) => t.status === "PASS").length / report.testCases.length) * 100)
+                : 0);
+            const adherence = report?.qualityMetrics.instructionAdherenceScore ?? 0;
+            const consistency = report?.qualityMetrics.consistencyScore ?? 0;
 
-            <div className="p-3 rounded-md border border-border/50 bg-background/50 space-y-1">
-              <span className="text-[10px] text-muted-foreground block">
-                Tingkat Kelulusan (Pass Rate)
-              </span>
-              <span className="text-lg font-bold font-mono text-foreground">
-                {Math.round((report?.qualityMetrics.passRate ?? 0) * 100)}%
-              </span>
-            </div>
+            return (
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3 rounded-lg border border-border/60 bg-background/60 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      Skor Ketahanan
+                    </span>
+                    <span className="text-[10px] font-mono text-primary font-semibold">{robustness}%</span>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-foreground">
+                    {robustness}
+                    <span className="text-xs text-muted-foreground font-normal">/100</span>
+                  </div>
+                  <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-primary h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(0, robustness))}%` }}
+                    />
+                  </div>
+                </div>
 
-            <div className="p-3 rounded-md border border-border/50 bg-background/50 space-y-1">
-              <span className="text-[10px] text-muted-foreground block">
-                Kepatuhan Instruksi
-              </span>
-              <span className="text-lg font-bold font-mono text-foreground">
-                {report?.qualityMetrics.instructionAdherenceScore ?? 0}
-                <span className="text-xs text-muted-foreground font-normal">/100</span>
-              </span>
-            </div>
+                <div className="p-3 rounded-lg border border-border/60 bg-background/60 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      Tingkat Kelulusan
+                    </span>
+                    <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{passRateVal}%</span>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-foreground">
+                    {passRateVal}%
+                  </div>
+                  <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(0, passRateVal))}%` }}
+                    />
+                  </div>
+                </div>
 
-            <div className="p-3 rounded-md border border-border/50 bg-background/50 space-y-1">
-              <span className="text-[10px] text-muted-foreground block">
-                Konsistensi Format
-              </span>
-              <span className="text-lg font-bold font-mono text-foreground">
-                {report?.qualityMetrics.consistencyScore ?? 0}
-                <span className="text-xs text-muted-foreground font-normal">/100</span>
-              </span>
-            </div>
-          </div>
+                <div className="p-3 rounded-lg border border-border/60 bg-background/60 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      Kepatuhan Instruksi
+                    </span>
+                    <span className="text-[10px] font-mono text-sky-600 dark:text-sky-400 font-semibold">{adherence}%</span>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-foreground">
+                    {adherence}
+                    <span className="text-xs text-muted-foreground font-normal">/100</span>
+                  </div>
+                  <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-sky-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(0, adherence))}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border border-border/60 bg-background/60 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      Konsistensi Format
+                    </span>
+                    <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold">{consistency}%</span>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-foreground">
+                    {consistency}
+                    <span className="text-xs text-muted-foreground font-normal">/100</span>
+                  </div>
+                  <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(0, consistency))}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Skenario Kasus Uji Detail */}
           {report?.testCases && report.testCases.length > 0 && (
@@ -432,7 +482,7 @@ export function SpiderMatrixPanel({
                   )}
 
                   <div className="p-2 rounded bg-background/40 border border-border/40 text-[11px] text-foreground/90 flex items-start gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                     <span>
                       <strong>Rekomendasi Perbaikan:</strong> {finding.recommendation}
                     </span>

@@ -26,7 +26,6 @@ import {
   Variable,
   AlertCircle,
   FileCode2,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -358,7 +357,7 @@ export function PlaygroundCard({
             {/* Actual Output */}
             <div className="space-y-1.5">
               <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <FileCode2 className="h-3.5 w-3.5 text-primary" />
                 <span>Respons Nyata Model Tujuan:</span>
               </div>
               <div className="p-4 rounded-md bg-muted/40 border border-border/80 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">

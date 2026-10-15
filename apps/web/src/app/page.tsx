@@ -25,6 +25,7 @@ import {
   TelemetryMetrics,
 } from "@/components/workspace/telemetry-summary-bar";
 import { CrawlerImportModal } from "@/components/workspace/crawler-import-modal";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { formatGroundingFactsForContext } from "@/lib/v2-workspace-helpers";
 import { isCrawlerFeatureEnabled } from "@/lib/feature-flags";
 import { buildClosedLoopOptimizationContext } from "@prompt-workspace/prompt-engine";
@@ -39,7 +40,7 @@ import { listDomainPacks, DomainRulePack } from "@prompt-workspace/domain-rules"
 import { ProviderCapability } from "@prompt-workspace/prompt-contracts";
 import { toast } from "sonner";
 import {
-  Sparkles,
+  TerminalSquare,
   Loader2,
   AlertTriangle,
   ArrowRight,
@@ -50,6 +51,7 @@ import {
   History,
   Layers,
   Globe,
+  PenTool,
 } from "lucide-react";
 
 // Fallback daftar statis aman provider saat inisialisasi / loading
@@ -151,6 +153,15 @@ export default function Home() {
     if (targetProvider) {
       setSelectedModel(targetProvider.defaultModel);
     }
+  };
+
+  // Mousemove handler untuk Spotlight Bento Cards
+  const handleMouseMoveSpotlight = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty("--mouse-x", `${x}px`);
+    e.currentTarget.style.setProperty("--mouse-y", `${y}px`);
   };
 
   // History Sidebar state (real-time SQLite database)
@@ -439,7 +450,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/10">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/10 pb-16 md:pb-6">
       {/* History Sidebar */}
       <HistorySidebar
         isOpen={isHistoryOpen}
@@ -449,24 +460,38 @@ export default function Home() {
         onCountChange={setHistoryCount}
       />
 
-      {/* Top Header */}
+      {/* Top Floating Glass Header Bar */}
       <header className="border-b border-border/60 bg-background/80 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-semibold shadow-xs">
-              <Sparkles className="h-4 w-4" />
+            <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-semibold shadow-xs">
+              <TerminalSquare className="h-4 w-4" />
             </div>
             <div>
-              <span className="font-semibold text-sm tracking-tight sm:text-base">
-                Prompt Intelligence Workspace
-              </span>
-              <span className="ml-2 text-xs text-muted-foreground hidden sm:inline-block border border-border px-1.5 py-0.5 rounded font-mono">
-                v1.0 (Live Engine)
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm tracking-tight sm:text-base">
+                  Prompt Intelligence Workspace
+                </span>
+                <span className="text-[10px] text-muted-foreground hidden sm:inline-block border border-border/70 px-1.5 py-0.5 rounded-full font-mono bg-muted/30">
+                  v2.1
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {/* Live Engine Indicator */}
+            <div className="text-xs text-muted-foreground hidden sm:flex items-center gap-2 pl-2 border-l border-border/40">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-medium text-foreground/80 flex items-center gap-1">
+                <Cpu className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                Groq LPUs Aktif
+              </span>
+            </div>
+
+            {/* Dark / Light Theme Toggle Switch */}
+            <ThemeToggle />
+
             {/* History Toggle Button */}
             <Button
               variant="outline"
@@ -485,15 +510,6 @@ export default function Home() {
                 </Badge>
               )}
             </Button>
-
-            {/* Groq Engine Live Indicator */}
-            <div className="text-xs text-muted-foreground hidden sm:flex items-center gap-2 pl-2 border-l border-border/40">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-medium text-foreground/80 flex items-center gap-1">
-                <Cpu className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                Groq Engine Live
-              </span>
-            </div>
           </div>
         </div>
       </header>
@@ -513,15 +529,18 @@ export default function Home() {
         {/* Stage 7 North-Star & Funnel Telemetry Bar (Privacy-Safe Local Metrics) */}
         <TelemetrySummaryBar metrics={telemetry} />
 
-        {/* Workspace Layout */}
+        {/* Workspace Layout: Bento Kiri (5 Kolom) & Bento Kanan (7 Kolom) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Input Form Column */}
+          {/* Bento Kiri: Form Input & Parameter */}
           <section
             className={`space-y-4 transition-all duration-200 ${
-              result ? "lg:col-span-4" : "lg:col-span-5"
+              result ? "lg:col-span-5" : "lg:col-span-5"
             }`}
           >
-            <Card className="border-border/80 shadow-xs sticky top-20">
+            <Card
+              onMouseMove={handleMouseMoveSpotlight}
+              className="bento-spotlight border-border/80 shadow-xs sticky top-20 overflow-hidden"
+            >
               <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -782,12 +801,12 @@ export default function Home() {
                       {isLoading ? (
                         <>
                           <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                          Menganalisis & Mengoptimasi...
+                          Menganalisis &amp; Mengoptimasi...
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-2 h-3.5 w-3.5" />
-                          Analisis & Optimasi
+                          <ArrowRight className="mr-2 h-3.5 w-3.5" />
+                          Analisis &amp; Optimasi
                         </>
                       )}
                     </Button>
@@ -813,17 +832,20 @@ export default function Home() {
             </Card>
           </section>
 
-          {/* Result / Output Section */}
+          {/* Result / Output Section (Bento Kanan 7 Kolom) */}
           <section
             className={`space-y-6 ${
-              result ? "lg:col-span-8" : "lg:col-span-7"
+              result ? "lg:col-span-7" : "lg:col-span-7"
             }`}
           >
             {!result && !isLoading && (
-              <Card className="border-dashed border-border/80 bg-muted/20 h-full min-h-[380px] flex items-center justify-center p-8 text-center">
+              <Card
+                onMouseMove={handleMouseMoveSpotlight}
+                className="bento-spotlight border-dashed border-border/80 bg-muted/20 h-full min-h-[380px] flex items-center justify-center p-8 text-center"
+              >
                 <div className="max-w-sm space-y-3">
                   <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-                    <ArrowRight className="h-5 w-5" />
+                    <PenTool className="h-5 w-5 text-primary" />
                   </div>
                   <h3 className="font-semibold text-foreground text-sm">
                     Belum Ada Hasil Analisis
@@ -883,6 +905,41 @@ export default function Home() {
         {/* User Guide & Help Documentation Section (Tahap 6 - Bagian 12) */}
         <UserGuideSection />
       </main>
+
+      {/* Mobile / APK Bottom Navigation Bar (< md) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/90 backdrop-blur-md border-t border-border/80 px-4 py-2 pb-safe flex items-center justify-around">
+        <button
+          type="button"
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          <PenTool className="h-4 w-4" />
+          <span>Editor</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.getElementById("original-prompt");
+            el?.scrollIntoView({ behavior: "smooth" });
+          }}
+          className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          <Sliders className="h-4 w-4" />
+          <span>Parameter</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsHistoryOpen(true)}
+          className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          <History className="h-4 w-4" />
+          <span>Riwayat ({historyCount})</span>
+        </button>
+      </nav>
 
       {/* v2.0 Web Crawler Import Modal */}
       <CrawlerImportModal
