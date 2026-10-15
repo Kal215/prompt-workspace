@@ -26,7 +26,8 @@ Penggunaan:
 Opsi:
   --style=<preset>    Preset gaya: comprehensive_blueprint (default), concise_tactical, conversational_expert
   --audience=<level>  Tingkat audiens: specialist (default), professional, academic, student
-  --blueprint         Cetak Universal Meta-Blueprint 10-Bagian lengkap dengan diagram Mermaid
+  --blueprint         Cetak Universal Meta-Blueprint 10-Bagian lengkap dengan diagram Mermaid (Default)
+  --prompt-only       Cetak prompt teroptimasi v2.2 saja tanpa blueprint diagram
   --budget=<mode>     Mode budget token: balanced (default), eco, deep_audit
   --url=<url>         URL dokumentasi/GitHub referensi (maks 2, pisahkan koma atau ulang flag)
   --context=<teks>    Konteks tambahan / spesifikasi arsitektur
@@ -53,7 +54,8 @@ async function main() {
   let stylePreset: SynthesisStylePreset = config.defaultStylePreset || "comprehensive_blueprint";
   let budgetMode: TokenBudgetMode = config.defaultBudgetMode || "balanced";
   let audienceLevel: any = "specialist";
-  let showBlueprint = false;
+  let promptOnly = false;
+  let showBlueprint: boolean | undefined = undefined;
   let context: string | undefined;
   const referenceUrls: string[] = [];
   let jsonOutput = false;
@@ -67,6 +69,9 @@ async function main() {
       audienceLevel = arg.split("=")[1];
     } else if (arg === "--blueprint") {
       showBlueprint = true;
+    } else if (arg === "--prompt-only") {
+      promptOnly = true;
+      showBlueprint = false;
     } else if (arg.startsWith("--context=")) {
       context = arg.slice("--context=".length);
     } else if (arg.startsWith("--url=")) {
@@ -77,6 +82,11 @@ async function main() {
     } else if (!arg.startsWith("-") && !prompt) {
       prompt = arg;
     }
+  }
+
+  // Smart Auto-Detection: Aktifkan mode blueprint secara default kecuali diminta --prompt-only
+  if (showBlueprint === undefined) {
+    showBlueprint = !promptOnly;
   }
 
   if (!prompt) {

@@ -22,6 +22,9 @@ export type DomainSubtopic =
   // Software subtopics
   | "software_web3_defi"
   | "software_ecommerce_store"
+  | "software_iot_telemetry"
+  | "software_medical_clinic"
+  | "software_personal_portfolio"
   | "software_generic"
   // Research subtopics
   | "research_marine_environmental"
@@ -31,27 +34,106 @@ export type DomainSubtopic =
   | "academic_generic"
   // Business subtopics
   | "business_aquaculture_agri"
+  | "business_manufacturing_industry"
   | "business_food_beverage"
   | "business_generic"
   // Education subtopics
   | "education_physics_circuits"
   | "education_biology_photosynthesis"
+  | "education_practical_experiment"
   | "education_generic";
+
+const STOPWORDS = new Set([
+  "buatkan", "saya", "ingin", "bikin", "tolong", "mohon", "sistem", "aplikasi", "cara", "langkah",
+  "dan", "atau", "yang", "untuk", "dari", "ke", "di", "pada", "dengan", "tanpa", "adalah", "yaitu",
+  "a", "an", "the", "and", "or", "of", "to", "in", "for", "with", "on", "at", "by", "from",
+  "make", "create", "how", "sebagai", "tentang", "mengenai", "dalam", "bisa", "dapat", "agar"
+]);
+
+/**
+ * Ekstraktor entitas semantik dinamis dari prompt untuk topik niche atau asing
+ */
+export function extractDynamicEntitiesFromPrompt(
+  prompt: string,
+  category: UniversalDomainCategory
+): string[] {
+  if (!prompt || typeof prompt !== "string") return ["EntitasSistem", "KomponenInti", "ModulProses"];
+
+  const cleaned = prompt.replace(/[^\w\s-]/g, " ").toLowerCase();
+  const words = cleaned.split(/\s+/).filter((w) => w.length > 2 && !STOPWORDS.has(w));
+
+  const entities: string[] = [];
+  const seen = new Set<string>();
+
+  // 1. Coba bentuk bigrams untuk istilah bermakna (misal "satelit cuaca", "kelapa sawit")
+  for (let i = 0; i < words.length - 1; i++) {
+    const bigram = `${words[i]} ${words[i + 1]}`;
+    const id = sanitizeMermaidNodeId(bigram);
+    if (!seen.has(id)) {
+      seen.add(id);
+      entities.push(id);
+      if (entities.length >= 4) break;
+    }
+  }
+
+  // 2. Tambahkan unigrams penting jika masih kurang dari 4
+  for (const word of words) {
+    if (entities.length >= 6) break;
+    const id = sanitizeMermaidNodeId(word);
+    if (!seen.has(id) && id.length > 3) {
+      seen.add(id);
+      entities.push(id);
+    }
+  }
+
+  // 3. Fallback jika prompt sangat pendek
+  if (entities.length < 3) {
+    const defaults: Record<UniversalDomainCategory, string[]> = {
+      software: ["InputDataPengguna", "LayananPemrosesanInti", "PenyimpananDatabase", "ResponsLayanan"],
+      business: ["InisiasiPermintaan", "OperasionalTerstandar", "PemeriksaanMutu", "PenyerahanHasil"],
+      education: ["TeoriPrinsipDasar", "EksperimenPraktikum", "AnalisisHasilData", "RefleksiPemahaman"],
+      research: ["PerumusanHipotesis", "PengumpulanDataSampel", "UjiInstrumenLaboratorium", "PublikasiTemuan"],
+      academic: ["KerangkaTeoriKonseptual", "MetodologiPenelitian", "AnalisisDataStatistik", "KesimpulanImplikasi"],
+    };
+    for (const def of defaults[category]) {
+      if (!seen.has(def)) {
+        entities.push(def);
+        if (entities.length >= 4) break;
+      }
+    }
+  }
+
+  return entities;
+}
 
 /**
  * Mendeteksi kategori domain umum untuk pemilihan template diagram Mermaid yang tepat
  */
 export function classifyUniversalDomain(
-  domain: string,
+  domain: string | undefined,
   primaryGoal: string
 ): UniversalDomainCategory {
-  const normalized = (domain + " " + primaryGoal).toLowerCase();
+  const normDomain = (domain || "").toLowerCase().trim();
+  const normGoal = (primaryGoal || "").toLowerCase().trim();
+
+  // 0. Jika domain eksplisit valid sudah diberikan, hormati langsung
+  if (
+    normDomain === "software" ||
+    normDomain === "business" ||
+    normDomain === "education" ||
+    normDomain === "research" ||
+    normDomain === "academic"
+  ) {
+    return normDomain as UniversalDomainCategory;
+  }
+
+  const normalized = `${normDomain} ${normGoal}`.trim();
 
   // 1. Software / IT / Web3 / DeFi / Engineering (Prioritas pertama jika ada kata kunci teknologi spesifik)
   if (
     normalized.includes("smart contract") ||
     normalized.includes("blockchain") ||
-    normalized.includes("defi") ||
+    /\bdefi\b/.test(normalized) ||
     normalized.includes("kripto") ||
     normalized.includes("crypto") ||
     normalized.includes("token") ||
@@ -67,7 +149,19 @@ export function classifyUniversalDomain(
     normalized.includes("database") ||
     normalized.includes("fullstack") ||
     normalized.includes("neumorphism") ||
-    normalized.includes("api")
+    /\biot\b/.test(normalized) ||
+    normalized.includes("telemetri") ||
+    normalized.includes("sensor") ||
+    normalized.includes("satelit") ||
+    normalized.includes("embedded") ||
+    normalized.includes("sistem informasi") ||
+    normalized.includes("sistem software") ||
+    normalized.includes("sistem aplikasi") ||
+    normalized.includes("arsitektur sistem") ||
+    normalized.includes("arsitektur software") ||
+    normalized.includes("mobile") ||
+    normalized.includes("android") ||
+    /\bapi\b/.test(normalized)
   ) {
     return "software";
   }
@@ -106,7 +200,29 @@ export function classifyUniversalDomain(
     return "research";
   }
 
-  // 4. Bisnis / Operasional / UMKM / Agribisnis / Peternakan
+  // 4. Edukasi / Pelajar / Sekolah / Modul Praktikum Kejuruan
+  if (
+    normalized.includes("fotosintesis") ||
+    normalized.includes("sekolah") ||
+    /\b(sma|smp|sd|smk)\b/.test(normalized) ||
+    normalized.includes("praktikum") ||
+    normalized.includes("pelajar") ||
+    normalized.includes("siswa") ||
+    normalized.includes("guru") ||
+    normalized.includes("belajar") ||
+    normalized.includes("biologi") ||
+    normalized.includes("kimia") ||
+    normalized.includes("fisika") ||
+    normalized.includes("rangkaian listrik") ||
+    normalized.includes("bohlam") ||
+    normalized.includes("jamur") ||
+    normalized.includes("kurikulum") ||
+    normalized.includes("modul pembelajaran")
+  ) {
+    return "education";
+  }
+
+  // 5. Bisnis / Operasional / UMKM / Agribisnis / Manufaktur / Pabrik
   if (
     normalized.includes("bisnis") ||
     normalized.includes("kopi") ||
@@ -127,27 +243,15 @@ export function classifyUniversalDomain(
     normalized.includes("ikan") ||
     normalized.includes("ternak") ||
     normalized.includes("peternakan") ||
-    normalized.includes("pertanian")
+    normalized.includes("pertanian") ||
+    normalized.includes("pabrik") ||
+    normalized.includes("manufaktur") ||
+    normalized.includes("sawit") ||
+    normalized.includes("cpo") ||
+    normalized.includes("tbs") ||
+    normalized.includes("industri")
   ) {
     return "business";
-  }
-
-  // 5. Edukasi / Pelajar / Sekolah
-  if (
-    normalized.includes("fotosintesis") ||
-    normalized.includes("sekolah") ||
-    /\b(sma|smp|sd)\b/.test(normalized) ||
-    normalized.includes("praktikum") ||
-    normalized.includes("pelajar") ||
-    normalized.includes("siswa") ||
-    normalized.includes("belajar") ||
-    normalized.includes("biologi") ||
-    normalized.includes("kimia") ||
-    normalized.includes("fisika") ||
-    normalized.includes("rangkaian listrik") ||
-    normalized.includes("bohlam")
-  ) {
-    return "education";
   }
 
   // Default Software / IT
@@ -182,10 +286,17 @@ export function detectDomainSubtopic(
         norm.includes("fotosintesis") ||
         norm.includes("klorofil") ||
         norm.includes("ingenhousz") ||
-        norm.includes("daun") ||
-        norm.includes("biologi")
+        norm.includes("daun")
       ) {
         return "education_biology_photosynthesis";
+      }
+      if (
+        norm.includes("praktikum") ||
+        norm.includes("jamur") ||
+        norm.includes("laboratorium") ||
+        norm.includes("smk")
+      ) {
+        return "education_practical_experiment";
       }
       return "education_generic";
 
@@ -202,6 +313,18 @@ export function detectDomainSubtopic(
         norm.includes("kolam")
       ) {
         return "business_aquaculture_agri";
+      }
+      if (
+        norm.includes("sawit") ||
+        norm.includes("cpo") ||
+        norm.includes("tbs") ||
+        norm.includes("pabrik") ||
+        norm.includes("manufaktur") ||
+        norm.includes("industri") ||
+        norm.includes("produksi") ||
+        norm.includes("kilang")
+      ) {
+        return "business_manufacturing_industry";
       }
       if (
         norm.includes("kopi") ||
@@ -229,6 +352,37 @@ export function detectDomainSubtopic(
         norm.includes("web3")
       ) {
         return "software_web3_defi";
+      }
+      if (
+        norm.includes("iot") ||
+        norm.includes("telemetri") ||
+        norm.includes("sensor") ||
+        norm.includes("satelit") ||
+        norm.includes("cuaca") ||
+        norm.includes("embedded") ||
+        norm.includes("arduino") ||
+        norm.includes("esp32")
+      ) {
+        return "software_iot_telemetry";
+      }
+      if (
+        norm.includes("klinik") ||
+        norm.includes("pasien") ||
+        norm.includes("dokter") ||
+        norm.includes("rekam medis") ||
+        norm.includes("rumah sakit") ||
+        norm.includes("medis")
+      ) {
+        return "software_medical_clinic";
+      }
+      if (
+        norm.includes("portofolio") ||
+        norm.includes("portfolio") ||
+        norm.includes("curriculum vitae") ||
+        norm.includes("resume") ||
+        norm.includes("showcase")
+      ) {
+        return "software_personal_portfolio";
       }
       if (
         norm.includes("toko") ||
@@ -271,6 +425,167 @@ export function detectDomainSubtopic(
 }
 
 /**
+ * Sanitasi string mentah menjadi Node ID Mermaid yang valid (alfanumerik + underscore)
+ */
+export function sanitizeMermaidNodeId(raw: string): string {
+  if (!raw || typeof raw !== "string") return "Node_Entity";
+  let cleaned = raw
+    .trim()
+    .replace(/[^a-zA-Z0-9_]/g, " ")
+    .trim();
+  cleaned = cleaned
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+  if (!cleaned || !/^[a-zA-Z_]/.test(cleaned)) {
+    cleaned = `Node_${cleaned || "Entity"}`;
+  }
+  return cleaned;
+}
+
+/**
+ * Sanitasi label teks agar tidak merusak parser diagram Mermaid dan ramah visual
+ */
+export function sanitizeMermaidLabel(raw: string, maxLength = 45): string {
+  if (!raw || typeof raw !== "string") return "";
+  let cleaned = raw
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/["“”]/g, "'") // ganti kutip ganda ke kutip tunggal aman
+    .replace(/[[\]]/g, "") // hapus kurung siku agar tidak merusak kontainer [Label]
+    .replace(/[;]/g, " -") // ubah titik koma jadi tanda strip
+    .replace(/[|]/g, "/") // ubah pipe agar tidak merusak sintaks relasi |label|
+    .replace(/[{}]/g, "") // hapus kurung kurawal
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (maxLength && cleaned.length > maxLength) {
+    cleaned = cleaned.slice(0, maxLength - 3).trim() + "...";
+  }
+  return cleaned;
+}
+
+/**
+ * Validasi sintaks mendalam untuk memastikan diagram Mermaid aman dari kesalahan render
+ */
+export function validateMermaidSyntaxDeep(mermaidCode: string): {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  nodeCount: number;
+} {
+  const trimmed = mermaidCode.trim();
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const validHeaders = [
+    "erDiagram",
+    "flowchart",
+    "graph",
+    "gantt",
+    "mindmap",
+    "classDiagram",
+    "sequenceDiagram",
+    "stateDiagram",
+    "pie",
+  ];
+
+  const firstLine = trimmed.split("\n")[0].trim();
+  const hasValidHeader = validHeaders.some((h) => firstLine.startsWith(h));
+
+  if (!hasValidHeader) {
+    errors.push(
+      `Header Mermaid tidak valid: '${firstLine}'. Wajib diawali salah satu: ${validHeaders.join(", ")}`
+    );
+  }
+
+  // Cek keseimbangan kurung kurawal, siku, dan kurung biasa pada flowchart & mindmap
+  if (!firstLine.startsWith("erDiagram")) {
+    const openBraces = (trimmed.match(/\{/g) || []).length;
+    const closeBraces = (trimmed.match(/\}/g) || []).length;
+    if (openBraces !== closeBraces) {
+      errors.push(`Kurung kurawal '{' (${openBraces}) vs '}' (${closeBraces}) tidak seimbang.`);
+    }
+
+    const openBrackets = (trimmed.match(/\[/g) || []).length;
+    const closeBrackets = (trimmed.match(/\]/g) || []).length;
+    if (openBrackets !== closeBrackets) {
+      errors.push(`Kurung siku '[' (${openBrackets}) vs ']' (${closeBrackets}) tidak seimbang.`);
+    }
+
+    const openParens = (trimmed.match(/\(/g) || []).length;
+    const closeParens = (trimmed.match(/\)/g) || []).length;
+    if (openParens !== closeParens) {
+      errors.push(`Kurung biasa '(' (${openParens}) vs ')' (${closeParens}) tidak seimbang.`);
+    }
+  }
+
+  // Hitung perkiraan node untuk layout guard
+  const nodeMatches = trimmed.match(/^\s*([a-zA-Z0-9_]+)(\[|\(|\{|\()|^\s*([a-zA-Z0-9_]+)\s*-->/gm);
+  const nodeCount = nodeMatches ? new Set(nodeMatches.map((m) => m.trim().split(/[\s[(\{]/)[0])).size : 0;
+
+  if (nodeCount > 15) {
+    warnings.push(`Diagram memuat ${nodeCount} node. Disarankan <= 12 node agar visual tidak bertumpuk di layar kecil.`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    nodeCount,
+  };
+}
+
+/**
+ * Menerapkan Layout Guard & Sanitasi otomatis pada seluruh spesifikasi diagram
+ */
+export function applyMermaidLayoutGuard(
+  spec: DiagramSpecification,
+  options?: { maxLabelLength?: number; maxNodes?: number }
+): DiagramSpecification {
+  const maxLabelLength = options?.maxLabelLength ?? 45;
+
+  let cleanedCode = spec.mermaidCode;
+
+  if (spec.type === "flowchart" || spec.type === "mindmap") {
+    // 1. Netralkan seluruh double quote menjadi single quote agar sintaks Mermaid aman
+    cleanedCode = cleanedCode.replace(/["“”]/g, "'");
+
+    cleanedCode = cleanedCode
+      .split("\n")
+      .map((line) => {
+        // Guard ([...])
+        line = line.replace(
+          /(\b[a-zA-Z0-9_]+\b)\(\[\s*(.*?)\s*\]\)/g,
+          (_, id, lbl) => `${id}([${sanitizeMermaidLabel(lbl, maxLabelLength)}])`
+        );
+        // Guard [...]
+        line = line.replace(
+          /(\b[a-zA-Z0-9_]+\b)\[\s*(.*?)\s*\]/g,
+          (_, id, lbl) => `${id}[${sanitizeMermaidLabel(lbl, maxLabelLength)}]`
+        );
+        // Guard {...}
+        line = line.replace(
+          /(\b[a-zA-Z0-9_]+\b)\{\s*(.*?)\s*\}/g,
+          (_, id, lbl) => `${id}{${sanitizeMermaidLabel(lbl, maxLabelLength)}}`
+        );
+        // Guard relation label |---> or |label|
+        line = line.replace(/\|([^|]+)\|/g, (_, lbl) => `|${sanitizeMermaidLabel(lbl, 30)}|`);
+        return line;
+      })
+      .join("\n");
+  }
+
+  // Sanitasi entitas list
+  const sanitizedEntities = spec.entities.map((e) => sanitizeMermaidNodeId(e));
+
+  return {
+    ...spec,
+    mermaidCode: cleanedCode,
+    entities: sanitizedEntities,
+  };
+}
+
+/**
  * Menghasilkan spesifikasi diagram Mermaid.js polimorfik yang selaras dengan domain & subtopik pengguna
  */
 export function synthesizeUniversalDiagrams(
@@ -279,18 +594,27 @@ export function synthesizeUniversalDiagrams(
   const category = classifyUniversalDomain(input.domain, input.primaryGoal);
   const subtopic = detectDomainSubtopic(category, input.primaryGoal);
 
+  let rawDiagrams: DiagramSpecification[];
   switch (category) {
     case "education":
-      return synthesizeEducationDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeEducationDiagrams(subtopic, input.primaryGoal);
+      break;
     case "business":
-      return synthesizeBusinessDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeBusinessDiagrams(subtopic, input.primaryGoal);
+      break;
     case "software":
-      return synthesizeSoftwareDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeSoftwareDiagrams(subtopic, input.primaryGoal);
+      break;
     case "research":
-      return synthesizeResearchDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeResearchDiagrams(subtopic, input.primaryGoal);
+      break;
     case "academic":
-      return synthesizeAcademicDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeAcademicDiagrams(subtopic, input.primaryGoal);
+      break;
   }
+
+  // Amankan seluruh diagram melalui Layout Guard & Sanitasi Karakter
+  return rawDiagrams.map((spec) => applyMermaidLayoutGuard(spec));
 }
 
 // -------------------------------------------------------------
@@ -398,6 +722,51 @@ function synthesizeEducationDiagrams(
           "IndikatorGelembungOksigen",
           "TanamanHydrilla",
           "LarutanBikarbonat",
+        ],
+      },
+    ];
+  }
+
+  if (subtopic === "education_practical_experiment") {
+    return [
+      {
+        id: "diag-edu-practical-flow",
+        type: "flowchart",
+        title: "SOP Prosedur Praktikum & Eksperimen Siswa",
+        description:
+          "Diagram alur praktikum terstruktur mencakup sterilisasi alat, persiapan bahan/media, perlakuan inokulasi, observasi berkala, hingga evaluasi hasil.",
+        mermaidCode: `flowchart TD
+    Start([Mulai Praktikum Siswa]) --> Prep[PersiapanAlatMedia: Sterilisasi Alat & Pembuatan Media]
+    Prep --> Treat[PerlakuanPraktikum: Inokulasi & Penyiapan Sampel Uji]
+    Treat --> Monitor[ObservasiBerkala: Pengukuran Parameter & Catatan Harian]
+    Monitor --> CheckResult{Hasil Eksperimen Sesuai Hipotesis?}
+    CheckResult -- Tidak Sesuai --> EvalError[EvaluasiFaktorKesalahan: Evaluasi Kontaminasi & Prosedur]
+    EvalError --> Prep
+    CheckResult -- Berhasil --> HarvestData[KompilasiDataHasil: Pengukuran Akhir & Analisis Siswa]
+    HarvestData --> End([Laporan Praktikum Selesai])`,
+        entities: [
+          "PersiapanAlatMedia",
+          "PerlakuanPraktikum",
+          "ObservasiBerkala",
+          "EvaluasiFaktorKesalahan",
+          "KompilasiDataHasil",
+        ],
+      },
+      {
+        id: "diag-edu-practical-mindmap",
+        type: "flowchart",
+        title: "Peta Konsep Teori & Penerapan Praktikum Mandiri",
+        description: "Visualisasi keterkaitan teori ilmiah, prosedur lab, dan aplikasi nyata.",
+        mermaidCode: `flowchart TD
+    Core([Subjek Praktikum Siswa]) --> Teori[PrinsipBiologiIlmiah]
+    Core --> LabSOP[ProtokolKeselamatanLab]
+    Core --> Observasi[MetodeObservasiParameter]
+    Core --> Evaluasi[KuisRefleksiSains]`,
+        entities: [
+          "PrinsipBiologiIlmiah",
+          "ProtokolKeselamatanLab",
+          "MetodeObservasiParameter",
+          "KuisRefleksiSains",
         ],
       },
     ];
@@ -574,6 +943,59 @@ function synthesizeBusinessDiagrams(
     ];
   }
 
+  if (subtopic === "business_manufacturing_industry") {
+    return [
+      {
+        id: "diag-manufacturing-sop",
+        type: "flowchart",
+        title: "Standard Operating Procedure (SOP) Alur Produksi & Pabrik Manufaktur",
+        description:
+          "Diagram alur operasional pengolahan bahan baku mentah (misal TBS kelapa sawit) melalui tahapan sterilisasi, pengepresan ekstraksi, pemurnian mutu, hingga penyimpanan tangki komersial CPO.",
+        mermaidCode: `flowchart TD
+    Inbound[PenerimaanBahanBaku: Timbangan & Uji Sortir Mutu Mentah TBS] --> Sterilize[SterilisasiUapPanas: Rebusan Uap Tekanan Tinggi]
+    Sterilize --> Press[PengepresanEkstraksi: Pemisahan Minyak Kasar & Serabut]
+    Press --> Clarify[PemurnianKlarifikasi: Pemisahan Sludge & Pemurnian Minyak Murni]
+    Clarify --> QC{QualityControlLab: Uji Kadar Asam Lemak Bebas & Air}
+    QC -- Kadar Air/Asam Tinggi --> Reprocess[PenyulinganUlang: Penyesuaian Suhu & Separator]
+    Reprocess --> Clarify
+    QC -- Lolos Standar Mutu --> Storage[PenyimpananTangkiCPO: Tangki Suhu Terjaga 45-55C]
+    Storage --> Dispatch([Siap Distribusi & Pengapalan])`,
+        entities: [
+          "PenerimaanBahanBaku",
+          "SterilisasiUapPanas",
+          "PengepresanEkstraksi",
+          "PemurnianKlarifikasi",
+          "QualityControlLab",
+          "PenyimpananTangkiCPO",
+        ],
+      },
+      {
+        id: "diag-manufacturing-gantt",
+        type: "gantt",
+        title: "Timeline Operasional & Pemeliharaan Pabrik Manufaktur",
+        description: "Jadwal siklus produksi harian, kalibrasi instrumen, dan inspeksi berkala.",
+        mermaidCode: `gantt
+    title Jadwal Operasional & Perawatan Pabrik Manufaktur
+    dateFormat YYYY-MM-DD
+    section Penerimaan & Pra-Proses
+    Penerimaan TBS & Sortir Mutu            :active, p1, 2026-11-01, 7d
+    Kalibrasi Mesin Sterilizer & Thresher  :p2, 2026-11-03, 3d
+    section Ekstraksi & Klarifikasi
+    Proses Pressing & Klarifikasi Minyak    :p3, 2026-11-05, 14d
+    Uji Lab Kadar Asam Lemak Bebas         :p4, 2026-11-06, 14d
+    section Pengapalan
+    Transfer Tangki & Pengiriman CPO        :milestone, m1, 2026-11-20, 0d`,
+        entities: [
+          "PenerimaanTBSDanSortir",
+          "KalibrasiMesinPabrik",
+          "ProsesPressingDanKlarifikasi",
+          "UjiLabKadarAsam",
+          "TransferDanPengirimanCPO",
+        ],
+      },
+    ];
+  }
+
   // Generic Business
   return [
     {
@@ -736,6 +1158,235 @@ function synthesizeSoftwareDiagrams(
           "TokenVaultLedger",
           "ReentrancyGuardShield",
         ],
+      },
+    ];
+  }
+
+  if (subtopic === "software_iot_telemetry") {
+    return [
+      {
+        id: "diag-iot-telemetry-erd",
+        type: "erd",
+        title: "IoT Sensor & Satellite Telemetry Data Model",
+        description:
+          "Skema penyimpanan data telemetri real-time, registrasi sensor perangkat IoT/satelit, ambang batas peringatan, dan log aliran data waktu.",
+        entities: [
+          "DeviceNode",
+          "SensorTelemetry",
+          "TelemetryAlert",
+          "TelemetryLog",
+        ],
+        mermaidCode: `erDiagram
+    DeviceNode ||--o{ SensorTelemetry : "mengirim"
+    DeviceNode ||--o{ TelemetryAlert : "memicu"
+    SensorTelemetry ||--o{ TelemetryLog : "mencatat"
+
+    DeviceNode {
+        uuid id PK
+        string serialNumber UK
+        string tipePerangkat
+        string statusOperasional
+        datetime terdaftarPada
+    }
+    SensorTelemetry {
+        uuid id PK
+        uuid deviceId FK
+        string metrikSensor
+        decimal nilaiPengukuran
+        string satuan
+        datetime timestamp
+    }
+    TelemetryAlert {
+        uuid id PK
+        uuid deviceId FK
+        string levelPeringatan
+        string deskripsiInsiden
+        boolean diselesaikan
+    }
+    TelemetryLog {
+        uuid id PK
+        uuid telemetryId FK
+        string rawPayload
+        int latencyMs
+    }`,
+      },
+      {
+        id: "diag-iot-telemetry-flow",
+        type: "flowchart",
+        title: "Telemetry Ingestion & Anomaly Alert Flowchart",
+        description:
+          "Alur pemrosesan data telemetri sensor/satelit: penerimaan sinyal, validasi integritas, deteksi anomali cuaca/keadaan kritis, hingga pengiriman sinyal peringatan.",
+        entities: [
+          "SinyalSensor",
+          "ValidasiIntegritas",
+          "DeteksiAmbangBatas",
+          "PenyimpananTimeSeries",
+          "KirimPeringatanAlert",
+        ],
+        mermaidCode: `flowchart TD
+    Start([Terima Sinyal Sensor Satelit]) --> Ingest[SinyalSensor: Penerimaan Stream Paket Data]
+    Ingest --> ValCheck{ValidasiIntegritas: Checksum & Skema Valid?}
+    ValCheck -- Rusak / Korup --> Drop[AbaikanPaketData: Catat TelemetryLog Error]
+    ValCheck -- Valid --> Anomaly{DeteksiAmbangBatas: Nilai Sensor Melewati Batas Kritis?}
+    Anomaly -- Melewati Batas Bahaya --> TriggerAlert[KirimPeringatanAlert: Dispatch Sinyal Darurat & Notifikasi]
+    Anomaly -- Normal --> SaveData[PenyimpananTimeSeries: Tulis ke Database Time-Series]
+    TriggerAlert --> SaveData
+    SaveData --> Finish([Selesai: Data Terarsip Aman])`,
+      },
+    ];
+  }
+
+  if (subtopic === "software_medical_clinic") {
+    return [
+      {
+        id: "diag-medical-clinic-erd",
+        type: "erd",
+        title: "Clinical Medical Record & Healthcare Data Model",
+        description:
+          "Skema relasional rekam medis pasien, penjadwalan dokter klinik gigi/umum, pencatatan diagnosis, resep obat, dan audit kepatuhan.",
+        entities: [
+          "Pasien",
+          "Dokter",
+          "JanjiKonsultasi",
+          "RekamMedis",
+          "ResepObat",
+        ],
+        mermaidCode: `erDiagram
+    Pasien ||--o{ JanjiKonsultasi : "membuat"
+    Dokter ||--o{ JanjiKonsultasi : "melayani"
+    JanjiKonsultasi ||--|| RekamMedis : "menghasilkan"
+    RekamMedis ||--o{ ResepObat : "memuat"
+
+    Pasien {
+        uuid id PK
+        string nomorRekamMedis UK
+        string namaLengkap
+        date tanggalLahir
+        string kontakDarurat
+    }
+    Dokter {
+        uuid id PK
+        string sipNomor UK
+        string namaDokter
+        string spesialisasi
+    }
+    JanjiKonsultasi {
+        uuid id PK
+        uuid pasienId FK
+        uuid dokterId FK
+        datetime jadwalWaktu
+        string statusAntrean
+    }
+    RekamMedis {
+        uuid id PK
+        uuid janjiId FK
+        string keluhanUtama
+        string diagnosisICD
+        string tindakanMedis
+    }
+    ResepObat {
+        uuid id PK
+        uuid rekamMedisId FK
+        string namaObat
+        string dosisAturanPakai
+    }`,
+      },
+      {
+        id: "diag-medical-clinic-flow",
+        type: "flowchart",
+        title: "Clinical Patient Journey & Medical Record Workflow",
+        description:
+          "Alur pelayanan pasien dari registrasi, pemeriksaan awal triase, penanganan dokter, pencatatan rekam medis digital, hingga verifikasi resep apotek.",
+        entities: [
+          "RegistrasiPasien",
+          "TriasePemeriksaanAwal",
+          "KonsultasiTindakanDokter",
+          "PencatatanRekamMedis",
+          "VerifikasiResepApotek",
+        ],
+        mermaidCode: `flowchart TD
+    Start([Kedatangan Pasien]) --> Reg[RegistrasiPasien: Validasi Identitas & Antrean]
+    Reg --> Triage[TriasePemeriksaanAwal: Cek Tanda Vital Tekanan Darah & Keluhan]
+    Triage --> Consult[KonsultasiTindakanDokter: Pemeriksaan Klinis & Tindakan Medis]
+    Consult --> Record[PencatatanRekamMedis: Input Diagnosis Digital ICD-10]
+    Record --> PrescribeCheck{Perlu Resep Obat?}
+    PrescribeCheck -- Ya --> Pharmacy[VerifikasiResepApotek: Telaah Obat & Penyerahan Dosis]
+    PrescribeCheck -- Tidak --> Discharge([Selesai: Edukasi Pasien & Pasca Perawatan])
+    Pharmacy --> Discharge`,
+      },
+    ];
+  }
+
+  if (subtopic === "software_personal_portfolio") {
+    return [
+      {
+        id: "diag-portfolio-erd",
+        type: "erd",
+        title: "Portfolio & Professional Showcase Data Model",
+        description: "Skema relasional profil pengembang, katalog proyek, keahlian teknis, dan formulir pesan kontak.",
+        entities: [
+          "ProfilPengembang",
+          "KeahlianTeknis",
+          "KatalogProyek",
+          "PesanKontakMasuk",
+        ],
+        mermaidCode: `erDiagram
+    ProfilPengembang ||--o{ KeahlianTeknis : "menguasai"
+    ProfilPengembang ||--o{ KatalogProyek : "menampilkan"
+    ProfilPengembang ||--o{ PesanKontakMasuk : "menerima"
+
+    ProfilPengembang {
+        uuid id PK
+        string namaLengkap
+        string bioSingkat
+        string emailKontak
+        string githubUrl
+    }
+    KatalogProyek {
+        uuid id PK
+        string judulProyek
+        string deskripsi
+        string techStack
+        string demoUrl
+    }
+    KeahlianTeknis {
+        uuid id PK
+        string namaKeahlian
+        string kategoriBidang
+        int tingkatKeahlian
+    }
+    PesanKontakMasuk {
+        uuid id PK
+        string namaPengirim
+        string emailPengirim
+        string subjek
+        string isiPesan
+        datetime dikirimPada
+    }`,
+      },
+      {
+        id: "diag-portfolio-flow",
+        type: "flowchart",
+        title: "Portfolio Visitor Interactive Navigation Flow",
+        description: "Alur navigasi pengunjung website portofolio dari eksplorasi showcase proyek hingga pengiriman pesan kontak aman.",
+        entities: [
+          "EksplorasiShowcase",
+          "FilterKategoriProyek",
+          "FormulirKontak",
+          "ValidasiAntiSpam",
+          "PengirimanNotifikasi",
+        ],
+        mermaidCode: `flowchart TD
+    Start([Kunjungan Pengunjung]) --> Browse[EksplorasiShowcase: Tinjau Ringkasan Keahlian & Proyek]
+    Browse --> Filter[FilterKategoriProyek: Eksplorasi Proyek Berdasarkan Tag]
+    Filter --> Detail[TinjauDetailProyek: Buka Demo & Dokumentasi Source Code]
+    Detail --> ContactCheck{Tertarik Kolaborasi?}
+    ContactCheck -- Ya --> Form[FormulirKontak: Masukkan Nama Email & Pesan]
+    Form --> SpamCheck{ValidasiAntiSpam: Validasi Turnstile / Honeypot}
+    SpamCheck -- Spam Terdeteksi --> RevertSpam[TolakPengirimanPesan]
+    SpamCheck -- Valid --> Notify[PengirimanNotifikasi: Dispatch Notifikasi Telegram / Email]
+    Notify --> Finish([Terima Kasih: Notifikasi Berhasil Terkirim])
+    ContactCheck -- Hanya Melihat --> Finish`,
       },
     ];
   }

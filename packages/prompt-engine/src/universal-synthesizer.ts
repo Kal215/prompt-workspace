@@ -33,7 +33,7 @@ export interface UniversalSynthesisResult {
 export function synthesizeUniversalBlueprint(
   input: UniversalSynthesisInput
 ): UniversalSynthesisResult {
-  const rawPrompt = input.prompt.trim();
+  const rawPrompt = ((input.prompt || (input as any).primaryGoal) || "").trim();
   const audience: AudienceLevel = input.audienceLevel || "specialist";
   const domainCategory = classifyUniversalDomain(
     input.domain || "",
@@ -208,6 +208,30 @@ function getDomainRoles(
         "EVM State & Gas Optimization Specialist",
         "QA & Automated Hardhat/Foundry Test Specialist",
       ];
+    case "software_iot_telemetry":
+      return [
+        "IoT Embedded Systems Architect & Hardware Interface Specialist",
+        "Satellite Telemetry Protocol Engineer & Anomaly Detection Lead",
+        "Time-Series Database Architect & High-Throughput Ingestion Engineer",
+        "Distributed Systems & Edge Computing Reliability Specialist",
+        "QA Automated Hardware-in-the-Loop & Fuzz Testing Lead",
+      ];
+    case "software_medical_clinic":
+      return [
+        "Clinical Informatics Specialist & Medical Systems Architect",
+        "Electronic Medical Record (EMR/EHR) & ICD-10 Compliance Lead",
+        "Healthcare Privacy & HIPAA / GDPR Security Auditor",
+        "Fullstack Healthcare App Developer (Strict TypeScript & Next.js)",
+        "Database Architect & Medical Audit Log Specialist",
+      ];
+    case "software_personal_portfolio":
+      return [
+        "Senior Creative Director & Interactive UI/UX Designer",
+        "Design System Engineer (Neumorphism / Soft UI Tokens)",
+        "Senior Frontend Engineer (Next.js App Router & Micro-animations)",
+        "Technical Copywriter & Professional Branding Strategist",
+        "Performance Optimization & Web Vitals Specialist",
+      ];
     case "software_ecommerce_store":
     case "software_generic":
       return [
@@ -219,6 +243,14 @@ function getDomainRoles(
         "Software Security & SSRF Defense Specialist",
         "QA Engineer & Automated Test Specialist (Vitest / Playwright)",
         "DevOps & Production Deployment Engineer",
+      ];
+    case "business_manufacturing_industry":
+      return [
+        "Manajer Pabrik & Industrial Process Engineering Lead",
+        "Quality Control Lead Pengolahan Hasil Perkebunan & Minyak Sawit (CPO)",
+        "Analis Efisiensi Biaya Operasional Manufaktur & OEE Pabrik",
+        "Spesialis Standard Operating Procedure (SOP) & K3 Pabrik",
+        "Koordinator Logistik Rantai Pasok TBS & Pengapalan CPO",
       ];
     case "business_aquaculture_agri":
       return [
@@ -245,6 +277,14 @@ function getDomainRoles(
         "Fasilitator Pemahaman Konsep Teori & Analogi Aliran Listrik",
         "Petugas Keselamatan Kerja Laboratorium & Pencegahan Korsleting",
         "Pengembang Modul Pembelajaran Visual & Lembar Kerja Siswa",
+      ];
+    case "education_practical_experiment":
+      return [
+        "Instruktur Pembimbing Praktikum Kejuruan (SMK / Vokasi)",
+        "Spesialis Prosedur Sterilisasi & Keselamatan Kerja Laboratorium (K3)",
+        "Fasilitator Observasi Lapangan & Analisis Hasil Eksperimen Mandiri",
+        "Pengembang Modul Praktikum Terpadu & Lembar Kerja Siswa",
+        "Desainer Evaluasi Pemahaman Praktik & Refleksi Sains",
       ];
     case "education_biology_photosynthesis":
     case "education_generic":
@@ -301,6 +341,55 @@ function getContextAndAssumptions(
         ],
       };
 
+    case "software_iot_telemetry":
+      return {
+        contextParameters: {
+          "Nama Sistem": "[SISTEM TELEMETRI SENSOR IOT & SATELIT REAL-TIME]",
+          "Platform Target": "Cloud Time-Series Database & Ingestion Engine Berlatensi Rendah",
+          "Komponen Kunci": "DeviceNode, SensorTelemetry, TelemetryAlert, TelemetryLog",
+          "Protokol Transmisi": "MQTT / gRPC / WebSockets dengan Verifikasi Checksum Aman",
+          "Mekanisme Peringatan": "Deteksi Ambang Batas Anomali Kritis & Notifikasi Darurat",
+          "Tech Stack": "TypeScript Strict, InfluxDB / TimescaleDB, Next.js Dashboard, Node.js Stream",
+        },
+        smartAssumptions: [
+          "FAKTA PASTI: Pengguna meminta perancangan arsitektur sistem IoT / telemetri sensor untuk pemantauan parameter real-time.",
+          "ASUMSI CERDAS: Perangkat node terhubung melalui protokol ringan berdaya rendah dengan enkripsi end-to-end.",
+          "KEPUTUSAN TERBUKA: Interval pengiriman paket data sensor dikalibrasi antara frekuensi tinggi (sub-detik) atau periodik hemat daya.",
+        ],
+      };
+
+    case "software_medical_clinic":
+      return {
+        contextParameters: {
+          "Nama Sistem": "[SISTEM MANAJEMEN KLINIK & REKAM MEDIS ELEKTRONIK]",
+          "Platform Target": "Web Healthcare Portal Responsif Berstandar Privasi Tinggi",
+          "Komponen Kunci": "Pasien, Dokter, JanjiKonsultasi, RekamMedis, ResepObat",
+          "Standar Kepatuhan": "Kerahasiaan Medis Pasien, Audit Akses Catatan Medis, ICD-10 Coding",
+          "Tech Stack": "Next.js App Router, Strict TypeScript, PostgreSQL, Role-Based Access Control",
+        },
+        smartAssumptions: [
+          "FAKTA PASTI: Pengguna meminta sistem informasi rekam medis digital klinik dengan pencatatan terstruktur dan resep obat.",
+          "ASUMSI CERDAS: Hak akses rekam medis dibatasi ketat hanya untuk dokter pemeriksa dan petugas terotorisasi.",
+          "KEPUTUSAN TERBUKA: Integrasi bridging klaim asuransi kesehatan atau sistem rujukan dievaluasi pada fase lanjutan.",
+        ],
+      };
+
+    case "software_personal_portfolio":
+      return {
+        contextParameters: {
+          "Nama Proyek": "[WEBSITE PORTOFOLIO PROFESIONAL NEUMORPHISM]",
+          "Tema Desain": "Premium Neumorphism / Soft UI (Raised, Inset, Level 0-3 Shadows)",
+          "Komponen Kunci": "ProfilPengembang, KeahlianTeknis, KatalogProyek, PesanKontakMasuk",
+          "Platform Target": "Desktop, Tablet, dan Mobile Responsif",
+          "Tech Stack": "Next.js App Router, TypeScript Strict, Tailwind CSS, SQLite WAL",
+        },
+        smartAssumptions: [
+          "FAKTA PASTI: Pengguna meminta perancangan website portofolio profesional dengan estetika neumorphism yang responsif.",
+          "ASUMSI CERDAS: Fitur inti mencakup showcase proyek interaktif, profil keahlian, formulir kontak anti-spam, dan navigasi multi-viewport.",
+          "KEPUTUSAN TERBUKA: Metode pengiriman pesan kontak dapat dikonfigurasi melalui Telegram Bot Webhook atau penyedia SMTP.",
+        ],
+      };
+
     case "software_ecommerce_store":
     case "software_generic": {
       const lower = prompt.toLowerCase();
@@ -342,6 +431,22 @@ function getContextAndAssumptions(
         ],
       };
     }
+
+    case "business_manufacturing_industry":
+      return {
+        contextParameters: {
+          "Komoditas Industri": "[PABRIK PENGOLAHAN KELAPA SAWIT (TBS MENJADI CPO)]",
+          "Kapasitas Olah": "Unit Pengolahan Tandan Buah Segar (TBS) Berstandar Industri",
+          "Tahapan Utama": "PenerimaanBahanBaku, SterilisasiUapPanas, PengepresanEkstraksi, PemurnianKlarifikasi, QualityControlLab, PenyimpananTangkiCPO",
+          "Parameter Mutu": "Kadar Asam Lemak Bebas (ALB) < 3.5%, Kadar Air < 0.15%, Kadar Kotoran < 0.02%",
+          "Standar Kepatuhan": "SOP Sanitasi Pabrik, Kalibrasi Mesin Tekanan Uap, Protokol K3 Industri",
+        },
+        smartAssumptions: [
+          "FAKTA PASTI: Pengguna meminta perancangan SOP dan timeline operasional pengolahan kelapa sawit menjadi CPO berkualitas tinggi.",
+          "ASUMSI CERDAS: Suhu rebusan sterilizer dan tekanan mesin screw press beroperasi stabil sesuai kapasitas terpasang.",
+          "KEPUTUSAN TERBUKA: Pemanfaatan limbah padat (tandan kosong dan cangkang) sebagai bahan bakar boiler dioptimalkan secara bertahap.",
+        ],
+      };
 
     case "business_aquaculture_agri":
       return {
@@ -389,6 +494,21 @@ function getContextAndAssumptions(
           "FAKTA PASTI: Materi menjelaskan cara kerja rangkaian listrik seri dan paralel beserta panduan praktikum baterai dan bohlam.",
           "ASUMSI CERDAS: Siswa menggunakan sumber arus searah (DC) bertegangan rendah aman (1.5V - 9V) di bawah pengawasan instruktur.",
           "KEPUTUSAN TERBUKA: Komparasi hasil terang redupnya lampu bohlam dibuktikan secara kuantitatif melalui pembacaan multimeter.",
+        ],
+      };
+
+    case "education_practical_experiment":
+      return {
+        contextParameters: {
+          "Topik Pembelajaran": "Panduan Praktikum Kejuruan & Eksperimen Siswa (SOP & Observasi)",
+          "Tingkat Pendidikan": "Siswa Sekolah Menengah Kejuruan (SMK / Vokasi)",
+          "Fokus Pelaksanaan": "PersiapanAlatMedia, PerlakuanPraktikum, ObservasiBerkala, EvaluasiFaktorKesalahan, KompilasiDataHasil",
+          "Standar Kepatuhan": "Protokol K3 Laboratorium Sekolah, Sanitasi Sterilisasi, Lembar Observasi Terverifikasi",
+        },
+        smartAssumptions: [
+          "FAKTA PASTI: Pembelajaran mencakup prosedur praktikum langsung, sterilisasi alat/media, observasi harian, dan evaluasi hasil.",
+          "ASUMSI CERDAS: Siswa melakukan pengujian mandiri di bawah bimbingan instruktur dengan protokol keselamatan terstandar.",
+          "KEPUTUSAN TERBUKA: Pemilihan media pertumbuhan atau bahan uji disesuaikan dengan ketersediaan fasilitas laboratorium sekolah.",
         ],
       };
 
@@ -470,6 +590,66 @@ function getPrimaryObjectives(
         "6. Gas Optimization: Penggunaan struktur data hemat storage dan pengelompokan variabel (storage packing) yang efisien.",
         "7. Emergency Stop: Memiliki mekanisme pause darurat multi-sig yang dapat menghentikan deposit saat anomali terdeteksi.",
         "8. 100% Branch Test Coverage: Seluruh skenario batas (boundary conditions, early penalty, zero balance) teruji oleh automated suite.",
+      ];
+
+    case "software_iot_telemetry":
+      return [
+        "1. High-Throughput Stream Ingestion: Mampu menyerap ribuan stream metrik sensor telemetri per detik dengan latensi minimal.",
+        "2. Strict Integrity Checksum: Memvalidasi keabsahan paket data sensor sebelum disimpan ke tabel time-series.",
+        "3. Anomaly & Incident Detection: Memiliki filter pendeteksi lonjakan ambang batas ekstrem yang dapat memicu sinyal peringatan darurat seketika.",
+        "4. Partitioned Time-Series Storage: Penyimpanan data metrik terpartisi per rentang waktu guna menjamin query analitik tetap kilat.",
+        "5. Offline Buffering Resiliency: Menjamin perangkat IoT/satelit memiliki buffer penyimpanan lokal saat koneksi terputus.",
+        "6. Granular Device Registry: Mencatat status operasional, tipe sensor, dan riwayat kesehatan node perangkat secara real-time.",
+        "7. Transport Layer Security: Mengamankan komunikasi data sensor menggunakan enkripsi TLS/mTLS standar industri.",
+        "8. Automated Audit Logging: Mencatat anomali, eror transmisi, dan kejadian kritis ke dalam log audit permanen.",
+      ];
+
+    case "software_medical_clinic":
+      return [
+        "1. Confidential Patient Data Privacy: Menjaga kerahasiaan riwayat medis pasien dengan enkripsi data sensitif (at-rest & in-transit).",
+        "2. Seamless Clinical Workflow: Alur pendaftaran, triase awal, penanganan dokter, dan verifikasi apotek terhubung tanpa redundansi.",
+        "3. Standardized Diagnosis Coding: Mengintegrasikan koding penyakit standar ICD-10 untuk akurasi pencatatan rekam medis.",
+        "4. Safe Prescription Engine: Sistem peringatan dosis obat dan kontraindikasi otomatis saat dokter menerbitkan resep.",
+        "5. Strict Role-Based Access Control (RBAC): Hak akses rekam medis dipisahkan secara ketat antara dokter, perawat, dan staf kasir.",
+        "6. Immutable Medical Audit Trail: Setiap pembacaan, pembuatan, atau pembaruan rekam medis dicatat permanen dalam log audit.",
+        "7. Instant Queue Synchronization: Antrean poli dokter terbarukan secara otomatis secara real-time.",
+        "8. Reliable Clinical Data Backup: Cadangan data rekam medis terenkripsi otomatis harian dengan skenario pemulihan bencana.",
+      ];
+
+    case "software_personal_portfolio":
+      return [
+        "1. Tactile Neumorphic Visuals: Menampilkan estetika modern Neumorphism dengan bayangan terukur dan hierarki visual yang elegan.",
+        "2. Interactive Project Showcase: Memudahkan calon klien atau perekrut mengeksplorasi portofolio proyek berdasarkan kategori keahlian.",
+        "3. Spam-Proof Contact Form: Formulir kontak terlindungi dari bot spam menggunakan Turnstile atau honeypot tanpa merusak UX pengunjung.",
+        "4. Blazing Fast Page Load: Memenuhi standar Core Web Vitals dengan performa loading instan (LCP < 1.2 detik).",
+        "5. Full Responsive Multi-Device: Tampilan tetap proporsional dan responsif dari layar smartphone hingga monitor desktop 4K.",
+        "6. High Accessibility (WCAG 2.2 AA): Kontras warna teks dan elemen navigasi ramah bagi semua pengguna termasuk disabilitas visual.",
+        "7. Instant Lead Notification: Pesan kontak yang masuk segera diteruskan ke notifikasi email atau Telegram pengembang secara real-time.",
+        "8. Production Clean Code: Dibangun menggunakan TypeScript modular tanpa library berat yang memperlambat rendering.",
+      ];
+
+    case "business_manufacturing_industry":
+      return [
+        "1. Zero Fake Industrial Metrics: Target rendemen CPO, kapasitas olah TBS, dan konsumsi energi dihitung berdasarkan formula teknik pabrik nyata.",
+        "2. Optimal Quality Control: Kadar Asam Lemak Bebas (ALB) dijaga di bawah ambang batas standar mutu ekspor (< 5.0%).",
+        "3. Minimasi Kehilangan Minyak (Oil Loss): Menekan kehilangan minyak pada ampas press dan air buangan kondensat serendah mungkin.",
+        "4. Strict Maintenance Schedule: Kalibrasi mesin rebusan sterilizer, thresher, dan screw press secara disiplin sesuai jadwal Gantt Chart.",
+        "5. Continuous Temperature Control: Menjaga kestabilan suhu tangki timbun CPO pada rentang 45-55°C guna mencegah pengendapan asam stearat.",
+        "6. Zero Liquid Waste Leakage: Kolam pengolahan limbah cair (IPAL) dikelola ketat agar memenuhi baku mutu lingkungan hidup.",
+        "7. Keselamatan Kerja Pabrik (K3): Menegakkan standar keselamatan kerja operasional alat berat dan boiler uap bertekanan tinggi.",
+        "8. Akurasi Penimbangan & Logistik: Mencegah selisih tonase antara jembatan timbang penerimaan TBS dan tangki pengapalan komersial.",
+      ];
+
+    case "education_practical_experiment":
+      return [
+        "1. Kepatuhan K3 Laboratorium: Seluruh tahapan praktikum menjamin keamanan fisik siswa dan bebas dari bahan kimia berbahaya tak terkontrol.",
+        "2. Prosedur Ilmiah Terstandar: Modul memberikan panduan langkah demi langkah mulai dari persiapan media, inokulasi, hingga pengamatan.",
+        "3. Pembuktian Empiris Teramati: Siswa dapat mengukur dan mendokumentasikan fenomena pertumbuhan atau reaksi secara kuantitatif.",
+        "4. Lembar Observasi Mandiri: Format tabel pengamatan harian dirancang ringkas, mudah diisi, dan memicu ketelitian siswa.",
+        "5. Analisis Faktor Kegagalan: Siswa diajak berpikir kritis menganalisis penyebab jika terjadi kontaminasi atau anomali pada sampel praktikum.",
+        "6. Kerja Sama & Kolaborasi: Panduan mendukung pembagian peran yang adil dan kolaboratif antar anggota kelompok belajar.",
+        "7. Penguatan Pemahaman Konsep: Mengaitkan data hasil eksperimen nyata dengan teori sains mendasar dalam buku pelajaran kejuruan.",
+        "8. Standar Penyusunan Laporan Ilmiah: Membiasakan siswa menyusun laporan berformat baku yang siap dipresentasikan di depan kelas.",
       ];
 
     case "business_aquaculture_agri":
@@ -754,6 +934,262 @@ function getExecutionPhases(
         },
       ];
 
+    case "software_iot_telemetry":
+      return [
+        {
+          phaseNumber: 0,
+          name: "IoT Telemetry Architecture & Ingestion Design",
+          tasks: [
+            "Analisis spesifikasi hardware node, frekuensi sampling sensor, dan kapasitas throughput jaringan.",
+            "Definisikan protokol komunikasi (MQTT/gRPC) dan aturan deteksi ambang batas anomali kritis.",
+            "Petakan model registrasi perangkat DeviceNode dan penanganan latency buffering.",
+          ],
+          deliverables: ["IOT_ARCHITECTURE.md", "TELEMETRY_SPEC.md", "BANDWIDTH_BUDGET.xlsx"],
+        },
+        {
+          phaseNumber: 1,
+          name: "Data Model & Schema Engineering",
+          tasks: [
+            "Rancang skema database time-series: DeviceNode, SensorTelemetry, TelemetryAlert, dan TelemetryLog sesuai diagram ERD.",
+            "Terapkan retensi data otomatis dan partisi time-bucket untuk efisiensi query analitik.",
+            "Implementasikan alur validasi sinyal: SinyalSensor, ValidasiIntegritas, DeteksiAmbangBatas, PenyimpananTimeSeries, KirimPeringatanAlert sesuai diagram Flowchart.",
+          ],
+          deliverables: ["TIMESERIES_SCHEMA.sql", "DEVICE_REGISTRY.json", "ALERT_RULES.yaml"],
+        },
+        {
+          phaseNumber: 2,
+          name: "Ingestion Engine & Anomaly Detection Pipeline",
+          tasks: [
+            "Bangun stream ingestion pipeline berlatensi rendah dengan decoding paket binary/JSON.",
+            "Terapkan algoritma deteksi lonjakan ekstrem dan filter noise sensor.",
+            "Integrasikan sistem antrean pesan aman untuk dispatch notifikasi darurat.",
+          ],
+          deliverables: ["INGESTION_SERVICE.ts", "ANOMALY_DETECTOR.ts", "ALERT_DISPATCHER.ts"],
+        },
+        {
+          phaseNumber: 3,
+          name: "Dashboard & Real-time Visualization",
+          tasks: [
+            "Kembangkan dashboard visual pemantauan status node dan grafik metrik sensor real-time.",
+            "Terapkan WebSockets untuk streaming metrik tanpa polling berlebihan.",
+            "Sediakan panel administrasi manajemen perangkat dan threshold tuning.",
+          ],
+          deliverables: ["DASHBOARD_UI/", "WEBSOCKET_STREAM.ts", "ALERT_PANEL.tsx"],
+        },
+        {
+          phaseNumber: 4,
+          name: "Simulation, Stress Testing & Hardware-in-the-Loop",
+          tasks: [
+            "Jalankan simulasi 10.000 paket sensor per detik untuk menguji ketahanan antrean sistem.",
+            "Simulasikan kegagalan jaringan dan verifikasi mekanisme offline buffering lokal.",
+            "Uji responsivitas pengiriman sinyal peringatan bahaya di bawah beban puncak.",
+          ],
+          deliverables: ["LOAD_TEST_REPORT.json", "FAILOVER_LOG.md", "BENCHMARK_CHART.png"],
+        },
+        {
+          phaseNumber: 5,
+          name: "Deployment, Fleet Provisioning & Monitoring",
+          tasks: [
+            "Deploy layanan ingest ke cluster cloud dan konfigurasikan certificate TLS untuk tiap node.",
+            "Siapkan alerting dashboard untuk tim operasional dan runbook penanganan insiden.",
+            "Dokumentasikan panduan integrasi firmware sensor untuk teknisi lapangan.",
+          ],
+          deliverables: ["DEPLOYMENT_CONFIG.yaml", "FIELD_MANUAL.pdf", "OPERATIONAL_RUNBOOK.md"],
+        },
+      ];
+
+    case "software_medical_clinic":
+      return [
+        {
+          phaseNumber: 0,
+          name: "Healthcare Workflow & Compliance Scoping",
+          tasks: [
+            "Analisis alur perjalanan pasien, triase perawat, tindakan dokter, dan verifikasi apotek.",
+            "Petakan kepatuhan privasi data medis (Kerahasiaan Rekam Medis) dan standar audit logging.",
+            "Definisikan standarisasi koding diagnosis menggunakan referensi ICD-10.",
+          ],
+          deliverables: ["CLINICAL_WORKFLOW.md", "COMPLIANCE_CHECKLIST.md", "DATA_GOVERNANCE.pdf"],
+        },
+        {
+          phaseNumber: 1,
+          name: "Medical Relational Schema & Access Control",
+          tasks: [
+            "Rancang skema database rekam medis: Pasien, Dokter, JanjiKonsultasi, RekamMedis, ResepObat sesuai diagram ERD.",
+            "Terapkan enkripsi kolom sensitif (data identitas dan riwayat medis pasien).",
+            "Petakan alur kerja klinis: RegistrasiPasien, TriasePemeriksaanAwal, KonsultasiTindakanDokter, PencatatanRekamMedis, VerifikasiResepApotek sesuai diagram Flowchart.",
+          ],
+          deliverables: ["HEALTHCARE_SCHEMA.prisma", "SECURITY_ROLES.yaml", "MIGRATION_PLAN.md"],
+        },
+        {
+          phaseNumber: 2,
+          name: "Clinical Portal & EMR Management Development",
+          tasks: [
+            "Implementasikan modul registrasi pasien dan antrean poli dokter interaktif.",
+            "Bangun antarmuka lembar rekam medis elektronik (EMR) yang intuitif dan cepat diinput dokter.",
+            "Sediakan modul e-prescribing dengan validasi dosis otomatis untuk apoteker.",
+          ],
+          deliverables: ["EMR_INTERFACES/", "PRESCRIPTION_ENGINE.ts", "QUEUE_MANAGER.tsx"],
+        },
+        {
+          phaseNumber: 3,
+          name: "Security Auditing & Audit Trail Implementation",
+          tasks: [
+            "Implementasikan immutable audit log untuk setiap pembacaan dan pengeditan riwayat pasien.",
+            "Lakukan pengujian penetrasi terhadap otorisasi peran (pencegahan eskalasi hak akses).",
+            "Verifikasi kepatuhan masa retensi rekam medis digital sesuai regulasi pelayanan kesehatan.",
+          ],
+          deliverables: ["AUDIT_TRAIL.ts", "PENETRATION_TEST_REPORT.md", "RBAC_TESTS.ts"],
+        },
+        {
+          phaseNumber: 4,
+          name: "Clinical User Testing & Training Simulation",
+          tasks: [
+            "Jalankan uji coba simulasi alur pasien bersama staf administrasi, perawat, dan dokter.",
+            "Optimalkan kecepatan respons antarmuka pada skenario antrean ramai.",
+            "Susun panduan ringkas operasional (SOP Digital) untuk staf klinik.",
+          ],
+          deliverables: ["UAT_REPORT.md", "USER_MANUAL.pdf", "QUICK_START_CARD.png"],
+        },
+        {
+          phaseNumber: 5,
+          name: "Production Go-Live & Disaster Recovery Setup",
+          tasks: [
+            "Deploy aplikasi ke cloud berstandar keamanan data medis dengan backup harian otomatis.",
+            "Siapkan konfigurasi disaster recovery dan prosedur ekspor data darurat terenkripsi.",
+            "Pantau log transaksi hari pertama untuk memastikan zero downtime pelayanan pasien.",
+          ],
+          deliverables: ["RUNBOOK_OPS.md", "BACKUP_VERIFICATION.json", "GO_LIVE_SIGNOFF.pdf"],
+        },
+      ];
+
+    case "software_personal_portfolio":
+      return [
+        {
+          phaseNumber: 0,
+          name: "Branding, Content Strategy & Information Architecture",
+          tasks: [
+            "Identifikasi positioning profesional, keahlian utama, dan kurasi showcase proyek unggulan.",
+            "Susun struktur sitemap navigasi dan wireframe responsif (mobile-first).",
+            "Definisikan tone of voice dan narasi portofolio yang berbobot kredibel.",
+          ],
+          deliverables: ["CONTENT_OUTLINE.md", "SITEMAP.md", "WIREFRAMES.fig"],
+        },
+        {
+          phaseNumber: 1,
+          name: "Portfolio Data Model & Interaction Flow",
+          tasks: [
+            "Rancang skema relasional: ProfilPengembang, KeahlianTeknis, KatalogProyek, dan PesanKontakMasuk sesuai diagram ERD.",
+            "Petakan alur navigasi pengunjung: EksplorasiShowcase, FilterKategoriProyek, FormulirKontak, ValidasiAntiSpam, PengirimanNotifikasi sesuai diagram Flowchart.",
+            "Siapkan database lokal SQLite WAL untuk performa akses kilat.",
+          ],
+          deliverables: ["PORTFOLIO_SCHEMA.prisma", "SEED_DATA.json", "INTERACTION_FLOW.md"],
+        },
+        {
+          phaseNumber: 2,
+          name: "Neumorphic Design System & Component Library",
+          tasks: [
+            "Terapkan palet warna Neumorphism soft-shadow dan micro-interactions tactile.",
+            "Bangun komponen kartu proyek elevated, badge keahlian inset, dan modal detail interaktif.",
+            "Jamin aksesibilitas kontras teks sesuai standar WCAG 2.2 AA.",
+          ],
+          deliverables: ["DESIGN_SYSTEM.md", "tailwind.config.ts", "UI_COMPONENTS/"],
+        },
+        {
+          phaseNumber: 3,
+          name: "Frontend Development & Contact Security",
+          tasks: [
+            "Implementasikan halaman showcase proyek dengan filter kategori dinamis tanpa reload.",
+            "Bangun formulir kontak aman yang dilengkapi proteksi Turnstile / honeypot anti-spam.",
+            "Integrasikan webhook dispatch pengiriman notifikasi instan saat ada pesan baru.",
+          ],
+          deliverables: ["APP_PAGES/", "CONTACT_API.ts", "SPAM_SHIELD.ts"],
+        },
+        {
+          phaseNumber: 4,
+          name: "Performance Tuning, SEO & Cross-Device QA",
+          tasks: [
+            "Optimalkan Core Web Vitals (LCP < 1.2s, CLS = 0, FID < 100ms) dan kompresi aset gambar.",
+            "Terapkan OpenGraph tags, JSON-LD schema, dan sitemap XML untuk optimasi SEO.",
+            "Uji tampilan pada resolusi smartphone, tablet, laptop, dan monitor ultrawide.",
+          ],
+          deliverables: ["LIGHTHOUSE_REPORT.json", "SEO_TAGS.html", "RESPONSIVE_QA.md"],
+        },
+        {
+          phaseNumber: 5,
+          name: "Vercel / VPS Deployment & Analytics",
+          tasks: [
+            "Deploy ke platform hosting edge dengan SSL otomatis dan CDN global.",
+            "Konfigurasikan custom domain DNS dan monitoring uptime.",
+            "Finalisasi dokumentasi perawatan dan prosedur penambahan proyek baru.",
+          ],
+          deliverables: ["DEPLOYMENT_INFO.md", "DNS_RECORDS.txt", "MAINTENANCE_GUIDE.md"],
+        },
+      ];
+
+    case "business_manufacturing_industry":
+      return [
+        {
+          phaseNumber: 0,
+          name: "Perencanaan Kapasitas Pabrik & Studi Kelayakan Bahan Baku",
+          tasks: [
+            "Analisis kapasitas olah pabrik per jam dan proyeksi pasokan Tandan Buah Segar (TBS).",
+            "Susun estimasi biaya operasional pabrik, bahan bakar boiler, dan target rendemen CPO.",
+            "Definisikan parameter standar mutu CPO komersial (Kadar ALB, Air, dan Kotoran).",
+          ],
+          deliverables: ["STUDI_KELAYAKAN_PABRIK.xlsx", "TARGET_RENDEMEN_CPO.pdf", "RENCANA_BIAYA_OLAH.xlsx"],
+        },
+        {
+          phaseNumber: 1,
+          name: "Penerimaan TBS & Kalibrasi Mesin Pra-Proses",
+          tasks: [
+            "Laksanakan PenerimaanBahanBaku: penimbangan tonase truk dan sortasi mutu fraksi kematangan buah.",
+            "Lakukan KalibrasiMesinPabrik: uji tekanan sterilizer uap dan putaran mesin thresher pemipil.",
+            "Pastikan sistem logistik stasiun penerimaan berjalan tanpa penumpukan buah mentah.",
+          ],
+          deliverables: ["SOP_PENERIMAAN_TBS.md", "LOGBOOK_TIMBANGAN.csv", "CHECKLIST_KALIBRASI_MESIN.md"],
+        },
+        {
+          phaseNumber: 2,
+          name: "Sterilisasi Uap & Ekstraksi Screw Press",
+          tasks: [
+            "Jalankan SterilisasiUapPanas: rebusan uap bertekanan untuk menghentikan kenaikan asam lemak bebas.",
+            "Eksekusi PengepresanEkstraksi: perasan mekanik screw press memisahkan minyak kasar dari serabut serat.",
+            "Monitor temperatur rebusan dan tekanan hidrolik secara kontinyu.",
+          ],
+          deliverables: ["LOGBOOK_STERILIZER.csv", "SOP_SCREW_PRESS.md", "LAPORAN_PRESSURE_UAP.xlsx"],
+        },
+        {
+          phaseNumber: 3,
+          name: "Klarifikasi, Pemurnian & Quality Control Lab",
+          tasks: [
+            "Lakukan PemurnianKlarifikasi: pemisahan lumpur pasir via sand trap dan centrifuge separator.",
+            "Laksanakan QualityControlLab: pengambilan sampel harian untuk uji kadar Asam Lemak Bebas (ALB) dan kadar air.",
+            "Lakukan penyulingan ulang jika mutu belum memenuhi standar ekspor.",
+          ],
+          deliverables: ["LOGBOOK_KLARIFIKASI.csv", "SERTIFIKAT_UJI_LAB_MUTU.pdf", "GRAFIK_KADAR_ALB.png"],
+        },
+        {
+          phaseNumber: 4,
+          name: "Penyimpanan Tangki Komersial & Manajemen Suhu",
+          tasks: [
+            "Jalankan PenyimpananTangkiCPO: transfer minyak murni ke tangki timbun berkapasitas besar.",
+            "Jaga suhu tangki stabil pada rentang 45-55 derajat Celcius guna mencegah pembekuan asam stearat.",
+            "Lakukan kalibrasi berkala volume tangki menggunakan metode sounding tera bersertifikasi.",
+          ],
+          deliverables: ["LOG_SUHU_TANGKI_TIMBUN.xlsx", "SURAT_TERA_TANGKI.pdf", "SOP_STORAGE_CPO.md"],
+        },
+        {
+          phaseNumber: 5,
+          name: "Pengapalan, Distribusi & Penyerahan Komersial",
+          tasks: [
+            "Eksekusi pemompaan CPO ke truk tangki / kapal tongkang pengangkut.",
+            "Terbitkan Berita Acara Serah Terima, nota timbangan, dan sertifikat mutu pengapalan.",
+            "Hitung rendemen riil olah pabrik dan evaluasi efisiensi biaya produksi harian.",
+          ],
+          deliverables: ["BERITA_ACARA_PENGAPALAN.pdf", "REKAPITULASI_RENDEMEN_CPO.xlsx", "NOTA_PENJUALAN_CPO.pdf"],
+        },
+      ];
+
     case "business_aquaculture_agri":
       return [
         {
@@ -1007,6 +1443,70 @@ function getExecutionPhases(
             "Ajak siswa merefleksikan pentingnya menjaga kelestarian pohon hijau sebagai produsen oksigen dunia.",
           ],
           deliverables: ["KUIS_EVALUASI_SISWA.pdf", "KUNCI_JAWABAN_DAN_PEMBAHASAN.pdf"],
+        },
+      ];
+
+    case "education_practical_experiment":
+      return [
+        {
+          phaseNumber: 0,
+          name: "Rancangan Instruksional & Keselamatan Laboratorium",
+          tasks: [
+            "Rumuskan capaian kompetensi praktikum dan panduan observasi mandiri siswa berbasis PrinsipBiologiIlmiah.",
+            "Susun analisis potensi bahaya dan ProtokolKeselamatanLab terstandar (K3 Lab).",
+            "Siapkan lembar kerja praktikum MetodeObservasiParameter terstruktur dan KuisRefleksiSains pemahaman.",
+          ],
+          deliverables: ["SILABUS_PRAKTIKUM.pdf", "SOP_K3_LABORATORIUM.md", "LEMBAR_KERJA_SISWA.docx"],
+        },
+        {
+          phaseNumber: 1,
+          name: "Persiapan Alat Media & Sterilisasi Prosedural",
+          tasks: [
+            "Laksanakan PersiapanAlatMedia: penyiapan wadah, bahan baku/nutrisi, dan media pengujian.",
+            "Lakukan sterilisasi instrumen kerja (autoclave / perebusan / sanitasi alkohol) sesuai SOP.",
+            "Periksa kesiapan meja kerja dan pastikan seluruh perlengkapan pelindung diri (jas lab, sarung tangan) terpakai.",
+          ],
+          deliverables: ["CHECKLIST_ALAT_BAHAN.md", "SOP_STERILISASI.md", "FOTO_PERSIAPAN_LAB.png"],
+        },
+        {
+          phaseNumber: 2,
+          name: "Pelaksanaan Perlakuan & Inokulasi Sampel",
+          tasks: [
+            "Jalankan PerlakuanPraktikum: pemberian variabel perlakuan dan inokulasi bahan secara aseptis.",
+            "Berikan label penanda identitas (tanggal, kelompok, jenis perlakuan) pada setiap wadah sampel.",
+            "Tempatkan wadah sampel pada lingkungan terkontrol (suhu, aerasi, pencahayaan) sesuai instruksi modul.",
+          ],
+          deliverables: ["LOGBOOK_INOKULASI.csv", "FOTO_SAMPEL_LABEL.png", "KARTU_MONITORING.docx"],
+        },
+        {
+          phaseNumber: 3,
+          name: "Observasi Berkala & Pencatatan Data Parameter",
+          tasks: [
+            "Laksanakan ObservasiBerkala: pengukuran harian terhadap pertumbuhan, perubahan fisik, atau parameter metrik.",
+            "Catat temuan anomali atau kontaminasi pada lembar observasi siswa.",
+            "Dokumentasikan perkembangan visual menggunakan foto berkala sebagai bukti empiris.",
+          ],
+          deliverables: ["LOGBOOK_OBSERVASI_HARIAN.xlsx", "DOKUMENTASI_VISUAL/", "CATATAN_KONTAMINASI.md"],
+        },
+        {
+          phaseNumber: 4,
+          name: "Evaluasi Faktor Kesalahan & Analisis Komparatif",
+          tasks: [
+            "Laksanakan EvaluasiFaktorKesalahan: identifikasi penyebab jika sampel tidak tumbuh atau terkontaminasi.",
+            "Bandingkan hasil antar perlakuan (misal kontrol vs variasi perlakuan).",
+            "Diskusikan korelasi data empiris dengan teori ilmiah dalam kelompok belajar.",
+          ],
+          deliverables: ["LEMBAR_EVALUASI_HASIL.docx", "GRAFIK_KOMPARASI.png", "TABEL_ANALISIS_ERROR.xlsx"],
+        },
+        {
+          phaseNumber: 5,
+          name: "Kompilasi Data Hasil & Penyusunan Laporan Praktikum",
+          tasks: [
+            "Lakukan KompilasiDataHasil: penarikan kesimpulan ilmiah berdasarkan data nyata pengamatan siswa.",
+            "Susun laporan praktikum lengkap berformat standar (Pendahuluan, Metode, Hasil, Pembahasan, Kesimpulan).",
+            "Presentasikan temuan eksperimen di depan kelas dan ikuti kuis evaluasi pemahaman.",
+          ],
+          deliverables: ["LAPORAN_PRAKTIKUM_FINAL.pdf", "SLIDE_PRESENTASI_KELOMPOK.pptx", "LEMBAR_NILAI_SISWA.pdf"],
         },
       ];
 
