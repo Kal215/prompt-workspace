@@ -2,6 +2,7 @@ import {
   DiagramSpecification,
   ExecutionPhase,
 } from "@prompt-workspace/prompt-contracts";
+import { validateMermaidSyntaxDeep } from "./diagram-synthesizer";
 
 export interface ConsistencyAuditReport {
   isConsistent: boolean;
@@ -15,45 +16,17 @@ export interface ConsistencyAuditReport {
 }
 
 /**
- * Memvalidasi apakah kode Mermaid memiliki sintaks deklarasi header yang valid
+ * Memvalidasi apakah kode Mermaid memiliki sintaks deklarasi header dan struktur kurung yang valid
  */
 export function validateMermaidSyntaxHeader(code: string): {
   valid: boolean;
   error?: string;
 } {
-  const trimmed = code.trim();
-  const validHeaders = ["erDiagram", "flowchart", "graph", "gantt", "mindmap", "classDiagram", "sequenceDiagram"];
-
-  const firstLine = trimmed.split("\n")[0].trim();
-  const hasValidHeader = validHeaders.some((header) => firstLine.startsWith(header));
-
-  if (!hasValidHeader) {
-    return {
-      valid: false,
-      error: `Header diagram Mermaid tidak valid atau tidak dikenali: '${firstLine}'. Wajib diawali salah satu: ${validHeaders.join(", ")}`,
-    };
-  }
-
-  // Cek keseimbangan kurung kurawal/siku dasar
-  // Pada erDiagram, kardinalitas relasi seperti ||--o{ atau }|--|| menggunakan karakter kurung kurawal
-  let sanitizedForBraceCheck = trimmed;
-  if (firstLine.startsWith("erDiagram")) {
-    sanitizedForBraceCheck = trimmed
-      .split("\n")
-      .filter((line) => !line.includes("--") && !line.includes(".."))
-      .join("\n");
-  }
-
-  const openBraces = (sanitizedForBraceCheck.match(/\{/g) || []).length;
-  const closeBraces = (sanitizedForBraceCheck.match(/\}/g) || []).length;
-  if (openBraces !== closeBraces) {
-    return {
-      valid: false,
-      error: `Ketidakseimbangan kurung kurawal '{' (${openBraces}) vs '}' (${closeBraces}) pada diagram Mermaid.`,
-    };
-  }
-
-  return { valid: true };
+  const result = validateMermaidSyntaxDeep(code);
+  return {
+    valid: result.valid,
+    error: result.errors.length > 0 ? result.errors.join("; ") : undefined,
+  };
 }
 
 /**

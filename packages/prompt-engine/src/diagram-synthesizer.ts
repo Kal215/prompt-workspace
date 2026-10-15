@@ -271,6 +271,167 @@ export function detectDomainSubtopic(
 }
 
 /**
+ * Sanitasi string mentah menjadi Node ID Mermaid yang valid (alfanumerik + underscore)
+ */
+export function sanitizeMermaidNodeId(raw: string): string {
+  if (!raw || typeof raw !== "string") return "Node_Entity";
+  let cleaned = raw
+    .trim()
+    .replace(/[^a-zA-Z0-9_]/g, " ")
+    .trim();
+  cleaned = cleaned
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+  if (!cleaned || !/^[a-zA-Z_]/.test(cleaned)) {
+    cleaned = `Node_${cleaned || "Entity"}`;
+  }
+  return cleaned;
+}
+
+/**
+ * Sanitasi label teks agar tidak merusak parser diagram Mermaid dan ramah visual
+ */
+export function sanitizeMermaidLabel(raw: string, maxLength = 45): string {
+  if (!raw || typeof raw !== "string") return "";
+  let cleaned = raw
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/["“”]/g, "'") // ganti kutip ganda ke kutip tunggal aman
+    .replace(/[[\]]/g, "") // hapus kurung siku agar tidak merusak kontainer [Label]
+    .replace(/[;]/g, " -") // ubah titik koma jadi tanda strip
+    .replace(/[|]/g, "/") // ubah pipe agar tidak merusak sintaks relasi |label|
+    .replace(/[{}]/g, "") // hapus kurung kurawal
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (maxLength && cleaned.length > maxLength) {
+    cleaned = cleaned.slice(0, maxLength - 3).trim() + "...";
+  }
+  return cleaned;
+}
+
+/**
+ * Validasi sintaks mendalam untuk memastikan diagram Mermaid aman dari kesalahan render
+ */
+export function validateMermaidSyntaxDeep(mermaidCode: string): {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  nodeCount: number;
+} {
+  const trimmed = mermaidCode.trim();
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const validHeaders = [
+    "erDiagram",
+    "flowchart",
+    "graph",
+    "gantt",
+    "mindmap",
+    "classDiagram",
+    "sequenceDiagram",
+    "stateDiagram",
+    "pie",
+  ];
+
+  const firstLine = trimmed.split("\n")[0].trim();
+  const hasValidHeader = validHeaders.some((h) => firstLine.startsWith(h));
+
+  if (!hasValidHeader) {
+    errors.push(
+      `Header Mermaid tidak valid: '${firstLine}'. Wajib diawali salah satu: ${validHeaders.join(", ")}`
+    );
+  }
+
+  // Cek keseimbangan kurung kurawal, siku, dan kurung biasa pada flowchart & mindmap
+  if (!firstLine.startsWith("erDiagram")) {
+    const openBraces = (trimmed.match(/\{/g) || []).length;
+    const closeBraces = (trimmed.match(/\}/g) || []).length;
+    if (openBraces !== closeBraces) {
+      errors.push(`Kurung kurawal '{' (${openBraces}) vs '}' (${closeBraces}) tidak seimbang.`);
+    }
+
+    const openBrackets = (trimmed.match(/\[/g) || []).length;
+    const closeBrackets = (trimmed.match(/\]/g) || []).length;
+    if (openBrackets !== closeBrackets) {
+      errors.push(`Kurung siku '[' (${openBrackets}) vs ']' (${closeBrackets}) tidak seimbang.`);
+    }
+
+    const openParens = (trimmed.match(/\(/g) || []).length;
+    const closeParens = (trimmed.match(/\)/g) || []).length;
+    if (openParens !== closeParens) {
+      errors.push(`Kurung biasa '(' (${openParens}) vs ')' (${closeParens}) tidak seimbang.`);
+    }
+  }
+
+  // Hitung perkiraan node untuk layout guard
+  const nodeMatches = trimmed.match(/^\s*([a-zA-Z0-9_]+)(\[|\(|\{|\()|^\s*([a-zA-Z0-9_]+)\s*-->/gm);
+  const nodeCount = nodeMatches ? new Set(nodeMatches.map((m) => m.trim().split(/[\s[(\{]/)[0])).size : 0;
+
+  if (nodeCount > 15) {
+    warnings.push(`Diagram memuat ${nodeCount} node. Disarankan <= 12 node agar visual tidak bertumpuk di layar kecil.`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    nodeCount,
+  };
+}
+
+/**
+ * Menerapkan Layout Guard & Sanitasi otomatis pada seluruh spesifikasi diagram
+ */
+export function applyMermaidLayoutGuard(
+  spec: DiagramSpecification,
+  options?: { maxLabelLength?: number; maxNodes?: number }
+): DiagramSpecification {
+  const maxLabelLength = options?.maxLabelLength ?? 45;
+
+  let cleanedCode = spec.mermaidCode;
+
+  if (spec.type === "flowchart" || spec.type === "mindmap") {
+    // 1. Netralkan seluruh double quote menjadi single quote agar sintaks Mermaid aman
+    cleanedCode = cleanedCode.replace(/["“”]/g, "'");
+
+    cleanedCode = cleanedCode
+      .split("\n")
+      .map((line) => {
+        // Guard ([...])
+        line = line.replace(
+          /(\b[a-zA-Z0-9_]+\b)\(\[\s*(.*?)\s*\]\)/g,
+          (_, id, lbl) => `${id}([${sanitizeMermaidLabel(lbl, maxLabelLength)}])`
+        );
+        // Guard [...]
+        line = line.replace(
+          /(\b[a-zA-Z0-9_]+\b)\[\s*(.*?)\s*\]/g,
+          (_, id, lbl) => `${id}[${sanitizeMermaidLabel(lbl, maxLabelLength)}]`
+        );
+        // Guard {...}
+        line = line.replace(
+          /(\b[a-zA-Z0-9_]+\b)\{\s*(.*?)\s*\}/g,
+          (_, id, lbl) => `${id}{${sanitizeMermaidLabel(lbl, maxLabelLength)}}`
+        );
+        // Guard relation label |---> or |label|
+        line = line.replace(/\|([^|]+)\|/g, (_, lbl) => `|${sanitizeMermaidLabel(lbl, 30)}|`);
+        return line;
+      })
+      .join("\n");
+  }
+
+  // Sanitasi entitas list
+  const sanitizedEntities = spec.entities.map((e) => sanitizeMermaidNodeId(e));
+
+  return {
+    ...spec,
+    mermaidCode: cleanedCode,
+    entities: sanitizedEntities,
+  };
+}
+
+/**
  * Menghasilkan spesifikasi diagram Mermaid.js polimorfik yang selaras dengan domain & subtopik pengguna
  */
 export function synthesizeUniversalDiagrams(
@@ -279,18 +440,27 @@ export function synthesizeUniversalDiagrams(
   const category = classifyUniversalDomain(input.domain, input.primaryGoal);
   const subtopic = detectDomainSubtopic(category, input.primaryGoal);
 
+  let rawDiagrams: DiagramSpecification[];
   switch (category) {
     case "education":
-      return synthesizeEducationDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeEducationDiagrams(subtopic, input.primaryGoal);
+      break;
     case "business":
-      return synthesizeBusinessDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeBusinessDiagrams(subtopic, input.primaryGoal);
+      break;
     case "software":
-      return synthesizeSoftwareDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeSoftwareDiagrams(subtopic, input.primaryGoal);
+      break;
     case "research":
-      return synthesizeResearchDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeResearchDiagrams(subtopic, input.primaryGoal);
+      break;
     case "academic":
-      return synthesizeAcademicDiagrams(subtopic, input.primaryGoal);
+      rawDiagrams = synthesizeAcademicDiagrams(subtopic, input.primaryGoal);
+      break;
   }
+
+  // Amankan seluruh diagram melalui Layout Guard & Sanitasi Karakter
+  return rawDiagrams.map((spec) => applyMermaidLayoutGuard(spec));
 }
 
 // -------------------------------------------------------------
