@@ -1,0 +1,116 @@
+[
+  {
+    "id": "MPS-001",
+    "name": "Software Engineering dengan Larangan Kritis (Toko Kue Tanpa POS)",
+    "prompt": "Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.",
+    "context": null,
+    "taskType": null,
+    "expectedArchetype": "software_engineering",
+    "expectedNegativeConstraints": [
+      "POS"
+    ],
+    "expectedLogicalTension": true,
+    "criticalChecks": [
+      "Katalog dan pengelolaan produk toko kue",
+      "Pencatatan dan pemantauan stok barang",
+      "Penyusunan laporan penjualan terstruktur",
+      "Pemisahan omzet kotor vs laba keuntungan",
+      "Larangan tegas POS / alur kasir",
+      "Tahap pertama inspeksi proyek aktual",
+      "Skenario pengujian perilaku",
+      "Deliverables fungsional",
+      "Definition of Done"
+    ]
+  },
+  {
+    "id": "MPS-002",
+    "name": "Debugging & Root Cause Investigation (Bug Login)",
+    "prompt": "Perbaiki bug login yang kadang gagal.",
+    "context": null,
+    "taskType": null,
+    "expectedArchetype": "debugging_investigation",
+    "expectedNegativeConstraints": [
+      "tanpa bukti"
+    ],
+    "expectedLogicalTension": false,
+    "criticalChecks": [
+      "Pemeriksaan alur autentikasi dan log",
+      "Reproduksi masalah dan isolasi pemicu",
+      "Larangan menebak akar masalah tanpa bukti",
+      "Perbaikan terarah minimal",
+      "Pengujian regresi"
+    ]
+  },
+  {
+    "id": "MPS-003",
+    "name": "Riset & Perbandingan Teknis (Database Aplikasi Kecil)",
+    "prompt": "Bandingkan beberapa database yang cocok untuk aplikasi kecil.",
+    "context": null,
+    "taskType": null,
+    "expectedArchetype": "research_comparison",
+    "expectedNegativeConstraints": [
+      "benchmark palsu"
+    ],
+    "expectedLogicalTension": false,
+    "criticalChecks": [
+      "Kriteria perbandingan terstruktur",
+      "Analisis trade-off per kandidat",
+      "Pemisahan fakta vs asumsi",
+      "Larangan mengarang benchmark atau harga palsu",
+      "Matriks rekomendasi skenario kebutuhan"
+    ]
+  },
+  {
+    "id": "MPS-004",
+    "name": "Pendidikan & Pembelajaran (Dasar Machine Learning)",
+    "prompt": "Ajari saya dasar machine learning dari nol.",
+    "context": null,
+    "taskType": null,
+    "expectedArchetype": "education_curriculum",
+    "expectedNegativeConstraints": [],
+    "expectedLogicalTension": false,
+    "criticalChecks": [
+      "Tujuan pembelajaran dan pemetaan tingkat awal",
+      "Peta urutan materi bertahap",
+      "Penjelasan konsep dengan analogi dan contoh konkret",
+      "Latihan praktis terbimbing",
+      "Checkpoints pemahaman dan evaluasi diri"
+    ]
+  },
+  {
+    "id": "MPS-005",
+    "name": "Analisis Data & Pola Faktual (Data Penjualan)",
+    "prompt": "Analisis data penjualan ini dan cari pola yang menarik.",
+    "context": null,
+    "taskType": null,
+    "expectedArchetype": "data_analysis",
+    "expectedNegativeConstraints": [
+      "kausalitas tanpa bukti"
+    ],
+    "expectedLogicalTension": false,
+    "criticalChecks": [
+      "Pemeriksaan kualitas dan skema kolom data",
+      "Metode eksplorasi dan agregasi statistik",
+      "Identifikasi pola berbasis data nyata",
+      "Larangan mengubah korelasi menjadi sebab-akibat tanpa bukti",
+      "Penyajian temuan dan keterbatasan data"
+    ]
+  },
+  {
+    "id": "MPS-006",
+    "name": "Desain UI/UX (Dashboard Manajemen Proyek)",
+    "prompt": "Buat dashboard modern untuk aplikasi manajemen proyek.",
+    "context": null,
+    "taskType": null,
+    "expectedArchetype": "ui_ux_design",
+    "expectedNegativeConstraints": [],
+    "expectedLogicalTension": false,
+    "criticalChecks": [
+      "Penerjemahan konsep modern menjadi kriteria terukur",
+      "Hierarki visual dan tata letak modular",
+      "Spesifikasi komponen dan interaksi",
+      "Penanganan keadaan sistem (empty, loading, error)",
+      "Responsivitas dan aksesibilitas"
+    ]
+  }
+]

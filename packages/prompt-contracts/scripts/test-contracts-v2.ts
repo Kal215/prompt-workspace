@@ -230,4 +230,85 @@ const v1Request = PromptOptimizationRequestSchema.parse({
 assert.strictEqual(v1Request.prompt, "Help me write a test");
 console.log("✅ v1.0 PromptOptimizationRequestSchema remains 100% functional.");
 
+// 8. Mega Task #44: Master Prompt Synthesis Contracts
+console.log("\n[8] Testing TaskSpecificationMapSchema & MasterPromptValidationResultSchema...");
+import {
+  TaskArchetypeEnum,
+  TaskComplexityEnum,
+  OpenDecisionStrategyEnum,
+  TaskSpecificationMapSchema,
+  MasterPromptValidationResultSchema,
+  PromptAnalysisSchema,
+  PromptOptimizationResultSchema,
+} from "../src/index.js";
+
+const sampleTaskSpec = TaskSpecificationMapSchema.parse({
+  primaryGoal: "Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.",
+  detectedArchetype: "software_engineering",
+  complexity: "complex",
+  explicitRequirements: ["Katalog produk", "Manajemen stok", "Laporan penjualan"],
+  negativeConstraints: ["Jangan buat POS"],
+  operationalExpansions: ["Validasi stok negatif", "Audit log mutasi", "Pemisahan omzet vs laba"],
+  logicalTensions: [
+    {
+      tension: "Laporan penjualan butuh sumber data tetapi POS dilarang",
+      resolutionStrategy: "Pencatatan penjualan langsung sederhana tanpa kasir POS",
+    },
+  ],
+  openDecisions: [
+    {
+      topic: "Framework Web",
+      handlingStrategy: "inspect_existing_project",
+      guidance: "Gunakan framework yang ada di repo",
+    },
+  ],
+  requiredDeliverables: ["Source code", "Schema DB", "Test suite"],
+  verificationScenarios: ["Stok berkurang saat terjual", "Pencegahan stok negatif"],
+  definitionOfDone: ["Semua test pass", "Zero deceptive certainty"],
+});
+assert.strictEqual(sampleTaskSpec.detectedArchetype, "software_engineering");
+assert.strictEqual(sampleTaskSpec.negativeConstraints[0], "Jangan buat POS");
+
+const sampleValidation = MasterPromptValidationResultSchema.parse({
+  passed: true,
+  overallSynthesisScore: 95,
+  checks: {
+    intentPreserved: true,
+    explicitRequirementsCovered: true,
+    negativeConstraintsEnforced: true,
+    notShallowRewrite: true,
+    notPlaceholderDumping: true,
+    hasOperationalStages: true,
+    hasVerificationAndDoD: true,
+    noDeceptiveTechFabrication: true,
+  },
+  missingRequirements: [],
+  violatedNegativeConstraints: [],
+  failureReasons: [],
+  repairPassesTriggered: 0,
+});
+assert.strictEqual(sampleValidation.passed, true);
+assert.strictEqual(sampleValidation.overallSynthesisScore, 95);
+
+// Test additive optional fields on PromptAnalysisSchema & PromptOptimizationResultSchema
+const analysisWithSpec = PromptAnalysisSchema.parse({
+  findings: [],
+  score: 90,
+  taskSpec: sampleTaskSpec,
+});
+assert.strictEqual(analysisWithSpec.taskSpec?.detectedArchetype, "software_engineering");
+
+const resultWithValidation = PromptOptimizationResultSchema.parse({
+  requestId: "req-synth-001",
+  originalPrompt: "Buat website toko kue...",
+  detectedIntent: "Website toko kue...",
+  analysis: analysisWithSpec,
+  optimizedPrompt: "MASTER PROMPT...",
+  changes: ["Ekspansi operasional"],
+  warnings: [],
+  synthesisValidation: sampleValidation,
+});
+assert.strictEqual(resultWithValidation.synthesisValidation?.passed, true);
+console.log("✅ Mega Task #44 TaskSpec & SynthesisValidation contracts verified 100%.");
+
 console.log("\n🎉 ALL PROMPT CONTRACTS v2.0 TESTS PASSED (EXIT CODE 0)");

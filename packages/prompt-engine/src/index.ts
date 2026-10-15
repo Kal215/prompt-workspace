@@ -4,17 +4,27 @@ import {
   PromptOptimizationResult,
   PromptOptimizationResultSchema,
   ProviderId,
+  TaskSpecificationMap,
+  MasterPromptValidationResult,
 } from "@prompt-workspace/prompt-contracts";
 import {
   GroqAdapter,
   LLMProviderAdapter,
   createProviderAdapter,
 } from "@prompt-workspace/provider-adapters";
-import { getDomainPack, DomainRulePack } from "@prompt-workspace/domain-rules";
+import {
+  getDomainPack,
+  DomainRulePack,
+  detectTaskArchetypeAndDomain,
+  getSynthesisBlueprint,
+} from "@prompt-workspace/domain-rules";
 import { analyzePrompt, AnalyzePromptResult } from "./analyzer.js";
 import { optimizePrompt, OptimizePromptResult } from "./optimizer.js";
 import { evaluateOptimization, EvaluateOptimizationResult } from "./evaluator.js";
 import { safeLogger } from "./logger.js";
+import { extractTaskSpecification } from "./task-extractor.js";
+import { validateMasterPromptSynthesis } from "./validator.js";
+import { synthesizeMasterPrompt } from "./master-synthesizer.js";
 import {
   EngineError,
   ProviderRateLimitError,
@@ -32,6 +42,9 @@ export * from "./logger.js";
 export * from "./errors.js";
 export * from "./playground.js";
 export * from "./closed-loop.js";
+export * from "./validator.js";
+export * from "./task-extractor.js";
+export * from "./master-synthesizer.js";
 
 /**
  * Orchestrator Pipeline: Menjalankan pipeline lengkap analisis dan optimasi prompt.
@@ -81,8 +94,14 @@ export async function runOptimizationPipeline(
   const resolvedAdapter: LLMProviderAdapter =
     adapter || createProviderAdapter({ providerId, targetModel });
 
-  // Resolusi Domain Rule Pack berdasarkan taskType
-  const domainPack: DomainRulePack = getDomainPack(validatedRequest.taskType);
+  // Resolusi route, Domain Rule Pack & Blueprint
+  const route = detectTaskArchetypeAndDomain(
+    validatedRequest.prompt,
+    validatedRequest.context,
+    validatedRequest.taskType
+  );
+  const domainPack: DomainRulePack = getDomainPack(route.domainId);
+  const blueprint = getSynthesisBlueprint(route.archetype);
 
   // 2. Tahap Analisis
   const analysisResult: AnalyzePromptResult = await analyzePrompt(
@@ -92,16 +111,62 @@ export async function runOptimizationPipeline(
     domainPack
   );
 
-  // 3. Tahap Optimasi (Intent Preservation)
-  const optimizationResult: OptimizePromptResult = await optimizePrompt(
+  const taskSpec: TaskSpecificationMap =
+    analysisResult.taskSpec ||
+    extractTaskSpecification(validatedRequest.prompt, validatedRequest.context, route);
+
+  // 3. Tahap Optimasi (Master Prompt Synthesis)
+  let optimizationResult: OptimizePromptResult = await optimizePrompt(
     validatedRequest.prompt,
     analysisResult.findings,
     validatedRequest.constraints || [],
     resolvedAdapter,
-    domainPack
+    domainPack,
+    taskSpec,
+    blueprint
   );
 
-  // 4. Tahap Evaluasi LLM-as-a-Judge (Opsional jika expectedBehavior diberikan)
+  // 4. Validasi Deterministik & Bounded Self-Repair Loop (Mega Task #44)
+  let validationResult: MasterPromptValidationResult = validateMasterPromptSynthesis(
+    validatedRequest.prompt,
+    optimizationResult.optimizedPrompt,
+    taskSpec,
+    0
+  );
+
+  if (!validationResult.passed) {
+    safeLogger.warn("Validasi Master Prompt kandidat tidak lulus, mengeksekusi 1x Bounded Repair Pass", {
+      failureReasons: validationResult.failureReasons,
+      missingRequirements: validationResult.missingRequirements,
+      violatedNegativeConstraints: validationResult.violatedNegativeConstraints,
+    });
+
+    const repaired = synthesizeMasterPrompt(
+      validatedRequest.prompt,
+      taskSpec,
+      blueprint,
+      analysisResult.findings
+    );
+
+    optimizationResult = {
+      ...optimizationResult,
+      optimizedPrompt: repaired.masterPrompt,
+      changes: [
+        ...optimizationResult.changes,
+        "Perbaikan mandiri (Self-Repair Pass): Menyelaraskan struktur tahapan operasional dan penegakan batasan larangan mutlak",
+      ],
+      warnings: [...optimizationResult.warnings, ...repaired.warnings],
+    };
+
+    validationResult = validateMasterPromptSynthesis(
+      validatedRequest.prompt,
+      optimizationResult.optimizedPrompt,
+      taskSpec,
+      1
+    );
+  }
+
+  // 5. Tahap Evaluasi LLM-as-a-Judge (Opsional jika expectedBehavior diberikan)
   let evaluationResult: EvaluateOptimizationResult | undefined;
   if (options?.expectedBehavior) {
     evaluationResult = await evaluateOptimization(
@@ -115,7 +180,7 @@ export async function runOptimizationPipeline(
 
   const processingTimeMs = Date.now() - startTime;
 
-  // 5. Kalkulasi Telemetry Akurat
+  // 6. Kalkulasi Telemetry Akurat
   const analyzerLatency = analysisResult.telemetry?.latencyMs || 0;
   const optimizerLatency = optimizationResult.telemetry?.latencyMs || 0;
   const evaluatorLatency = evaluationResult?.telemetry?.latencyMs || 0;
@@ -147,7 +212,7 @@ export async function runOptimizationPipeline(
     name: domainPack.name,
   };
 
-  // 6. Susun hasil akhir sesuai PromptOptimizationResultSchema
+  // 7. Susun hasil akhir sesuai PromptOptimizationResultSchema
   const result: PromptOptimizationResult = {
     requestId: validatedRequest.requestId,
     originalPrompt: validatedRequest.prompt,
@@ -156,11 +221,13 @@ export async function runOptimizationPipeline(
       findings: analysisResult.findings,
       score: analysisResult.score,
       status: analysisResult.status,
+      taskSpec,
     },
     optimizedPrompt: optimizationResult.optimizedPrompt,
     changes: optimizationResult.changes,
     warnings: optimizationResult.warnings,
     evaluation: evaluationResult,
+    synthesisValidation: validationResult,
     appliedDomainRule,
     providerId: effectiveProviderId,
     model: modelTarget,
