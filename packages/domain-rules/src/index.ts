@@ -38,3 +38,7 @@ export {
   BUSINESS_STRATEGY_BLUEPRINT,
   GENERAL_OPERATIONAL_BLUEPRINT,
 } from "./synthesis-blueprints.js";
+
+// Universal Meta-Blueprint Rules (v2.3 - Domain Taxonomy, Expert Council, Objectives & Lexicon)
+export * from "./universal/index.js";
+
