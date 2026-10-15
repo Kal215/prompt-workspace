@@ -224,6 +224,38 @@ Selesai di [MASUKKAN_DEFINISI].
 
       if (c.id === "MPS-001") {
         mps001FinalMasterPrompt = res.optimizedPrompt;
+
+        test("MPS-001 Audit Celah #1: Bebas over-prescription (Tanpa JWT, Chart.js, lokasi_gudang)", () => {
+          const lower = res.optimizedPrompt.toLowerCase();
+          assert.strictEqual(lower.includes("jwt"), false, "Tidak boleh memaksakan JWT");
+          assert.strictEqual(lower.includes("chart.js"), false, "Tidak boleh memaksakan Chart.js");
+          assert.strictEqual(lower.includes("lokasi_gudang"), false, "Tidak boleh memaksakan lokasi_gudang");
+        });
+
+        test("MPS-001 Audit Celah #2: Integritas metrik laporan (Omzet vs Keuntungan & HPP)", () => {
+          const lower = res.optimizedPrompt.toLowerCase();
+          assert.ok(lower.includes("omzet") && lower.includes("keuntungan"), "Wajib membedakan omzet vs keuntungan");
+          assert.ok(lower.includes("hpp") || lower.includes("harga pokok"), "Wajib memperingatkan ketiadaan HPP/biaya");
+        });
+
+        test("MPS-001 Audit Celah #3: Konsistensi transaksi & stok gagal di tengah jalan", () => {
+          const lower = res.optimizedPrompt.toLowerCase();
+          assert.ok(lower.includes("gagal di tengah jalan"), "Wajib memperingatkan stok gagal di tengah jalan");
+        });
+
+        test("MPS-001 Audit Celah #4: Larangan mockup/data statis di Deliverables (Tanpa laporan dummy)", () => {
+          const lower = res.optimizedPrompt.toLowerCase();
+          assert.ok(lower.includes("jangan menyajikan mockup atau data statis"), "Wajib melarang mockup statis");
+          assert.strictEqual(lower.includes("yang dihasilkan dari data dummy"), false, "Dilarang meminta laporan dummy");
+        });
+
+        test("MPS-001 Audit Celah #5: 10 skenario perilaku nyata & pelaporan pengujian berbasis toolchain aktual", () => {
+          const lower = res.optimizedPrompt.toLowerCase();
+          assert.ok(lower.includes("10 skenario perilaku") || lower.includes("skenario 10"), "Wajib 10 skenario perilaku nyata");
+          assert.strictEqual(lower.includes("reviewer independen"), false, "Dilarang mensyaratkan reviewer independen");
+          assert.ok(lower.includes("toolchain aktual"), "Wajib instruksikan toolchain aktual");
+        });
+
         const resultsDir = path.resolve(process.cwd(), "test-fixtures/results");
         if (!fs.existsSync(resultsDir)) {
           fs.mkdirSync(resultsDir, { recursive: true });

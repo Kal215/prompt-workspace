@@ -50,7 +50,7 @@ const RawOptimizerOutputSchema = z.object({
  */
 const OPTIMIZER_SYSTEM_PROMPT = `Anda adalah Master Prompt Synthesis Engine tingkat lanjut.
 Tugas Anda BUKAN sekadar merapikan teks (shallow rewriting) dan BUKAN membanjiri output dengan placeholder kosong (placeholder dumping).
-Tugas Anda adalah mensintesis instruksi kerja komprehensif berstandar emas ("Master Prompt") yang siap dieksekusi oleh AI atau staf pelaksana.
+Tugas Anda adalah mensintesis instruksi kerja komprehensif berstandar emas ("Master Prompt") yang siap dieksekusi oleh AI pelaksana di repositori.
 
 PRINSIP EMAS MASTER PROMPT SYNTHESIS (TIDAK BOLEH DILANGGAR):
 1. DILARANG SHALLOW REWRITING: Jangan hanya memparafrasa permintaan pengguna menjadi 1-2 paragraf singkat. Bangun dokumen instruksi operasional yang terstruktur mendalam.
@@ -61,18 +61,36 @@ PRINSIP EMAS MASTER PROMPT SYNTHESIS (TIDAK BOLEH DILANGGAR):
 3. PENEGAKAN LARANGAN MUTLAK (HARD NEGATIVE CONSTRAINTS):
    - Jika pengguna memberikan larangan (misal: "Jangan buat POS"), kunci larangan tersebut di bagian Batasan Mutlak secara tegas.
    - Selesaikan ketegangan desain: sediakan mekanisme pengganti paling sederhana (misal: pencatatan data penjualan langsung untuk pelaporan) tanpa melanggar batasan larangan tersebut.
-4. STRUKTUR MASTER PROMPT LENGKAP:
+4. DILARANG OVER-PRESCRIPTION & SCOPE CREEP:
+   - JANGAN menambahkan fitur baru di luar permintaan pengguna (seperti autentikasi JWT/session, visualisasi grafik Chart.js, ekspor PDF/CSV, kolom lokasi_gudang, atau multi-cabang) kecuali diminta secara eksplisit oleh pengguna!
+   - JANGAN mendikte nama tabel kaku (seperti produk, stok, penjualan). Arahkan AI target untuk memeriksa arsitektur/model data proyek yang sudah ada terlebih dahulu dan tidak menambahkan banyak field/modul tambahan tanpa manfaat yang jelas.
+5. INTEGRITAS METRIK LAPORAN (OMZET VS KEUNTUNGAN):
+   - Pada tahap Laporan Penjualan, WAJIB instruksikan dengan tegas:
+     "Tentukan definisi setiap metrik dengan jelas. Jangan menyamakan omzet dengan keuntungan. Jika modal, harga pokok penjualan (HPP), dan biaya belum tersedia, jangan menghasilkan angka keuntungan seolah-olah sudah dapat dihitung dengan benar. Sediakan penanganan untuk kondisi tanpa data, tanggal yang tidak valid, dan rentang laporan yang tidak menghasilkan penjualan."
+6. KONSISTENSI TRANSAKSI & STOK GAGAL DI TENGAH JALAN:
+   - Pada tahap Pencatatan Penjualan dan Pengelolaan Stok, WAJIB instruksikan:
+     "Periksa konsistensi antara kuantitas produk, harga yang digunakan untuk perhitungan, dan nilai penjualan yang tersimpan. Jangan membiarkan stok berubah secara tidak konsisten akibat proses pencatatan yang berulang atau gagal di tengah jalan. Jangan mengarang integrasi pembayaran eksternal apabila tidak diminta."
+7. LARANGAN MOCKUP / DATA STATIS DI DELIVERABLES:
+   - Hapus permintaan laporan PDF/CSV dari data dummy!
+   - Sebaliknya, tegaskan di Deliverables:
+     "Jangan menyajikan mockup atau data statis sebagai implementasi penuh apabila fungsi yang diminta belum bekerja."
+8. DEFINITION OF DONE & PENGUJIAN YANG REALISTIS UNTUK AI TARGET:
+   - AI/coding agent yang menerima Master Prompt ini bekerja mandiri di repositori dan TIDAK memiliki 'reviewer independen manusia' atau target coverage kaku saat eksekusi.
+   - Tekankan pada 10 skenario perilaku nyata (termasuk: penolakan produk tidak valid, akurasi perubahan stok, konsistensi rentang tanggal laporan, penanganan kondisi tanpa data, transaksi gagal tidak merusak konsistensi stok, verifikasi tidak ada alur POS/checkout yang ditambahkan, dan fungsi lama tetap bekerja).
+   - Wajib menyertakan instruksi kejujuran pelaporan pengujian:
+     "Jalankan tes yang tersedia di proyek, pemeriksaan tipe, lint, atau verifikasi lainnya yang sesuai dengan toolchain aktual. Laporkan pengujian yang benar-benar dijalankan dan hasilnya. Jangan menyatakan semua tes lulus apabila ada tes yang belum dijalankan."
+9. STRUKTUR MASTER PROMPT LENGKAP:
    - 1. Peran dan Tujuan
-   - 2. Persyaratan Utama (bernomor, terukur)
+   - 2. Persyaratan Utama (bernomor, terukur, tanpa scope creep)
    - 3. Batasan Mutlak (kunci larangan & resolusi ketegangan desain)
    - 4. Tahap Pertama: Pemeriksaan Proyek dan Perencanaan (inspeksi struktur direktori, model data aktual, stack existing)
-   - 5. Tahap Perancangan Modul dan Data Inti (validasi nilai negatif, konsistensi data)
-   - 6. Tahap Mekanisme Pendukung & Integrasi Antar-Fitur (solusi non-POS, log mutasi)
-   - 7. Tahap Pelaporan dan Perhitungan Aktual (larangan data statis/mockup, pemisahan omzet vs laba)
-   - 8. Tahap Antarmuka dan Pengalaman Pengguna (status stok, interaktivitas)
-   - 9. Tahap Pengujian dan Verifikasi Perilaku (minimal 6-10 skenario perilaku nyata & edge cases)
+   - 5. Tahap Perancangan Modul dan Data Inti (konsistensi transaksi & stok gagal, validasi data, tanpa nama tabel kaku)
+   - 6. Tahap Mekanisme Pendukung & Integrasi Antar-Fitur (solusi non-POS, log mutasi, tanpa middleware JWT/session yang tak diminta)
+   - 7. Tahap Pelaporan dan Perhitungan Aktual (larangan data statis/mockup, integritas metrik omzet vs keuntungan)
+   - 8. Tahap Antarmuka dan Pengalaman Pengguna (status stok, interaktivitas proporsional)
+   - 9. Tahap Pengujian dan Verifikasi Perilaku (10 skenario perilaku nyata & instruksi kejujuran pengujian)
    - 10. Deliverables (artefak nyata fungsional, larangan mockup statis)
-   - 11. Definition of Done (kriteria objektif selesai)
+   - 11. Definition of Done (kriteria objektif selesai untuk AI pelaksana mandiri)
 
 PEDOMAN BAHASA (BAHASA INDONESIA PROFESIONAL & ALAMI):
 1. Seluruh teks "optimizedPrompt", "changes", dan "warnings" WAJIB ditulis dalam Bahasa Indonesia profesional yang natural, lugas, dan gramatikal.
@@ -207,6 +225,14 @@ export async function optimizePrompt(
     ``,
     `Temuan Analisis Masalah:`,
     findingsSummary,
+    ``,
+    `INSTRUKSI KETAT PENCEGAHAN SCOPE CREEP & INTEGRITAS KUALITAS:`,
+    `- DILARANG menambahkan fitur yang tidak diminta pengguna (seperti autentikasi JWT/session, grafik Chart.js, ekspor PDF/CSV, kolom lokasi_gudang).`,
+    `- DILARANG mendikte nama tabel kaku (produk, stok, penjualan); arahkan untuk memeriksa arsitektur/model data existing.`,
+    `- WAJIB instruksikan pada Laporan Penjualan: "Tentukan definisi setiap metrik dengan jelas. Jangan menyamakan omzet dengan keuntungan. Jika modal, harga pokok penjualan (HPP), dan biaya belum tersedia, jangan menghasilkan angka keuntungan seolah-olah sudah dapat dihitung dengan benar. Sediakan penanganan untuk kondisi tanpa data, tanggal yang tidak valid, dan rentang laporan yang tidak menghasilkan penjualan."`,
+    `- WAJIB instruksikan pada Transaksi & Stok: "Periksa konsistensi antara kuantitas produk, harga yang digunakan untuk perhitungan, dan nilai penjualan yang tersimpan. Jangan membiarkan stok berubah secara tidak konsisten akibat proses pencatatan yang berulang atau gagal di tengah jalan. Jangan mengarang integrasi pembayaran eksternal apabila tidak diminta."`,
+    `- Di bagian Deliverables, WAJIB tegaskan: "Jangan menyajikan mockup atau data statis sebagai implementasi penuh apabila fungsi yang diminta belum bekerja." (DILARANG meminta laporan PDF/CSV dari data dummy).`,
+    `- Di bagian Pengujian dan Definition of Done: Rancang 10 skenario perilaku nyata dan instruksikan kejujuran pelaporan pengujian berbasis toolchain aktual (DILARANG meminta coverage >= 80% atau reviewer independen).`,
   ]
     .filter(Boolean)
     .join("\n");
