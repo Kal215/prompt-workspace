@@ -29,6 +29,8 @@ export interface SpiderRunnerOptions {
   runMode?: "SINGLE" | "COMPARE";
   maxCases?: number;
   customTestCases?: SpiderTestCase[];
+  budgetMode?: "eco" | "balanced" | "deep_audit";
+  criticalOnly?: boolean;
 }
 
 /**
@@ -55,6 +57,8 @@ export async function runPromptSpider(
   let concurrencyLimit = 2;
   let customTestCases: SpiderTestCase[] | undefined;
   let maxCases = 5;
+  let budgetMode: "eco" | "balanced" | "deep_audit" = "balanced";
+  let criticalOnly = false;
 
   if (typeof requestOrPrompt === "object" && requestOrPrompt !== null) {
     // Mode signature resmi: request: SpiderRequest & { promptContent: string }
@@ -69,20 +73,32 @@ export async function runPromptSpider(
     rubricVersion = opts.rubricVersion || DEFAULT_RUBRIC_VERSION;
     customTestCases = opts.customTestCases;
     if (opts.maxCases) maxCases = opts.maxCases;
+    if (opts.budgetMode) budgetMode = opts.budgetMode;
+    if (opts.criticalOnly) criticalOnly = opts.criticalOnly;
   } else {
     // Mode signature overload: (promptText, promptVersionId, adapter, options)
+    // ATAU: (promptText, options)
     promptText = String(requestOrPrompt);
-    promptVersionId = String(optionsOrVersionId || "unknown-version");
-    adapter = adapterArg;
+    let opts: SpiderRunnerOptions = {};
 
-    const opts = legacyOptionsArg || {};
+    if (typeof optionsOrVersionId === "object" && optionsOrVersionId !== null) {
+      opts = optionsOrVersionId as SpiderRunnerOptions;
+      promptVersionId = "unknown-version";
+    } else {
+      promptVersionId = String(optionsOrVersionId || "unknown-version");
+      opts = legacyOptionsArg || {};
+    }
+
     if (opts.adapter) adapter = opts.adapter;
+    if (adapterArg) adapter = adapterArg;
     if (opts.concurrency) concurrencyLimit = opts.concurrency;
     if (opts.concurrencyLimit) concurrencyLimit = opts.concurrencyLimit;
     if (opts.testSuiteVersionId) testSuiteVersion = opts.testSuiteVersionId;
     if (opts.rubricVersion) rubricVersion = opts.rubricVersion;
     if (opts.customTestCases) customTestCases = opts.customTestCases;
     if (opts.maxCases) maxCases = opts.maxCases;
+    if (opts.budgetMode) budgetMode = opts.budgetMode;
+    if (opts.criticalOnly) criticalOnly = opts.criticalOnly;
   }
 
   // Jika adapter tidak disediakan, gunakan mock adapter default untuk ketahanan sistem
@@ -101,10 +117,16 @@ export async function runPromptSpider(
 
   const runId = `spider-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   const concurrency = Math.max(1, Math.min(concurrencyLimit, 4));
-  const boundedMaxCases = Math.min(maxCases, 5);
 
-  const testCasesPool =
+  let testCasesPool =
     customTestCases || getSpiderTestSuite(testSuiteVersion, promptText);
+
+  // Pada mode 'eco' atau criticalOnly, eksekusi hanya cabang ber-severity CRITICAL (menghemat >60% token)
+  if (budgetMode === "eco" || criticalOnly) {
+    testCasesPool = testCasesPool.filter((tc) => tc.severity === "CRITICAL");
+  }
+
+  const boundedMaxCases = Math.min(maxCases, testCasesPool.length);
   const selectedTestCases = testCasesPool.slice(0, boundedMaxCases);
 
   const semaphore = new AsyncSemaphore(concurrency);

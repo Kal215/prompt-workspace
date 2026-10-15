@@ -1,7 +1,20 @@
 import { z } from "zod";
 
+export * from "./task-spec.js";
+import {
+  TokenBudgetModeEnum,
+  SynthesisStylePresetEnum,
+  TaskSpecificationMapSchema,
+  MasterPromptValidationResultSchema,
+  TaskArchetypeEnum,
+  TaskComplexityEnum,
+  OpenDecisionStrategyEnum,
+  OpenDecisionItemSchema,
+  LogicalTensionItemSchema,
+} from "./task-spec.js";
+
 // ──────────────────────────────────────────────
-// Blueprint v1.0 Bagian 4.2 & 11.3 — Multi-Provider Contracts
+// Blueprint v1.0 Bagian 5.2 — Provider ID
 // ──────────────────────────────────────────────
 
 export const ProviderIdEnum = z.enum(["groq", "gemini", "openrouter", "ollama"]);
@@ -51,31 +64,21 @@ export const PromptOptimizationRequestSchema = z.object({
 
   /** Model spesifik yang diminta pengguna (opsional) */
   targetModel: z.string().nullable().optional(),
+
+  /** Mode hemat token (v2.2): eco, balanced, deep_audit */
+  budgetMode: TokenBudgetModeEnum.optional(),
+
+  /** Preset gaya bahasa Master Prompt (v2.2) */
+  stylePreset: SynthesisStylePresetEnum.optional(),
+
+  /** URL referensi untuk grounding crawler (v2.2, maks 2 URL) */
+  referenceUrls: z.array(z.string()).max(2).optional(),
 });
 
 /** TypeScript type yang di-infer dari schema Zod */
 export type PromptOptimizationRequest = z.infer<
   typeof PromptOptimizationRequestSchema
 >;
-
-import {
-  TaskArchetypeEnum,
-  TaskArchetype,
-  TaskComplexityEnum,
-  TaskComplexity,
-  OpenDecisionStrategyEnum,
-  OpenDecisionStrategy,
-  OpenDecisionItemSchema,
-  OpenDecisionItem,
-  LogicalTensionItemSchema,
-  LogicalTensionItem,
-  TaskSpecificationMapSchema,
-  TaskSpecificationMap,
-  MasterPromptValidationResultSchema,
-  MasterPromptValidationResult,
-} from "./task-spec.js";
-
-export * from "./task-spec.js";
 
 // ──────────────────────────────────────────────
 // Blueprint v1.0 Bagian 5.2 — Finding Taxonomy

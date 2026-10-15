@@ -1,48 +1,56 @@
 {
   "requestId": "benchmark-MPS-001",
   "originalPrompt": "Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.",
-  "detectedIntent": "Menganalisis kelemahan prompt yang meminta pembuatan website toko kue dengan fitur stok barang dan laporan penjualan, serta melarang pembuatan POS.",
+  "detectedIntent": "Pengguna meminta pembuatan website toko kue yang mencakup fitur manajemen stok barang dan laporan penjualan, dengan pengecualian pembuatan sistem POS.",
   "analysis": {
     "findings": [
       {
         "category": "Konteks",
-        "severity": "critical",
-        "evidence": "Prompt: \"Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS.\"",
-        "recommendation": "Tentukan secara eksplisit platform (misalnya Node.js, Django, atau Laravel), bahasa pemrograman, serta framework UI/UX yang diinginkan.",
+        "severity": "major",
+        "evidence": "Prompt hanya menyebutkan \"Buat website toko kue\" tanpa menyertakan detail konteks penggunaan.",
+        "recommendation": "Tentukan siapa pengguna akhir (misalnya pelanggan umum atau admin toko), serta platform tempat website akan dijalankan (browser modern, PWA, dll.).",
         "type": "konteks",
-        "message": "Tentukan secara eksplisit platform (misalnya Node.js, Django, atau Laravel), bahasa pemrograman, serta framework UI/UX yang diinginkan."
+        "message": "Tentukan siapa pengguna akhir (misalnya pelanggan umum atau admin toko), serta platform tempat website akan dijalankan (browser modern, PWA, dll.)."
+      },
+      {
+        "category": "Batasan",
+        "severity": "critical",
+        "evidence": "Prompt tidak menyertakan kata kunci seperti \"Node.js\", \"React\", \"Django\", atau sejenisnya.",
+        "recommendation": "Spesifikasikan teknologi yang diinginkan, misalnya \"gunakan Node.js dengan Express dan React\" atau \"pakai Python Django\", serta versi bahasa yang relevan.",
+        "type": "batasan",
+        "message": "Spesifikasikan teknologi yang diinginkan, misalnya \"gunakan Node.js dengan Express dan React\" atau \"pakai Python Django\", serta versi bahasa yang relevan."
       },
       {
         "category": "Batasan",
         "severity": "major",
-        "evidence": "Prompt tidak mencantumkan persyaratan keamanan, API, atau limitasi lain.",
-        "recommendation": "Sertakan batasan seperti jenis database (MySQL, PostgreSQL), mekanisme autentikasi, serta kebijakan CORS atau rate limiting jika diperlukan.",
+        "evidence": "Prompt tidak menyebutkan persyaratan keamanan atau akses API apa pun.",
+        "recommendation": "Jabarkan kebutuhan keamanan seperti login admin, proteksi endpoint API, atau kebijakan CORS jika diperlukan.",
         "type": "batasan",
-        "message": "Sertakan batasan seperti jenis database (MySQL, PostgreSQL), mekanisme autentikasi, serta kebijakan CORS atau rate limiting jika diperlukan."
+        "message": "Jabarkan kebutuhan keamanan seperti login admin, proteksi endpoint API, atau kebijakan CORS jika diperlukan."
       },
       {
         "category": "Keluaran",
         "severity": "major",
-        "evidence": "Prompt tidak menyebutkan apakah output berupa kode sumber, diagram arsitektur, atau file README.",
-        "recommendation": "Jelaskan format output yang diinginkan, contohnya: \"Berikan kode lengkap dalam struktur folder, beserta file README dalam format Markdown.\"",
+        "evidence": "Prompt tidak menyebutkan apakah output berupa file source code, zip project, atau dokumentasi API.",
+        "recommendation": "Tentukan format output yang diinginkan, contohnya \"berikan seluruh source code dalam struktur folder, lengkap dengan README.md\" atau \"output dalam bentuk repository GitHub link\".",
         "type": "keluaran",
-        "message": "Jelaskan format output yang diinginkan, contohnya: \"Berikan kode lengkap dalam struktur folder, beserta file README dalam format Markdown.\""
+        "message": "Tentukan format output yang diinginkan, contohnya \"berikan seluruh source code dalam struktur folder, lengkap dengan README.md\" atau \"output dalam bentuk repository GitHub link\"."
       },
       {
         "category": "Bukti",
-        "severity": "critical",
-        "evidence": "Bagian \"Konteks Tambahan\" berisi \"Tidak ada\".",
-        "recommendation": "Lampirkan contoh skema basis data, contoh entri produk, atau URL referensi desain yang dapat dijadikan acuan.",
+        "severity": "major",
+        "evidence": "Prompt tidak melampirkan contoh tabel stok, contoh laporan penjualan, atau mockup halaman.",
+        "recommendation": "Sertakan contoh struktur tabel (misalnya tabel `produk`, `stok`, `penjualan`) atau wireframe sederhana untuk membantu perancangan.",
         "type": "bukti",
-        "message": "Lampirkan contoh skema basis data, contoh entri produk, atau URL referensi desain yang dapat dijadikan acuan."
+        "message": "Sertakan contoh struktur tabel (misalnya tabel `produk`, `stok`, `penjualan`) atau wireframe sederhana untuk membantu perancangan."
       },
       {
         "category": "Tujuan",
         "severity": "minor",
-        "evidence": "Prompt: \"Buat website toko kue dengan fitur stok barang dan laporan penjualan.\"",
-        "recommendation": "Perjelas ruang lingkup, misalnya \"Buat aplikasi full‑stack dengan UI responsif dan API RESTful untuk manajemen stok dan laporan penjualan.\"",
+        "evidence": "Prompt hanya menyebutkan \"laporan penjualan\" tanpa menjelaskan detail laporan yang diinginkan.",
+        "recommendation": "Rincikan jenis laporan yang dibutuhkan, seperti laporan harian, bulanan, grafik penjualan, atau ekspor CSV.",
         "type": "tujuan",
-        "message": "Perjelas ruang lingkup, misalnya \"Buat aplikasi full‑stack dengan UI responsif dan API RESTful untuk manajemen stok dan laporan penjualan.\""
+        "message": "Rincikan jenis laporan yang dibutuhkan, seperti laporan harian, bulanan, grafik penjualan, atau ekspor CSV."
       }
     ],
     "score": 32,
@@ -118,7 +126,7 @@
   },
   "optimizedPrompt": "# MASTER PROMPT: PENGEMBANGAN SISTEM & APLIKASI PERANGKAT LUNAK\n\n## 1. Peran dan Tujuan\nBertindaklah sebagai Senior Fullstack Software Engineer & Systems Architect.\nTujuan utama: Membangun website toko kue dengan pengelolaan stok barang dan pelaporan penjualan fungsional tanpa sistem POS.\nBangun solusi perangkat lunak yang andal, aman, modular, dan siap digunakan sesuai kebutuhan operasional nyata.\n\n## 2. Persyaratan Utama\n1. **Katalog dan manajemen produk toko kue**: Implementasikan fungsionalitas ini secara menyeluruh, terukur, dan saling terintegrasi.\n2. **Pencatatan dan pemantauan stok barang**: Implementasikan fungsionalitas ini secara menyeluruh, terukur, dan saling terintegrasi.\n3. **Penyusunan laporan penjualan terstruktur**: Implementasikan fungsionalitas ini secara menyeluruh, terukur, dan saling terintegrasi.\n\n## 3. Batasan Mutlak\n1. **Larangan Keras**: Jangan buat POS. Dilarang membangun modul, alur, atau antarmuka kasir/POS yang melanggar batasan ini.\n\n**Resolusi Ketegangan Desain**:\n- Kebutuhan: \"Pengguna membutuhkan laporan penjualan yang akurat, namun secara tegas melarang pembangunan sistem kasir/POS.\"\n  -> Solusi: Sediakan formulir atau mekanisme pencatatan data transaksi penjualan paling sederhana untuk sumber data laporan tanpa membangun modul kasir/checkout/POS.\n\n## 4. Tahap Pertama: Pemeriksaan Proyek dan Perencanaan\n1. **Inspeksi Lingkungan & Repositori Aktual**: Periksa struktur direktori, berkas konfigurasi dependensi (package.json/requirements), model basis data, dan modul yang sudah ada sebelum mulai menulis kode.\n2. **Pemanfaatan Fondasi Existing**: Gunakan arsitektur, pola penamaan, dan library yang sudah tersedia. Dilarang merombak stack teknologi tanpa persetujuan eksplisit.\n3. **Pengelolaan Keputusan Terbuka**:\n   - **Pilihan Framework & Teknologi Web**: Periksa repositori proyek untuk mendeteksi stack/framework yang sudah terpasang. Gunakan fondasi yang ada; jika repositori kosong, pilih stack modern standar dan dokumentasikan alasannya tanpa menambahkan dependensi berlebih. (Strategi: inspect_existing_project)\n   - **Pilihan Skema & Basis Data**: Periksa arsitektur atau skema model data yang sudah ada terlebih dahulu. Jangan mendikte nama tabel kaku atau menambahkan banyak field/modul tambahan tanpa manfaat yang jelas. (Strategi: inspect_existing_project)\n   - **Mekanisme Akses Pengguna**: Dokumentasikan asumsi bahwa pengelolaan stok dan laporan diakses staf internal toko; jangan menambahkan modul autentikasi atau dependensi rumit di luar kebutuhan fungsional yang diminta pengguna. (Strategi: document_assumption)\n\n## 5. Tahap Perancangan Modul dan Data Inti\n1. Definisikan model data atau skema data yang selaras dengan arsitektur proyek existing (arahkan untuk memeriksa arsitektur/model data yang sudah ada terlebih dahulu dan tidak mendikte nama tabel kaku atau menambah field tanpa manfaat yang jelas).\n2. Periksa konsistensi antara kuantitas produk, harga yang digunakan untuk perhitungan, dan nilai penjualan yang tersimpan. Jangan membiarkan stok berubah secara tidak konsisten akibat proses pencatatan yang berulang atau gagal di tengah jalan. Jangan mengarang integrasi pembayaran eksternal apabila tidak diminta.\n3. Terapkan validasi input ketat pada setiap mutasi data (pencegahan nilai negatif, desimal tidak valid, dan karakter terlarang).\n\n## 6. Tahap Mekanisme Pendukung dan Integrasi Antar-Fitur\n1. Sediakan formulir atau mekanisme pencatatan data transaksi penjualan paling sederhana untuk sumber data laporan tanpa membangun modul kasir/checkout/POS.\n2. Sediakan pencatatan jejak audit (audit trail/log) otomatis untuk setiap penambahan atau pengurangan stok barang tanpa membebani sistem dengan modul autentikasi atau dependensi rumit yang tidak diminta pengguna.\n3. Terapkan penanganan error (try-catch, validation errors, error boundaries) yang informatif pada setiap lapisan modul.\n\n## 7. Tahap Pelaporan dan Perhitungan Aktual\n1. Bangun mekanisme pelaporan dinamis berdasarkan agregasi data transaksi aktual.\n2. Tentukan definisi setiap metrik dengan jelas. Jangan menyamakan omzet dengan keuntungan. Jika modal, harga pokok penjualan (HPP), dan biaya belum tersedia, jangan menghasilkan angka keuntungan seolah-olah sudah dapat dihitung dengan benar. Sediakan penanganan untuk kondisi tanpa data, tanggal yang tidak valid, dan rentang laporan yang tidak menghasilkan penjualan.\n3. DILARANG KERAS menggunakan data statis/hardcoded atau angka mockup pada hasil perhitungan laporan.\n4. Sediakan fitur penyaringan berdasarkan rentang tanggal (harian, mingguan, bulanan, kustom) dan penyajian angka yang jelas tanpa memaksakan library grafik atau format ekspor tambahan di luar kebutuhan dasar yang diminta pengguna.\n\n## 8. Tahap Antarmuka dan Pengalaman Pengguna\n1. Rancang antarmuka pengguna yang bersih, responsif, dan mudah dioperasikan di perangkat desktop maupun mobile.\n2. Tampilkan indikator visual yang jelas untuk status stok (stok aman, menipis, habis).\n3. Berikan umpan balik interaktif (loading indicator, konfirmasi tindakan, notifikasi sukses/gagal).\n\n## 9. Tahap Pengujian dan Verifikasi Perilaku\nVerifikasi keandalan sistem dengan menguji 10 skenario perilaku konkret berikut:\n1. Skenario 1: Verifikasi penambahan produk baru dan penolakan produk dengan format input tidak valid\n2. Skenario 2: Verifikasi pencegahan input stok bernilai negatif atau format kuantitas yang korup\n3. Skenario 3: Verifikasi akurasi perubahan stok: stok berkurang tepat sesuai kuantitas saat transaksi penjualan dicatat\n4. Skenario 4: Verifikasi penolakan pencatatan transaksi jika kuantitas penjualan melebihi sisa stok yang tersedia\n5. Skenario 5: Verifikasi ketahanan transaksi: transaksi yang gagal di tengah jalan atau berulang tidak merusak konsistensi stok\n6. Skenario 6: Verifikasi konsistensi rentang tanggal laporan penjualan (filter harian, mingguan, bulanan)\n7. Skenario 7: Verifikasi integritas metrik laporan: pemisahan tegas omzet vs keuntungan tanpa mengarang angka profit jika HPP/biaya tidak tersedia\n8. Skenario 8: Verifikasi penanganan kondisi tanpa data (zero-state / empty-state) pada tabel stok dan halaman laporan\n9. Skenario 9: Verifikasi bahwa batasan mutlak ditaati: tidak ada alur POS, kasir otomatis, atau checkout yang dibangun\n10. Skenario 10: Verifikasi non-regresi: seluruh fungsionalitas aplikasi yang sudah ada sebelumnya tetap bekerja normal\n\n**Petunjuk Pelaporan Pengujian**:\nJalankan tes yang tersedia di proyek, pemeriksaan tipe, lint, atau verifikasi lainnya yang sesuai dengan toolchain aktual. Laporkan pengujian yang benar-benar dijalankan dan hasilnya. Jangan menyatakan semua tes lulus apabila ada tes yang belum dijalankan.\n\n## 10. Deliverables\n1. Source code implementasi modul stok barang dan laporan penjualan lengkap\n2. Definisi model data / skema basis data yang terintegrasi dengan arsitektur proyek\n3. Komponen antarmuka pengguna fungsional (katalog produk, formulir transaksi penjualan sederhana, dan laporan penjualan)\n4. Rangkaian skenario pengujian perilaku terintegrasi\n- Catatan: Jangan menyajikan mockup atau data statis sebagai implementasi penuh apabila fungsi yang diminta belum bekerja.\n\n## 11. Definition of Done\n- [ ] Semua persyaratan fungsional utama (katalog produk, stok barang, dan laporan penjualan) terimplementasi fungsional.\n- [ ] Batasan mutlak larangan POS ditaati 100% tanpa adanya modul kasir atau checkout tersembunyi.\n- [ ] Integritas metrik laporan terjaga: omzet tidak disamakan dengan keuntungan, dan perhitungan bersumber dari data aktual.\n- [ ] Zero token placeholder kosong dan tidak ada fitur liar di luar lingkup permintaan pengguna.\n- [ ] Kejujuran pelaporan pengujian: Jalankan tes yang tersedia di proyek, pemeriksaan tipe, lint, atau verifikasi lainnya yang sesuai dengan toolchain aktual. Laporkan pengujian yang benar-benar dijalankan dan hasilnya. Jangan menyatakan semua tes lulus apabila ada tes yang belum dijalankan.",
   "changes": [
-    "Transformasi arsitektur tugas ke standar Master Prompt Synthesis (Software & Web Engineering Synthesis Blueprint)",
+    "Transformasi arsitektur tugas ke standar Master Prompt Synthesis (Software & Web Engineering Synthesis Blueprint, style: comprehensive_blueprint)",
     "Menetapkan peran profesional, persyaratan terukur, dan batasan operasional mutlak",
     "Menyuntikkan tahapan kerja adaptif (inspeksi fondasi repositori aktual) tanpa deceptive certainty",
     "Menyertakan skenario pengujian perilaku nyata dan kriteria Definition of Done",
@@ -155,12 +163,12 @@
     "modelTarget": "openai/gpt-oss-120b",
     "providerId": "groq",
     "model": "openai/gpt-oss-120b",
-    "processingTimeMs": 9054,
-    "latencyMs": 4252,
+    "processingTimeMs": 7741,
+    "latencyMs": 2762,
     "tokensUsed": {
       "promptTokens": 1128,
-      "completionTokens": 1091,
-      "totalTokens": 2219
+      "completionTokens": 1003,
+      "totalTokens": 2131
     },
     "confidenceScore": 0.95,
     "estimatedTokenSavings": "+24% precision",

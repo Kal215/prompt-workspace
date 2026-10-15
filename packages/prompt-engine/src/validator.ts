@@ -1,10 +1,11 @@
 import {
   MasterPromptValidationResult,
   TaskSpecificationMap,
+  SynthesisStylePreset,
 } from "@prompt-workspace/prompt-contracts";
 
 /**
- * Validator Deterministik untuk Master Prompt Synthesis (Mega Task #44)
+ * Validator Deterministik untuk Master Prompt Synthesis (Mega Task #44 & #48)
  *
  * Memeriksa kualitas struktural, pelestarian intent, penegakan batasan negatif,
  * ketiadaan placeholder dumping, serta keberadaan tahapan operasional dan DoD.
@@ -13,7 +14,8 @@ export function validateMasterPromptSynthesis(
   originalPrompt: string,
   optimizedPrompt: string,
   taskSpec: TaskSpecificationMap,
-  repairPassesTriggered = 0
+  repairPassesTriggered = 0,
+  stylePreset: SynthesisStylePreset = "comprehensive_blueprint"
 ): MasterPromptValidationResult {
   const missingRequirements: string[] = [];
   const violatedNegativeConstraints: string[] = [];
@@ -114,8 +116,16 @@ export function validateMasterPromptSynthesis(
 
   const isComplexOrModerate =
     taskSpec.complexity === "complex" || taskSpec.complexity === "moderate";
-  const minLength = isComplexOrModerate ? 600 : 300;
-  const minHeadings = isComplexOrModerate ? 4 : 2;
+  let minLength = isComplexOrModerate ? 600 : 300;
+  let minHeadings = isComplexOrModerate ? 4 : 2;
+
+  if (stylePreset === "concise_tactical") {
+    minLength = 350;
+    minHeadings = 3;
+  } else if (stylePreset === "conversational_expert") {
+    minLength = 400;
+    minHeadings = 3;
+  }
 
   const notShallowRewrite =
     optimizedPrompt.trim().length >= minLength && headingCount >= minHeadings;

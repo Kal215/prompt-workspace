@@ -1,6 +1,7 @@
 import {
   Finding,
   TaskSpecificationMap,
+  SynthesisStylePreset,
 } from "@prompt-workspace/prompt-contracts";
 import {
   DomainSynthesisBlueprint,
@@ -14,20 +15,237 @@ export interface MasterSynthesisOutput {
 }
 
 /**
- * Generator Deterministik Master Prompt Synthesis (Mega Task #44)
- * Menghasilkan Master Prompt komprehensif berstandar emas sesuai arketipe domain.
+ * Ekstraksi kata kerja tindakan dan subjek kontekstual dari prompt asli
+ * untuk menghasilkan variasi kalimat pembuka yang natural dan tidak seragam.
+ */
+export function extractActionAndSubject(originalPrompt: string): {
+  action: string;
+  subject: string;
+  contextualOpening: string;
+} {
+  const clean = originalPrompt.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, " ").trim();
+  const words = clean.split(/\s+/).filter(Boolean);
+
+  let action = "Pengembangan Sistem";
+  const lower = originalPrompt.toLowerCase();
+  if (lower.includes("investigasi") || lower.includes("debug") || lower.includes("analisis akar") || lower.includes("memory leak")) {
+    action = "Investigasi dan Debugging";
+  } else if (lower.includes("bandingkan") || lower.includes("komparasi") || lower.includes("riset")) {
+    action = "Komparasi dan Evaluasi Riset";
+  } else if (lower.includes("kurikulum") || lower.includes("pembelajaran") || lower.includes("silabus")) {
+    action = "Penyusunan Kurikulum Edukasi";
+  } else if (lower.includes("analisis data") || lower.includes("pola penjualan") || lower.includes("tren")) {
+    action = "Analisis Data dan Pola Faktual";
+  } else if (lower.includes("desain") || lower.includes("antarmuka") || lower.includes("ui/ux")) {
+    action = "Perancangan UI/UX Desain";
+  } else if (lower.includes("buat") || lower.includes("bangun") || lower.includes("kembangkan")) {
+    action = "Pembangunan Sistem";
+  }
+
+  const subjectWords = words.slice(0, 6).join(" ");
+  const subject = subjectWords.length > 5 ? subjectWords : "Solusi Fungsional Terintegrasi";
+
+  const openings = [
+    `Fokus eksekusi pada penugasan ini diarahkan untuk ${action.toLowerCase()} pada ruang lingkup "${subject}".`,
+    `Tugas rekayasa ini memprioritaskan penyelesaian sasaran fungsional terarah terkait "${subject}".`,
+    `Inisiatif operasional ini ditujukan untuk merealisasikan ${action.toLowerCase()} secara presisi pada "${subject}".`,
+  ];
+  const contextualOpening = openings[originalPrompt.length % openings.length];
+
+  return { action, subject, contextualOpening };
+}
+
+/**
+ * Generator Gaya Concise Tactical:
+ * Format ringkas, tajam, langsung ke eksekusi inti (4-5 bagian padat) untuk tugas cepat.
+ */
+function synthesizeConciseTactical(
+  originalPrompt: string,
+  taskSpec: TaskSpecificationMap,
+  blueprint: DomainSynthesisBlueprint
+): string {
+  const { action, subject, contextualOpening } = extractActionAndSubject(originalPrompt);
+
+  const sections: string[] = [
+    `# MASTER PROMPT TAKTIS: ${action.toUpperCase()}`,
+    ``,
+    `## 1. Sasaran & Peran Eksekusi`,
+    `Bertindaklah sebagai Senior Specialist & Systems Architect.`,
+    `${contextualOpening}`,
+    `Tujuan utama: ${taskSpec.primaryGoal}`,
+    ``,
+    `## 2. Persyaratan Kunci & Batasan Mutlak`,
+    `### Persyaratan Fungsional Inti:`,
+    ...taskSpec.explicitRequirements.map(
+      (req, i) => `${i + 1}. **${req}**: Implementasikan secara andal, terukur, dan modular.`
+    ),
+    ``,
+    `### Batasan Larangan Mutlak:`,
+    ...(taskSpec.negativeConstraints.length > 0
+      ? taskSpec.negativeConstraints.map(
+          (nc) =>
+            `- **Larangan Keras**: Dilarang ${
+              nc.toLowerCase().startsWith("jangan") || nc.toLowerCase().startsWith("dilarang")
+                ? nc
+                : `membangun atau menambahkan modul ${nc}`
+            }. Jangan menambah modul kasir/POS yang melanggar batasan ini.`
+        )
+      : [`- Dilarang menambah kompleksitas liar atau dependensi tanpa persetujuan pengguna.`]),
+    ...(taskSpec.logicalTensions.length > 0
+      ? [
+          ``,
+          `### Resolusi Ketegangan Desain:`,
+          ...taskSpec.logicalTensions.map(
+            (lt) => `- Kebutuhan: "${lt.tension}" -> Solusi: ${lt.resolutionStrategy}`
+          ),
+        ]
+      : []),
+    ``,
+    `## 3. Langkah Implementasi Taktis (Tahap Eksekusi)`,
+    `1. **Tahap 1: Inspeksi Fondasi & Repositori Aktual**: Periksa struktur direktori, model data, dan arsitektur yang sudah ada sebelum menulis kode baru. Manfaatkan pola dan library existing tanpa rombakan liar.`,
+    `2. **Tahap 2: Implementasi Modul & Integritas Transaksi**:`,
+    ...(taskSpec.detectedArchetype === "software_engineering"
+      ? [
+          `   - Periksa konsistensi antara kuantitas produk, harga perhitungan, dan pencatatan transaksi. Jangan membiarkan stok berubah tidak konsisten jika proses gagal di tengah jalan.`,
+          `   - Terapkan validasi input ketat dan hindari pengarangan integrasi atau dependensi yang tidak diminta.`,
+        ]
+      : [
+          `   - Bangun modul inti dengan validasi input ketat dan struktur modular yang bersih.`,
+        ]),
+    `3. **Tahap 3: Pelaporan Aktual & Integritas Metrik**:`,
+    ...(taskSpec.explicitRequirements.some((r) => r.toLowerCase().includes("laporan")) ||
+    originalPrompt.toLowerCase().includes("laporan")
+      ? [
+          `   - Tentukan definisi setiap metrik dengan jelas. Jangan menyamakan omzet dengan keuntungan. Jika modal, harga pokok penjualan (HPP), dan biaya belum tersedia, jangan menghasilkan angka keuntungan seolah-olah sudah dapat dihitung dengan benar. Sediakan penanganan untuk kondisi tanpa data.`,
+          `   - DILARANG KERAS menggunakan angka mockup atau data statis.`,
+        ]
+      : [
+          `   - Sajikan hasil kalkulasi atau agregasi secara dinamis dari data aktual, bukan data tiruan.`,
+        ]),
+    ``,
+    `## 4. Pengujian Perilaku Nyata & Kejujuran Toolchain`,
+    `1. Jalankan pengujian terhadap skenario kritis:`,
+    ...taskSpec.verificationScenarios
+      .slice(0, 4)
+      .map((vs, i) => `   - Skenario ${i + 1}: ${vs}`),
+    `2. **Kejujuran Pelaporan**: Jalankan tes yang tersedia di proyek, pemeriksaan tipe, lint, atau verifikasi lainnya yang sesuai dengan toolchain aktual. Laporkan pengujian yang benar-benar dijalankan dan hasilnya. Jangan menyatakan semua tes lulus apabila ada tes yang belum dijalankan.`,
+    ``,
+    `## 5. Deliverables & Kriteria Selesai (Definition of Done)`,
+    `### Deliverables:`,
+    ...taskSpec.requiredDeliverables.map((d) => `- ${d}`),
+    `- Catatan: Jangan menyajikan mockup atau data statis sebagai implementasi penuh apabila fungsi belum bekerja.`,
+    ``,
+    `### Definition of Done:`,
+    ...taskSpec.definitionOfDone.map((dod) => `- [ ] ${dod}`),
+  ];
+
+  return sections.join("\n");
+}
+
+/**
+ * Generator Gaya Conversational Expert:
+ * Gaya bahasa instruksi naratif yang mengalir luwes seperti pengarahan langsung Principal Engineer / Mentor.
+ */
+function synthesizeConversationalExpert(
+  originalPrompt: string,
+  taskSpec: TaskSpecificationMap,
+  blueprint: DomainSynthesisBlueprint
+): string {
+  const { action, subject } = extractActionAndSubject(originalPrompt);
+
+  const sections: string[] = [
+    `# PENGARAHAN TEKNIS: ${action.toUpperCase()} — ${subject.toUpperCase()}`,
+    ``,
+    `## 1. Konteks, Peran, dan Sasaran Proyek`,
+    `Halo rekan engineer, kita akan bersama-sama mengimplementasikan solusi untuk ${subject} dengan standar rekayasa profesional.`,
+    `Sebagai Principal Engineer dan Systems Architect, peran Anda adalah memastikan implementasi berjalan kokoh, teruji, dan langsung menyelesaikan kebutuhan operasional nyata.`,
+    `Tujuan utama penugasan: ${taskSpec.primaryGoal}`,
+    ``,
+    `## 2. Persyaratan Fungsional dan Batasan Larangan`,
+    `Berikut persyaratan utama yang harus Anda tuntaskan:`,
+    ...taskSpec.explicitRequirements.map(
+      (req, i) => `${i + 1}. **${req}**: Pastikan logika fungsional ini bekerja utuh dan saling terintegrasi.`
+    ),
+    ``,
+    `Perhatikan baik-baik batasan mutlak berikut untuk mencegah penyimpangan ruang lingkup:`,
+    ...(taskSpec.negativeConstraints.length > 0
+      ? taskSpec.negativeConstraints.map(
+          (nc) =>
+            `- **Larangan Keras**: Dilarang ${
+              nc.toLowerCase().startsWith("jangan") || nc.toLowerCase().startsWith("dilarang")
+                ? nc
+                : `menambahkan ${nc}`
+            }. Jangan membangun modul kasir/POS yang melanggar batasan ini.`
+        )
+      : [`- Hindari penambahan library atau modul asing yang tidak diminta.`]),
+    ...(taskSpec.logicalTensions.length > 0
+      ? [
+          ``,
+          `Untuk mengatasi ketegangan desain antara kebutuhan laporan dan batasan alur transaksi:`,
+          ...taskSpec.logicalTensions.map(
+            (lt) => `- ${lt.tension} -> Solusi taktis: ${lt.resolutionStrategy}`
+          ),
+        ]
+      : []),
+    ``,
+    `## 3. Tahap Kerja dan Panduan Implementasi`,
+    `Mari kita bagi eksekusi ke dalam beberapa tahap sistematis:`,
+    `1. **Tahap 1: Inspeksi Lingkungan dan Repositori Aktual**: Awali dengan memeriksa berkas konfigurasi, model data, dan struktur proyek yang ada. Dilarang mendikte nama tabel kaku atau merombak arsitektur existing.`,
+    `2. **Tahap 2: Konstruksi Modul Data dan Alur Mutasi**:`,
+    ...(taskSpec.detectedArchetype === "software_engineering"
+      ? [
+          `   - Jaga konsistensi antara kuantitas produk, harga transaksi, dan stok tersimpan. Pastikan stok tidak rusak atau berubah parsial akibat transaksi yang gagal di tengah jalan.`,
+          `   - Terapkan validasi input ketat tanpa mengarang autentikasi atau dependensi eksternal yang tidak diminta.`,
+        ]
+      : [
+          `   - Bangun modul fungsional inti dengan validasi ketat dan arsitektur yang bersih.`,
+        ]),
+    `3. **Tahap 3: Perhitungan Aktual dan Agregasi Laporan**:`,
+    ...(taskSpec.explicitRequirements.some((r) => r.toLowerCase().includes("laporan")) ||
+    originalPrompt.toLowerCase().includes("laporan")
+      ? [
+          `   - Tentukan definisi setiap metrik secara akurat. Jangan menyamakan omzet dengan keuntungan. Jika modal, harga pokok penjualan (HPP), dan biaya belum tersedia, jangan menghasilkan angka keuntungan seolah-olah sudah dapat dihitung dengan benar. Sediakan penanganan untuk kondisi tanpa data.`,
+          `   - Dilarang keras menyajikan data dummy statis atau mockup angka.`,
+        ]
+      : [
+          `   - Hasilkan keluaran berbasis agregasi aktual tanpa mengarang angka tiruan.`,
+        ]),
+    ``,
+    `## 4. Rencana Pengujian dan Verifikasi Perilaku`,
+    `Lakukan pengujian terhadap perilaku nyata sistem untuk menjamin keandalan:`,
+    ...taskSpec.verificationScenarios
+      .slice(0, 4)
+      .map((vs, i) => `- Skenario: ${vs}`),
+    `Harap dicatat: Jalankan tes yang tersedia di proyek sesuai toolchain aktual. Laporkan pengujian yang benar-benar dijalankan dan hasilnya. Jangan menyatakan semua tes lulus apabila ada tes yang belum dijalankan.`,
+    ``,
+    `## 5. Deliverables dan Kriteria Selesai (Definition of Done)`,
+    `### Deliverables yang Harus Diserahkan:`,
+    ...taskSpec.requiredDeliverables.map((del) => `- ${del}`),
+    `- Catatan penting: Jangan menyajikan mockup atau data statis sebagai implementasi penuh apabila fungsi yang diminta belum bekerja.`,
+    ``,
+    `### Kriteria Penyelesaian (Definition of Done):`,
+    ...taskSpec.definitionOfDone.map((dod) => `- [ ] ${dod}`),
+  ];
+
+  return sections.join("\n");
+}
+
+/**
+ * Generator Deterministik Master Prompt Synthesis (Mega Task #44 & #48)
+ * Menghasilkan Master Prompt komprehensif berstandar emas sesuai arketipe domain dan preset gaya.
  */
 export function synthesizeMasterPrompt(
   originalPrompt: string,
   taskSpec: TaskSpecificationMap,
   blueprintInput?: DomainSynthesisBlueprint,
-  findings: Finding[] = []
+  findings: Finding[] = [],
+  stylePreset: SynthesisStylePreset = "comprehensive_blueprint"
 ): MasterSynthesisOutput {
   const blueprint =
     blueprintInput || getSynthesisBlueprint(taskSpec.detectedArchetype);
 
   const changes: string[] = [
-    `Transformasi arsitektur tugas ke standar Master Prompt Synthesis (${blueprint.name})`,
+    `Transformasi arsitektur tugas ke standar Master Prompt Synthesis (${blueprint.name}, style: ${stylePreset})`,
     "Menetapkan peran profesional, persyaratan terukur, dan batasan operasional mutlak",
     "Menyuntikkan tahapan kerja adaptif (inspeksi fondasi repositori aktual) tanpa deceptive certainty",
     "Menyertakan skenario pengujian perilaku nyata dan kriteria Definition of Done",
@@ -46,6 +264,24 @@ export function synthesizeMasterPrompt(
     );
   }
 
+  // Branching ke preset gaya
+  if (stylePreset === "concise_tactical") {
+    return {
+      masterPrompt: synthesizeConciseTactical(originalPrompt, taskSpec, blueprint),
+      changes,
+      warnings,
+    };
+  }
+
+  if (stylePreset === "conversational_expert") {
+    return {
+      masterPrompt: synthesizeConversationalExpert(originalPrompt, taskSpec, blueprint),
+      changes,
+      warnings,
+    };
+  }
+
+  // comprehensive_blueprint (Default)
   let promptText = "";
 
   switch (taskSpec.detectedArchetype) {
