@@ -273,6 +273,70 @@ ${wrappedSource}`;
 }
 
 /**
+ * Clean HTML-to-Markdown / Text ringan (tanpa dependensi browser eksternal):
+ * Membersihkan <script>, <style>, <nav>, <footer>, <svg>, dll.
+ * Mengonversi elemen struktural penting (h1-h6, pre/code, li, p) ke Markdown yang mudah dibaca.
+ */
+export function cleanHtmlToMarkdown(html: string): string {
+  if (!html || typeof html !== "string") return "";
+
+  let text = html;
+
+  // 1. Bersihkan komentar HTML
+  text = text.replace(/<!--[\s\S]*?-->/g, " ");
+
+  // 2. Bersihkan tag non-konten (script, style, nav, footer, header, svg, noscript, head)
+  text = text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ");
+  text = text.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ");
+  text = text.replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, " ");
+  text = text.replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, " ");
+  text = text.replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, " ");
+  text = text.replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, " ");
+  text = text.replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, " ");
+  text = text.replace(/<head\b[^<]*(?:(?!<\/head>)<[^<]*)*<\/head>/gi, " ");
+
+  // 3. Konversi heading
+  text = text.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, "\n\n# $1\n\n");
+  text = text.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "\n\n## $1\n\n");
+  text = text.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "\n\n### $1\n\n");
+  text = text.replace(/<h[4-6][^>]*>([\s\S]*?)<\/h[4-6]>/gi, "\n\n#### $1\n\n");
+
+  // 4. Konversi pre / code blocks
+  text = text.replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, "\n```\n$1\n```\n");
+  text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, "\n```\n$1\n```\n");
+  text = text.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`");
+
+  // 5. Konversi list items
+  text = text.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "\n- $1");
+
+  // 6. Konversi paragraf & line break
+  text = text.replace(/<br\s*\/?>/gi, "\n");
+  text = text.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "\n\n$1\n\n");
+  text = text.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, "\n\n> $1\n\n");
+
+  // 7. Bersihkan seluruh tag HTML lainnya
+  text = text.replace(/<[^>]+>/g, " ");
+
+  // 8. Decode HTML entities umum
+  text = text
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#x2F;/g, "/");
+
+  // 9. Rapikan whitespace: spasi ganda & multiple newlines
+  text = text.replace(/[ \t]+/g, " ");
+  text = text.replace(/\n\s+\n/g, "\n\n");
+  text = text.replace(/\n{3,}/g, "\n\n");
+
+  return text.trim();
+}
+
+/**
  * Runner Utama Prompt Crawler Engine
  */
 export async function runPromptCrawler(
@@ -303,14 +367,23 @@ export async function runPromptCrawler(
     });
   }
 
+  // Jika content berformat HTML, ubah ke Markdown bersih terlebih dahulu
+  const isHtml =
+    fetchResult.contentType.toLowerCase().includes("text/html") ||
+    /<!DOCTYPE html|<html|<head|<body/i.test(fetchResult.content);
+
+  const processedContent = isHtml
+    ? cleanHtmlToMarkdown(fetchResult.content)
+    : fetchResult.content;
+
   // Ekstraksi item berdasarkan mode
   let items: CrawlExtractedItem[];
   if (options.adapter) {
-    items = await extractWithLlmAdapter(fetchResult.content, validatedRequest.mode, options.adapter);
+    items = await extractWithLlmAdapter(processedContent, validatedRequest.mode, options.adapter);
   } else if (validatedRequest.mode === "EXTRACT_PROMPTS") {
-    items = extractPromptsHeuristic(fetchResult.content);
+    items = extractPromptsHeuristic(processedContent);
   } else {
-    items = extractGroundingContextHeuristic(fetchResult.content);
+    items = extractGroundingContextHeuristic(processedContent);
   }
 
   // Tambahkan warning jika ditemukan secrets yang telah disensor

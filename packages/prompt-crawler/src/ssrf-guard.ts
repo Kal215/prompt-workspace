@@ -11,12 +11,27 @@ export class CrawlerSecurityError extends Error {
 }
 
 /**
- * P0 Allowlist Domain Sesuai ADR-002 Lampiran B.1
+ * Curated Allowlist Domain Sesuai ADR-002 Lampiran B.1 & Engine v2.2 Trusted Docs Expansion
  */
 export const ALLOWED_DOMAINS = [
   "raw.githubusercontent.com",
   "github.com",
+  "gist.githubusercontent.com",
+  "developer.mozilla.org",
+  "nextjs.org",
+  "react.dev",
+  "nodejs.org",
+  "www.typescriptlang.org",
+  "typescriptlang.org",
+  "docs.stripe.com",
+  "www.prisma.io",
+  "prisma.io",
+  "tailwindcss.com",
+  "orm.drizzle.team",
+  "zod.dev",
 ] as const;
+
+export const ALLOWED_CRAWL_HOSTS = ALLOWED_DOMAINS;
 
 /**
  * Normalisasi URL GitHub blob menjadi direct raw content URL.

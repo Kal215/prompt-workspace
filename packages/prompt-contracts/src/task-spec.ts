@@ -76,3 +76,43 @@ export const MasterPromptValidationResultSchema = z.object({
 export type MasterPromptValidationResult = z.infer<
   typeof MasterPromptValidationResultSchema
 >;
+
+// ──────────────────────────────────────────────
+// MEGA TASK #48: Engine v2.2 Budget Mode, Style Presets & AutoPilot Contracts
+// ──────────────────────────────────────────────
+
+export const TokenBudgetModeEnum = z.enum(["eco", "balanced", "deep_audit"]);
+export type TokenBudgetMode = z.infer<typeof TokenBudgetModeEnum>;
+
+export const SynthesisStylePresetEnum = z.enum([
+  "comprehensive_blueprint",
+  "concise_tactical",
+  "conversational_expert",
+]);
+export type SynthesisStylePreset = z.infer<typeof SynthesisStylePresetEnum>;
+
+export const AutoPilotRequestSchema = z.object({
+  prompt: z.string().min(1, "prompt tidak boleh kosong"),
+  context: z.string().nullable().optional(),
+  referenceUrls: z.array(z.string()).max(2).optional(),
+  taskType: z.string().optional(),
+  stylePreset: SynthesisStylePresetEnum.optional().default("comprehensive_blueprint"),
+  budgetMode: TokenBudgetModeEnum.optional().default("balanced"),
+});
+export type AutoPilotRequest = z.infer<typeof AutoPilotRequestSchema>;
+
+export const AutoPilotResultSchema = z.object({
+  optimizedPrompt: z.string(),
+  taskSpec: TaskSpecificationMapSchema,
+  synthesisValidation: MasterPromptValidationResultSchema,
+  stylePreset: SynthesisStylePresetEnum,
+  budgetMode: TokenBudgetModeEnum,
+  groundingFacts: z.array(z.any()).default([]),
+  spiderReport: z.any().optional().nullable(),
+  changes: z.array(z.string()),
+  warnings: z.array(z.string()),
+  cacheHit: z.boolean().default(false),
+  processingTimeMs: z.number().optional(),
+  metadata: z.record(z.any()).optional(),
+});
+export type AutoPilotResult = z.infer<typeof AutoPilotResultSchema>;

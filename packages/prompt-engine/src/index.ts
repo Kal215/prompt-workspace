@@ -45,6 +45,8 @@ export * from "./closed-loop.js";
 export * from "./validator.js";
 export * from "./task-extractor.js";
 export * from "./master-synthesizer.js";
+export * from "./cache.js";
+export * from "./autopilot.js";
 
 /**
  * Orchestrator Pipeline: Menjalankan pipeline lengkap analisis dan optimasi prompt.
@@ -115,23 +117,44 @@ export async function runOptimizationPipeline(
     analysisResult.taskSpec ||
     extractTaskSpecification(validatedRequest.prompt, validatedRequest.context, route);
 
-  // 3. Tahap Optimasi (Master Prompt Synthesis)
-  let optimizationResult: OptimizePromptResult = await optimizePrompt(
-    validatedRequest.prompt,
-    analysisResult.findings,
-    validatedRequest.constraints || [],
-    resolvedAdapter,
-    domainPack,
-    taskSpec,
-    blueprint
-  );
+  const stylePreset = validatedRequest.stylePreset || "comprehensive_blueprint";
 
-  // 4. Validasi Deterministik & Bounded Self-Repair Loop (Mega Task #44)
+  // 3. Tahap Optimasi (Master Prompt Synthesis)
+  let optimizationResult: OptimizePromptResult;
+
+  if (stylePreset !== "comprehensive_blueprint") {
+    // Gunakan synthesis generator deterministik langsung untuk preset taktis atau conversational
+    const synthesized = synthesizeMasterPrompt(
+      validatedRequest.prompt,
+      taskSpec,
+      blueprint,
+      analysisResult.findings,
+      stylePreset
+    );
+    optimizationResult = {
+      optimizedPrompt: synthesized.masterPrompt,
+      changes: synthesized.changes,
+      warnings: synthesized.warnings,
+    };
+  } else {
+    optimizationResult = await optimizePrompt(
+      validatedRequest.prompt,
+      analysisResult.findings,
+      validatedRequest.constraints || [],
+      resolvedAdapter,
+      domainPack,
+      taskSpec,
+      blueprint
+    );
+  }
+
+  // 4. Validasi Deterministik & Bounded Self-Repair Loop (Mega Task #44 & #48)
   let validationResult: MasterPromptValidationResult = validateMasterPromptSynthesis(
     validatedRequest.prompt,
     optimizationResult.optimizedPrompt,
     taskSpec,
-    0
+    0,
+    stylePreset
   );
 
   if (!validationResult.passed) {
@@ -145,7 +168,8 @@ export async function runOptimizationPipeline(
       validatedRequest.prompt,
       taskSpec,
       blueprint,
-      analysisResult.findings
+      analysisResult.findings,
+      stylePreset
     );
 
     optimizationResult = {
@@ -162,7 +186,8 @@ export async function runOptimizationPipeline(
       validatedRequest.prompt,
       optimizationResult.optimizedPrompt,
       taskSpec,
-      1
+      1,
+      stylePreset
     );
   }
 
