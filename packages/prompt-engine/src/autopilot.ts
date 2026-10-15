@@ -21,6 +21,7 @@ import {
   globalPromptEngineCache,
   DeterministicContentCache,
 } from "./cache.js";
+import { loadPiewConfig } from "./config.js";
 import { runPromptCrawler } from "@prompt-workspace/prompt-crawler";
 import { runPromptSpider } from "@prompt-workspace/prompt-spider";
 import { LLMProviderAdapter } from "@prompt-workspace/provider-adapters";
@@ -49,10 +50,12 @@ export async function runAutoPilotMasterPipeline(
 ): Promise<AutoPilotResult> {
   const startTime = Date.now();
   const validatedInput = AutoPilotRequestSchema.parse(input);
+  const config = loadPiewConfig();
 
   const stylePreset: SynthesisStylePreset =
-    validatedInput.stylePreset || "comprehensive_blueprint";
-  const budgetMode: TokenBudgetMode = validatedInput.budgetMode || "balanced";
+    validatedInput.stylePreset || config.defaultStylePreset || "comprehensive_blueprint";
+  const budgetMode: TokenBudgetMode =
+    validatedInput.budgetMode || config.defaultBudgetMode || "balanced";
 
   const cache = options.cache || globalPromptEngineCache;
 

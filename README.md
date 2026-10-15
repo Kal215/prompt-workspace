@@ -28,6 +28,69 @@ Mulai versi 2.0.0, PIEW mentransformasikan arsitektur optimasi satu arah (Open-L
 
 ---
 
+## ⚡ Open-Source Quickstart: CLI & MCP Server (Cursor / Claude Code)
+
+PIEW v2.2+ hadir sebagai mesin **Headless** mandiri yang dapat langsung dipanggil dari baris perintah terminal maupun terintegrasi native ke dalam IDE AI seperti **Cursor**, **Windsurf**, dan **Claude Code** via **Model Context Protocol (MCP)**.
+
+### 1. Eksekusi Cepat via Terminal (PIEW CLI)
+Ubah ide mentah menjadi Master Prompt operasional langsung dari terminal tanpa perlu membuka browser:
+
+```bash
+# Sintesis instan dengan arsitektur 11-tahap standar
+npm run piew -- "Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS."
+
+# Mode ringkas taktis & hemat token (eco)
+npm run piew -- "Perbaiki memory leak di WebSocket server" --style=concise_tactical --budget=eco
+
+# Ambil konteks teknis dari dokumentasi resmi (Grounding)
+npm run piew -- "Konfigurasi Stripe Webhook di Next.js App Router" --url=https://docs.stripe.com/webhooks --style=concise_tactical
+```
+
+### 2. Pasang ke Cursor / VS Code / Claude Code (MCP Server)
+PIEW mengekspos 4 MCP Tools berkemampuan tinggi:
+1. `piew_autopilot`: Pipeline otonom 1-klik (Crawl ➔ Ekstraksi Spesifikasi ➔ Sintesis Master Prompt ➔ Self-Repair ➔ Audit Spider).
+2. `piew_synthesize_master_prompt`: Mengubah ide menjadi Master Prompt terstruktur anti-scope-creep.
+3. `piew_crawl_grounding_context`: Mengambil fakta teknis dari GitHub atau dokumentasi resmi (MDN, Next.js, Stripe, Prisma, Tailwind, Zod) dengan perlindungan SSRF level soket.
+4. `piew_verify_prompt_spider`: Menjalankan uji stres adversarial 5-cabang (Critical Gate Pass).
+
+#### Pilihan A: Mode Stdio (Lokal / Remote SSH)
+Tambahkan ke konfigurasi MCP IDE Anda (`cursor.json` atau `claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "piew": {
+      "command": "npx",
+      "args": ["tsx", "scripts/piew-mcp-server.ts"]
+    }
+  }
+}
+```
+
+#### Pilihan B: Mode HTTP/SSE (Nirkabel via Tailscale / LAN)
+Jalankan server MCP sebagai daemon HTTP/SSE di port `3125`:
+```bash
+npm run mcp:sse
+```
+Lalu di Cursor pada laptop/PC mana pun di jaringan yang sama, tambahkan server dengan URL:
+```text
+http://100.127.180.57:3125/sse
+```
+
+### 3. File Konfigurasi Opsional (`piew.config.json`)
+Anda dapat menambahkan file `piew.config.json` di root proyek untuk mengatur setelan default:
+```json
+{
+  "defaultStylePreset": "comprehensive_blueprint",
+  "defaultBudgetMode": "balanced",
+  "allowedDomains": [
+    "internal-wiki.mycompany.com",
+    "docs.internal.corp"
+  ]
+}
+```
+
+---
+
 ## 🔄 Alur Kerja Closed-Loop Synthesis v2.0
 
 ```text

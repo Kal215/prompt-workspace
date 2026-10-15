@@ -47,6 +47,7 @@ export * from "./task-extractor.js";
 export * from "./master-synthesizer.js";
 export * from "./cache.js";
 export * from "./autopilot.js";
+export * from "./config.js";
 
 /**
  * Orchestrator Pipeline: Menjalankan pipeline lengkap analisis dan optimasi prompt.

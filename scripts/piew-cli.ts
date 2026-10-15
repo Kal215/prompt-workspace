@@ -10,9 +10,12 @@
 
 import {
   runAutoPilotMasterPipeline,
+  loadPiewConfig,
+} from "@prompt-workspace/prompt-engine";
+import {
   SynthesisStylePreset,
   TokenBudgetMode,
-} from "@prompt-workspace/prompt-engine";
+} from "@prompt-workspace/prompt-contracts";
 
 function printUsage() {
   console.log(`
@@ -42,9 +45,10 @@ async function main() {
     process.exit(args.length === 0 ? 1 : 0);
   }
 
+  const config = loadPiewConfig();
   let prompt = "";
-  let stylePreset: SynthesisStylePreset = "comprehensive_blueprint";
-  let budgetMode: TokenBudgetMode = "balanced";
+  let stylePreset: SynthesisStylePreset = config.defaultStylePreset || "comprehensive_blueprint";
+  let budgetMode: TokenBudgetMode = config.defaultBudgetMode || "balanced";
   let context: string | undefined;
   const referenceUrls: string[] = [];
   let jsonOutput = false;
