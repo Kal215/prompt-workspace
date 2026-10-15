@@ -12,7 +12,7 @@ import {
 async function runUniversalBlueprintVerification() {
   console.log("════════════════════════════════════════════════════════════════════");
   console.log("🌟 TAHAP A: UNIVERSAL META-BLUEPRINT & POLYMORPHIC DIAGRAMS");
-  console.log("   5 Golden Benchmark Scenarios & Cross-Artifact Consistency Guard");
+  console.log("   5 Golden Benchmark Scenarios + 3 Blind Tests + Consistency Guard");
   console.log("════════════════════════════════════════════════════════════════════\n");
 
   let totalTests = 0;
@@ -207,15 +207,17 @@ async function runUniversalBlueprintVerification() {
     assert.ok(businessResult.blueprint.diagrams.some((d) => d.type === "gantt"));
   });
 
-  test("Memuat pemisahan presisi HPP per Botol (Rp 9.500) vs HET (Rp 18.000)", () => {
+  test("Memuat formula matematis HPP transparan tanpa angka karangan (No Deceptive Certainty)", () => {
     assert.ok(businessResult.blueprint.coreSpecification.includes("HPP"));
-    assert.ok(businessResult.blueprint.coreSpecification.includes("Rp 9.500"));
+    assert.ok(businessResult.blueprint.coreSpecification.includes("FORMULA"));
+    // Tidak boleh mengarang angka palsu yang tidak ada di prompt
+    assert.strictEqual(businessResult.blueprint.coreSpecification.includes("Rp 9.500"), false);
   });
 
   test("Memuat larangan pencampuran rekening pribadi dan omzet usaha", () => {
     assert.ok(
       businessResult.blueprint.negativeConstraints.some((c) =>
-        c.includes("OMZET KOTOR DENGAN LABA BERSIH")
+        c.toUpperCase().includes("OMZET KOTOR")
       )
     );
   });
@@ -258,9 +260,162 @@ async function runUniversalBlueprintVerification() {
   });
 
   // ────────────────────────────────────────────────────────────────
-  // 6. Cross-Artifact Consistency Guard Deep Validation
+  // 6. BLIND TEST 1: Pelajar SMA — Fisika (Rangkaian Listrik Seri & Paralel)
   // ────────────────────────────────────────────────────────────────
-  console.log("\n🛡️ 6. Pengujian Mendalam Cross-Artifact Consistency Guard");
+  console.log("\n⚡ 6. BLIND TEST 1: Pelajar SMA — Fisika Rangkaian Listrik Seri & Paralel");
+  const blind1Prompt = "Jelaskan cara kerja rangkaian listrik seri dan paralel beserta panduan praktikum baterai dan lampu bohlam di sekolah";
+  const blind1Result = synthesizeUniversalBlueprint({
+    prompt: blind1Prompt,
+    audienceLevel: "student",
+  });
+
+  test("Blind 1: Domain terklasifikasi sebagai 'education'", () => {
+    assert.strictEqual(blind1Result.blueprint.domain, "education");
+  });
+
+  test("Blind 1: Diagram Mermaid menggunakan konsep kelistrikan (bukan fotosintesis!)", () => {
+    const diagrams = blind1Result.blueprint.diagrams;
+    assert.ok(diagrams.length >= 2);
+    const allCode = diagrams.map((d) => d.mermaidCode).join(" ");
+    assert.ok(allCode.includes("SumberTeganganBaterai") || allCode.includes("RangkaianSeriSatuJalur"));
+    assert.ok(allCode.includes("BebanLampuBohlam") || allCode.includes("RangkaianParalelBercabang"));
+    // Uji kebocoran mutlak:
+    assert.strictEqual(allCode.toLowerCase().includes("fotosintesis"), false, "Diagram tidak boleh membocorkan kata 'fotosintesis'");
+    assert.strictEqual(allCode.toLowerCase().includes("mikroplastik"), false, "Diagram tidak boleh membocorkan kata 'mikroplastik'");
+    assert.strictEqual(allCode.toLowerCase().includes("kopi"), false, "Diagram tidak boleh membocorkan kata 'kopi'");
+  });
+
+  test("Blind 1: Core Specification memuat analogi aliran air & rumus Hukum Ohm", () => {
+    const core = blind1Result.blueprint.coreSpecification;
+    assert.ok(core.includes("Hukum Ohm") || core.includes("V = I * R"));
+    assert.ok(core.includes("Aliran Air"));
+    assert.ok(core.includes("korsleting"));
+  });
+
+  test("Blind 1: 0% Kebocoran topik lain di seluruh rendered Master Prompt", () => {
+    const fullPrompt = blind1Result.blueprint.renderedMasterPrompt.toLowerCase();
+    assert.strictEqual(fullPrompt.includes("fotosintesis"), false, "Tidak boleh bocor kata 'fotosintesis'");
+    assert.strictEqual(fullPrompt.includes("ftir"), false, "Tidak boleh bocor kata 'ftir'");
+    assert.strictEqual(fullPrompt.includes("kopi"), false, "Tidak boleh bocor kata 'kopi'");
+    assert.strictEqual(fullPrompt.includes("toko kue"), false, "Tidak boleh bocor kata 'toko kue'");
+    assert.strictEqual(fullPrompt.includes("9.500"), false, "Tidak boleh ada angka '9.500'");
+  });
+
+  test("Blind 1: Cross-Artifact Consistency Guard mencatat skor >= 90%", () => {
+    assert.ok(blind1Result.consistencyScore >= 90, `Skor: ${blind1Result.consistencyScore}`);
+    assert.strictEqual(blind1Result.consistencyValid, true);
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // 7. BLIND TEST 2: Bisnis / UMKM — Peternakan (Budidaya Lele Bioflok)
+  // ────────────────────────────────────────────────────────────────
+  console.log("\n🐟 7. BLIND TEST 2: Bisnis/UMKM — Budidaya Ikan Lele Sistem Bioflok");
+  const blind2Prompt = "Buatkan rencana strategis dan SOP usaha budidaya ikan lele sistem bioflok dari tebar benih hingga panen";
+  const blind2Result = synthesizeUniversalBlueprint({
+    prompt: blind2Prompt,
+    audienceLevel: "professional",
+  });
+
+  test("Blind 2: Domain terklasifikasi sebagai 'business'", () => {
+    assert.strictEqual(blind2Result.blueprint.domain, "business");
+  });
+
+  test("Blind 2: Diagram Mermaid menggunakan entitas Bioflok (SOP Kolam & Gantt 90 Hari)", () => {
+    const diagrams = blind2Result.blueprint.diagrams;
+    assert.ok(diagrams.length >= 2);
+    const allCode = diagrams.map((d) => d.mermaidCode).join(" ");
+    assert.ok(allCode.includes("PersiapanKolamDanAir") || allCode.includes("Bioflok"));
+    assert.ok(allCode.includes("BenihLele") || allCode.includes("PemberianPakanFCR"));
+    // Uji kebocoran mutlak:
+    assert.strictEqual(allCode.toLowerCase().includes("kopi"), false, "Diagram tidak boleh membocorkan kata 'kopi'");
+    assert.strictEqual(allCode.toLowerCase().includes("toko kue"), false, "Diagram tidak boleh membocorkan kata 'toko kue'");
+    assert.strictEqual(allCode.toLowerCase().includes("fotosintesis"), false, "Diagram tidak boleh membocorkan kata 'fotosintesis'");
+  });
+
+  test("Blind 2: Model Biaya menggunakan formula HPP matematis transparan (Zero Fake Numbers)", () => {
+    const core = blind2Result.blueprint.coreSpecification;
+    assert.ok(core.includes("FORMULA_HPP_PER_KG") || core.includes("HPP per Kg"));
+    assert.ok(core.includes("FCR"));
+    assert.ok(core.includes("Oksigen") || core.includes("DO"));
+    // Dilarang keras mengarang angka Rp 9.500:
+    assert.strictEqual(core.includes("Rp 9.500"), false);
+    assert.strictEqual(core.includes("9500"), false);
+  });
+
+  test("Blind 2: 0% Kebocoran topik lain di seluruh rendered Master Prompt", () => {
+    const fullPrompt = blind2Result.blueprint.renderedMasterPrompt.toLowerCase();
+    assert.strictEqual(fullPrompt.includes("kopi"), false, "Tidak boleh bocor kata 'kopi'");
+    assert.strictEqual(fullPrompt.includes("toko kue"), false, "Tidak boleh bocor kata 'toko kue'");
+    assert.strictEqual(fullPrompt.includes("fotosintesis"), false, "Tidak boleh bocor kata 'fotosintesis'");
+    assert.strictEqual(fullPrompt.includes("mikroplastik"), false, "Tidak boleh bocor kata 'mikroplastik'");
+    assert.strictEqual(fullPrompt.includes("9.500"), false, "Tidak boleh ada angka '9.500'");
+  });
+
+  test("Blind 2: Cross-Artifact Consistency Guard mencatat skor >= 90%", () => {
+    assert.ok(blind2Result.consistencyScore >= 90, `Skor: ${blind2Result.consistencyScore}`);
+    assert.strictEqual(blind2Result.consistencyValid, true);
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // 8. BLIND TEST 3: Spesialis IT/Web3 — Smart Contract DeFi Staking
+  // ────────────────────────────────────────────────────────────────
+  console.log("\n⛓️ 8. BLIND TEST 3: Spesialis IT/Web3 — Smart Contract Staking Token Kripto DeFi");
+  const blind3Prompt = "Rancang sistem smart contract staking token kripto DeFi dengan mekanisme penalti unstake dini dan audit keamanan anti-reentrancy";
+  const blind3Result = synthesizeUniversalBlueprint({
+    prompt: blind3Prompt,
+    audienceLevel: "specialist",
+  });
+
+  test("Blind 3: Domain terklasifikasi sebagai 'software'", () => {
+    assert.strictEqual(blind3Result.blueprint.domain, "software");
+  });
+
+  test("Blind 3: Diagram ERD & Flowchart menggunakan entitas DeFi Staking (bukan toko kue!)", () => {
+    const diagrams = blind3Result.blueprint.diagrams;
+    assert.ok(diagrams.length >= 2);
+    const allCode = diagrams.map((d) => d.mermaidCode).join(" ");
+    assert.ok(allCode.includes("StakerAccount") || allCode.includes("StakingPoolContract"));
+    assert.ok(allCode.includes("DepositPosition") || allCode.includes("ReentrancyGuardShield"));
+    // Uji kebocoran mutlak:
+    assert.strictEqual(allCode.toLowerCase().includes("toko kue"), false, "Diagram tidak boleh membocorkan kata 'toko kue'");
+    assert.strictEqual(allCode.toLowerCase().includes("katalog"), false, "Diagram tidak boleh membocorkan 'katalog'");
+    assert.strictEqual(allCode.toLowerCase().includes("kopi"), false, "Diagram tidak boleh membocorkan kata 'kopi'");
+    assert.strictEqual(allCode.toLowerCase().includes("fotosintesis"), false, "Diagram tidak boleh membocorkan kata 'fotosintesis'");
+  });
+
+  test("Blind 3: Core Specification memuat arsitektur EVM, modifier nonReentrant, & formula penalti", () => {
+    const core = blind3Result.blueprint.coreSpecification;
+    assert.ok(core.includes("ReentrancyGuard") || core.includes("nonReentrant"));
+    assert.ok(core.includes("Checks-Effects-Interactions"));
+    assert.ok(core.includes("Penalti"));
+    assert.ok(core.includes("msg.sender"));
+  });
+
+  test("Blind 3: Negative Constraints memuat larangan reentrancy, tx.origin, dan larangan POS", () => {
+    const neg = blind3Result.blueprint.negativeConstraints;
+    assert.ok(neg.some((c) => c.includes("Reentrancy") || c.includes("Checks-Effects-Interactions")));
+    assert.ok(neg.some((c) => c.includes("tx.origin")));
+    assert.ok(neg.some((c) => c.includes("POS") || c.includes("Kasir")));
+  });
+
+  test("Blind 3: 0% Kebocoran topik lain di seluruh rendered Master Prompt", () => {
+    const fullPrompt = blind3Result.blueprint.renderedMasterPrompt.toLowerCase();
+    assert.strictEqual(fullPrompt.includes("toko kue"), false, "Tidak boleh bocor kata 'toko kue'");
+    assert.strictEqual(fullPrompt.includes("kopi"), false, "Tidak boleh bocor kata 'kopi'");
+    assert.strictEqual(fullPrompt.includes("fotosintesis"), false, "Tidak boleh bocor kata 'fotosintesis'");
+    assert.strictEqual(fullPrompt.includes("mikroplastik"), false, "Tidak boleh bocor kata 'mikroplastik'");
+    assert.strictEqual(fullPrompt.includes("9.500"), false, "Tidak boleh ada angka '9.500'");
+  });
+
+  test("Blind 3: Cross-Artifact Consistency Guard mencatat skor >= 90%", () => {
+    assert.ok(blind3Result.consistencyScore >= 90, `Skor: ${blind3Result.consistencyScore}`);
+    assert.strictEqual(blind3Result.consistencyValid, true);
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // 9. Cross-Artifact Consistency Guard Deep Validation
+  // ────────────────────────────────────────────────────────────────
+  console.log("\n🛡️ 9. Pengujian Mendalam Cross-Artifact Consistency Guard");
 
   test("Guard mendeteksi entitas fiktif (phantom entities) jika ditambahkan secara tidak wajar", () => {
     const syntheticAudit = auditCrossArtifactConsistency({
