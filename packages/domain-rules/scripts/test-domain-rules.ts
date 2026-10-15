@@ -8,6 +8,21 @@ import {
   listDomainPacks,
   resolveDomainId,
   DomainRulePack,
+  detectTaskArchetypeAndDomain,
+  getSynthesisBlueprint,
+  listSynthesisBlueprints,
+  classifyUniversalDomain,
+  detectDomainSubtopic,
+  DOMAIN_SUBTOPICS_CATALOG,
+  BILINGUAL_DICTIONARY,
+  lookupBilingualEquivalents,
+  getDomainRoles,
+  getContextAndAssumptions,
+  getPrimaryObjectives,
+  getCoreSpecification,
+  getNegativeConstraints,
+  getDefinitionOfDone,
+  getExecutionPhases,
 } from "../src/index.js";
 
 let passed = 0;
@@ -124,11 +139,6 @@ for (const pack of allPacks) {
 
 // ── Test 8: Task #44 Intelligent Task Router ───────────────────
 console.log("\n▶ [Test 8] Auto-Detecting Task Router");
-import {
-  detectTaskArchetypeAndDomain,
-  getSynthesisBlueprint,
-  listSynthesisBlueprints,
-} from "../src/index.js";
 
 // a. Software Engineering
 const routeSoftware = detectTaskArchetypeAndDomain(
@@ -245,6 +255,68 @@ assert(
   researchBlueprint.structuralSections.length === 6,
   `research_comparison memiliki 6 structuralSections (actual: ${researchBlueprint.structuralSections.length})`
 );
+
+// ── Test 10: Universal Subtopics Catalog & Registry ─────────────
+console.log("\n▶ [Test 10] Registri Subtopik Universal v2.3");
+assert(DOMAIN_SUBTOPICS_CATALOG.length === 18, `DOMAIN_SUBTOPICS_CATALOG memiliki 18 subtopik (actual: ${DOMAIN_SUBTOPICS_CATALOG.length})`);
+for (const sub of DOMAIN_SUBTOPICS_CATALOG) {
+  assert(typeof sub.subtopicId === "string" && sub.subtopicId.length > 0, `${sub.subtopicId}: subtopicId valid`);
+  assert(typeof sub.name === "string" && sub.name.length > 0, `${sub.subtopicId}: name valid`);
+  assert(typeof sub.description === "string" && sub.description.length > 0, `${sub.subtopicId}: description valid`);
+  assert(Array.isArray(sub.recommendedDiagrams) && sub.recommendedDiagrams.length > 0, `${sub.subtopicId}: recommendedDiagrams ada`);
+}
+
+// ── Test 11: Word-Boundary Regex Detection & Collision Free ─────
+console.log("\n▶ [Test 11] Deteksi Domain Bebas Benturan Substring");
+assert(classifyUniversalDomain(undefined, "perhitungan staking smart contract defi token") === "software", "DeFi -> software");
+assert(classifyUniversalDomain(undefined, "budidaya ikan lele sistem bioflok") === "business", "Sistem bioflok -> business (bukan software!)");
+assert(classifyUniversalDomain(undefined, "praktikum budidaya jamur tiram siswa SMK") === "education", "Praktikum SMK -> education (bukan business)");
+assert(classifyUniversalDomain(undefined, "skripsi analisis adopsi teknologi model UTAUT") === "academic", "Skripsi UTAUT -> academic");
+assert(classifyUniversalDomain(undefined, "riset spektroskopi akumulasi mikroplastik mangrove") === "research", "Mikroplastik -> research");
+
+// Subtopic detection
+assert(detectDomainSubtopic("software", "satellite weather station telemetry sensor") === "software_iot_telemetry", "IoT Telemetry subtopic detected");
+assert(detectDomainSubtopic("software", "sistem rekam medis dan antrean poli klinik") === "software_medical_clinic", "Medical Clinic subtopic detected");
+assert(detectDomainSubtopic("business", "pabrik kelapa sawit cpo tbs") === "business_manufacturing_industry", "Manufacturing industry subtopic detected");
+assert(detectDomainSubtopic("education", "praktikum jamur tiram di laboratorium") === "education_practical_experiment", "Practical experiment subtopic detected");
+
+// ── Test 12: Bilingual Technical & Operational Dictionary ──────
+console.log("\n▶ [Test 12] Kamus Dwibahasa EN-ID & PascalCase Unrolling");
+assert(Object.keys(BILINGUAL_DICTIONARY).length >= 40, `BILINGUAL_DICTIONARY memuat >= 40 kata kunci teknis (actual: ${Object.keys(BILINGUAL_DICTIONARY).length})`);
+const userEquivs = lookupBilingualEquivalents("UserAccount");
+assert(userEquivs.includes("user") && userEquivs.includes("pengguna"), "UserAccount memuat 'user' dan 'pengguna'");
+const patientEquivs = lookupBilingualEquivalents("PasienKlinik");
+assert(patientEquivs.includes("pasien") && patientEquivs.includes("patient"), "PasienKlinik memuat 'pasien' dan 'patient'");
+const sensorEquivs = lookupBilingualEquivalents("SensorTelemetryNode");
+assert(sensorEquivs.includes("sensor") && sensorEquivs.includes("telemetri"), "SensorTelemetryNode memuat 'sensor' dan 'telemetri'");
+
+// ── Test 13: Universal Domain Knowledge Completeness ───────────
+console.log("\n▶ [Test 13] Kelengkapan Dewan Pakar, Parameter & Fase Eksekusi");
+const defiRoles = getDomainRoles("software", "software_web3_defi");
+assert(defiRoles.length >= 5, `DeFi roles >= 5 (actual: ${defiRoles.length})`);
+assert(defiRoles.some((r) => r.includes("Solidity") || r.includes("Security")), "DeFi roles memuat pakar Solidity/Security");
+
+const params = getContextAndAssumptions("business", "business_aquaculture_agri", "budidaya ikan lele bioflok");
+assert(params.contextParameters["Komoditas Budidaya"].includes("LELE"), "Bioflok context parameter valid");
+assert(params.smartAssumptions.length >= 3, "Bioflok smart assumptions lengkap");
+
+const objs = getPrimaryObjectives("education", "education_physics_circuits");
+assert(objs.length === 8, "Physics objectives tepat 8 poin");
+assert(objs.some((o) => o.includes("Ohm")), "Physics objectives memuat Hukum Ohm");
+
+const coreSpec = getCoreSpecification("business", "business_food_beverage");
+assert(coreSpec.includes("HPP"), "F&B core spec memuat formula HPP transparan");
+
+const negs = getNegativeConstraints("research", "research_marine_environmental");
+assert(negs.some((n) => n.includes("DILARANG MENGARANG SITASI")), "Marine research memiliki batasan anti-halusinasi sitasi");
+
+const dod = getDefinitionOfDone("software", "software_personal_portfolio");
+assert(dod.length >= 5, "Portfolio DoD >= 5 poin");
+
+const phases = getExecutionPhases("software", "software_iot_telemetry", [], "specialist");
+assert(phases.length === 6, `IoT phases tepat 6 fase (actual: ${phases.length})`);
+assert(phases[0].deliverables.length >= 1, "Phase 0 memiliki deliverables nyata");
+
 
 // ── Summary ────────────────────────────────────────────────────
 console.log(
