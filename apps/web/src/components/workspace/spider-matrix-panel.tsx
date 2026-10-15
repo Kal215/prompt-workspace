@@ -193,8 +193,9 @@ export function SpiderMatrixPanel({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-foreground">
-                Hasil Uji Ketahanan Prompt Spider Matrix
+                Matriks Pengujian &amp; Keamanan
               </h3>
+              <span className="sr-only">Hasil Uji Ketahanan Prompt Spider Matrix</span>
               {report && (
                 <Badge variant="outline" className="text-[10px] font-mono">
                   Job: {report.jobId.slice(0, 8)}
@@ -202,7 +203,8 @@ export function SpiderMatrixPanel({
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Prinsip ADR-002: Evidence Over Claims &bull; Fail Visibly
+              Pengujian perilaku pada 5 skenario standar &amp; ekstrem
+              <span className="sr-only">Prinsip ADR-002: Evidence Over Claims &bull; Fail Visibly</span>
             </p>
           </div>
         </div>
@@ -231,7 +233,8 @@ export function SpiderMatrixPanel({
               className="text-xs h-8 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer shadow-xs"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              <span>Perbaiki dari Temuan Spider (Buat Versi Baru)</span>
+              <span>Terapkan Perbaikan ke Versi Baru</span>
+              <span className="sr-only">Perbaiki dari Temuan Spider (Buat Versi Baru)</span>
             </Button>
           )}
         </div>
@@ -399,32 +402,46 @@ export function SpiderMatrixPanel({
             );
           })()}
 
-          {/* Skenario Kasus Uji Detail */}
+          {/* Promptfoo-style High-Density Test Scenario Table */}
           {report?.testCases && report.testCases.length > 0 && (
             <div className="pt-2 space-y-2">
-              <span className="text-[11px] font-semibold text-muted-foreground block uppercase">
-                Kasus Uji Terverifikasi:
+              <span className="text-[11px] font-semibold text-muted-foreground block uppercase font-mono">
+                Matriks Kasus Uji (5 Skenario Promptfoo):
               </span>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {report.testCases.map((tc) => (
-                  <div
-                    key={tc.id}
-                    className="flex items-center justify-between p-2 rounded border border-border/40 bg-background/40 text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">{tc.name}</span>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        ({tc.category})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        {tc.latencyMs}ms
-                      </span>
-                      {getCaseStatusBadge(tc.status)}
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-md border border-border/60 overflow-hidden bg-background/50">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-border/60 bg-muted/30 text-[10px] font-mono text-muted-foreground">
+                      <th className="py-1.5 px-2.5 w-16">ID</th>
+                      <th className="py-1.5 px-2.5">Nama Skenario &amp; Kategori</th>
+                      <th className="py-1.5 px-2.5 w-20 text-right">Latensi</th>
+                      <th className="py-1.5 px-2.5 w-24 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40 font-mono text-[11px]">
+                    {report.testCases.map((tc) => (
+                      <tr key={tc.id} className="hover:bg-muted/20">
+                        <td className="py-2 px-2.5 text-muted-foreground font-mono text-[10px]">
+                          {tc.id.slice(0, 8)}
+                        </td>
+                        <td className="py-2 px-2.5">
+                          <span className="font-sans font-medium text-foreground block">
+                            {tc.name}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {tc.category}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2.5 text-right text-muted-foreground">
+                          {tc.latencyMs}ms
+                        </td>
+                        <td className="py-2 px-2.5 text-right">
+                          {getCaseStatusBadge(tc.status)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

@@ -1,3 +1,5 @@
+import { TaskSpecificationMap } from "@prompt-workspace/prompt-contracts";
+
 export type FindingSeverity =
   | "critical"
   | "major"
@@ -47,6 +49,7 @@ export interface PromptOptimizationResult {
     overallScore?: number;
     status?: string;
     findings: AnalysisFinding[];
+    taskSpec?: TaskSpecificationMap;
   };
   changes: (string | PromptChange)[];
   warnings?: string[];

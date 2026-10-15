@@ -11,7 +11,6 @@ import {
   Copy,
   Check,
   BookmarkCheck,
-  ChevronRight,
   Database,
   RefreshCw,
   Loader2,
@@ -263,7 +262,7 @@ export function HistorySidebar({
             </div>
           )}
 
-          {/* Items List */}
+          {/* Items List (LangSmith Trace Style) */}
           {!isLoading &&
             !error &&
             items.length > 0 &&
@@ -279,16 +278,16 @@ export function HistorySidebar({
                 <div
                   key={item.id}
                   onClick={() => onSelectPrompt?.(item)}
-                  className="group rounded-lg border border-border/60 bg-muted/10 hover:bg-muted/30 p-3 space-y-2 cursor-pointer transition-all hover:border-primary/40 relative"
+                  className="group rounded-md border border-border/70 bg-card hover:bg-muted/30 p-3 space-y-2 cursor-pointer transition-all hover:border-primary/50 relative"
                 >
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-muted-foreground font-mono flex items-center gap-1">
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-muted-foreground flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {formatTimestamp(item.createdAt)}
                     </span>
                     <Badge
                       variant="outline"
-                      className={`text-[10px] px-1.5 py-0 font-medium ${scoreBadgeClass}`}
+                      className={`text-[10px] px-1.5 py-0 font-mono font-medium ${scoreBadgeClass}`}
                     >
                       Skor: {item.score}/100
                     </Badge>
@@ -299,17 +298,30 @@ export function HistorySidebar({
                       {item.originalPrompt}
                     </div>
                     {item.intentSummary && (
-                      <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
-                        Intent: &ldquo;{item.intentSummary}&rdquo;
+                      <div className="text-[11px] text-muted-foreground line-clamp-1 italic font-sans">
+                        Maksud: &ldquo;{item.intentSummary}&rdquo;
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[11px]">
+                  <div className="flex items-center justify-between pt-1.5 border-t border-border/40 text-[11px]">
                     <span className="text-muted-foreground font-mono text-[10px]">
                       {item.optimizedPrompt.length} karakter
                     </span>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectPrompt?.(item);
+                        }}
+                        className="h-6 px-1.5 text-[10px] text-primary hover:bg-primary/10 cursor-pointer"
+                        title="Muat ke Editor"
+                      >
+                        Muat
+                      </Button>
+
                       {/* Copy Button */}
                       <Button
                         variant="ghost"
@@ -348,8 +360,6 @@ export function HistorySidebar({
                           <Trash2 className="h-3 w-3" />
                         )}
                       </Button>
-
-                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:translate-x-0.5 transition-transform" />
                     </div>
                   </div>
                 </div>

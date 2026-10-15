@@ -30,64 +30,78 @@ export function ChangesTracker({ changes }: ChangesTrackerProps) {
 
   return (
     <Card className="border-border/80 shadow-xs">
-      <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
-        <div className="flex items-center gap-2">
+      <CardHeader className="pb-3 border-b border-border/60 bg-muted/20">
+        <div className="flex items-center gap-2.5">
           <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center text-primary">
             <GitCommit className="h-4 w-4" />
           </div>
           <div>
             <CardTitle className="text-base font-semibold">
-              Log Intervensi Rekayasa ({changes.length})
+              Rincian Perubahan ({changes.length})
             </CardTitle>
+            <span className="sr-only">Log Intervensi Rekayasa</span>
             <CardDescription className="text-xs">
-              Transparansi modifikasi yang dilakukan engine terhadap prompt asli
+              Transparansi setiap intervensi dan batasan yang ditambahkan oleh engine
             </CardDescription>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-4 space-y-3">
-        {changes.map((change, index) => {
-          const isString = typeof change === "string";
-          const description = isString ? change : change.description;
-          const reason = isString ? "Peningkatan presisi instruksi & pencegahan halusinasi" : change.reason;
-          const type = isString ? "optimization" : change.type || "optimization";
+      <CardContent className="p-0">
+        {/* Promptfoo-style High-Density Grid */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border/60 bg-muted/30 text-[11px] font-mono text-muted-foreground">
+                <th className="py-2 px-3.5 w-28">Tipe Intervensi</th>
+                <th className="py-2 px-3.5">Deskripsi Modifikasi</th>
+                <th className="py-2 px-3.5 w-1/3">Alasan / Rationale</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {changes.map((change, index) => {
+                const isString = typeof change === "string";
+                const description = isString ? change : change.description;
+                const reason = isString ? "Peningkatan presisi instruksi & pencegahan halusinasi" : change.reason;
+                const type = isString ? "optimization" : change.type || "optimization";
 
-          return (
-            <div
-              key={index}
-              className="flex items-start gap-3 rounded-lg border border-border/50 p-3 bg-muted/20 text-xs"
-            >
-              <div className="mt-0.5 p-1 rounded bg-background border border-border/60">
-                {getChangeIcon(type)}
-              </div>
-
-              <div className="space-y-1 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-1.5">
-                  <span className="font-semibold text-foreground text-xs">
-                    {description}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className="font-mono text-[10px] text-muted-foreground uppercase px-1.5 py-0"
+                return (
+                  <tr
+                    key={index}
+                    className="hover:bg-muted/20 transition-colors"
                   >
-                    {type.replace(/_/g, " ")}
-                  </Badge>
-                </div>
+                    <td className="py-2.5 px-3.5 align-top">
+                      <div className="flex items-center gap-1.5">
+                        {getChangeIcon(type)}
+                        <Badge
+                          variant="outline"
+                          className="font-mono text-[10px] text-muted-foreground uppercase px-1.5 py-0"
+                        >
+                          {type.replace(/_/g, " ")}
+                        </Badge>
+                      </div>
+                    </td>
 
-                {reason && (
-                  <div className="text-muted-foreground leading-relaxed flex items-start gap-1 pt-0.5">
-                    <ArrowRight className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground/70" />
-                    <span>
-                      <strong className="text-foreground/80 font-medium">Alasan:</strong>{" "}
-                      {reason}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+                    <td className="py-2.5 px-3.5 align-top text-foreground font-medium leading-relaxed">
+                      {description}
+                    </td>
+
+                    <td className="py-2.5 px-3.5 align-top text-xs text-muted-foreground leading-relaxed">
+                      {reason ? (
+                        <div className="flex items-start gap-1">
+                          <ArrowRight className="h-3 w-3 shrink-0 mt-0.5 text-primary/70" />
+                          <span>{reason}</span>
+                        </div>
+                      ) : (
+                        <span className="italic text-[11px]">Standar penguatan prompt</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );
