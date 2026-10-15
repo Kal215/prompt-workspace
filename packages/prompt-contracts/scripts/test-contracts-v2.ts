@@ -10,6 +10,12 @@ import {
   computeCriticalGatePassed,
   PromptOptimizationRequestSchema,
   PromptExecutionRequestSchema,
+  ProjectPhaseStateSchema,
+  PhaseSubmissionInputSchema,
+  PhaseAuditResultSchema,
+  AutonomousProjectSessionSchema,
+  InitProjectSessionInputSchema,
+  GetCurrentPhaseInputSchema,
 } from "../src/index.js";
 import assert from "node:assert";
 
@@ -310,5 +316,139 @@ const resultWithValidation = PromptOptimizationResultSchema.parse({
 });
 assert.strictEqual(resultWithValidation.synthesisValidation?.passed, true);
 console.log("✅ Mega Task #44 TaskSpec & SynthesisValidation contracts verified 100%.");
+
+// ──────────────────────────────────────────────
+// 10. Autonomous Supervision Contracts (Tahap B / Task #50)
+// ──────────────────────────────────────────────
+console.log("\n[10] Testing Autonomous Supervision Contracts (Task #50)...");
+
+// A. ProjectPhaseStateSchema
+const samplePhase = ProjectPhaseStateSchema.parse({
+  phaseId: "PHASE_0",
+  phaseIndex: 0,
+  title: "Fondasi & Setup Lingkungan",
+  objective: "Menyiapkan monorepo, dependensi, dan kontrak tipe data",
+  requiredDeliverables: ["package.json", "tsconfig.json", "schema.prisma"],
+  acceptanceCriteria: ["Semua build pass", "Zero typecheck errors"],
+  status: "IN_PROGRESS",
+  attemptCount: 1,
+  lastAuditSummary: "Audit awal in-progress",
+});
+assert.strictEqual(samplePhase.phaseId, "PHASE_0");
+assert.strictEqual(samplePhase.attemptCount, 1);
+assert.strictEqual(samplePhase.status, "IN_PROGRESS");
+
+// B. PhaseSubmissionInputSchema (menerima string maupun object artifact)
+const sampleSubmission = PhaseSubmissionInputSchema.parse({
+  sessionId: "sess-supervision-001",
+  phaseIndex: 0,
+  summaryOfWork: "Menyiapkan struktur paket dan konfigurasi dasar",
+  deliveredArtifacts: [
+    "packages/contracts/src/index.ts",
+    {
+      name: "tsconfig.base.json",
+      type: "config",
+      summary: "Konfigurasi compiler TypeScript dasar",
+      contentSnippet: "compilerOptions: { strict: true }",
+    },
+  ],
+  verificationOutput: "tsc --noEmit -> Exit Code 0 (0 errors)",
+  knownIssues: ["Perlu verifikasi isolasi multi-user di fase 1"],
+});
+assert.strictEqual(sampleSubmission.sessionId, "sess-supervision-001");
+assert.strictEqual(sampleSubmission.deliveredArtifacts.length, 2);
+assert.strictEqual(sampleSubmission.deliveredArtifacts[0].name, "packages/contracts/src/index.ts");
+assert.strictEqual(sampleSubmission.deliveredArtifacts[0].type, "artifact");
+assert.strictEqual(sampleSubmission.deliveredArtifacts[1].name, "tsconfig.base.json");
+
+// C. PhaseAuditResultSchema (Audit verdict, self-healing corrective prompt)
+const sampleAuditResult = PhaseAuditResultSchema.parse({
+  verdict: "REJECTED_NEEDS_REPAIR",
+  score: 65,
+  missingDeliverables: ["schema.prisma"],
+  consistencyViolations: ["Nama entitas User berbeda dengan diagram ERD"],
+  scopeCreepOrForbiddenViolations: ["Dilarang membuat modul auth pihak ketiga (negative constraint)"],
+  evidenceCheckPassed: true,
+  nextActionPrompt: "PERBAIKI FASE 0: Tambahkan schema.prisma dan hapus dependensi third-party auth.",
+  phaseIndex: 0,
+  auditTimestamp: new Date().toISOString(),
+});
+assert.strictEqual(sampleAuditResult.verdict, "REJECTED_NEEDS_REPAIR");
+assert.strictEqual(sampleAuditResult.missingDeliverables[0], "schema.prisma");
+assert.strictEqual(sampleAuditResult.evidenceCheckPassed, true);
+
+// D. AutonomousProjectSessionSchema
+const sampleBlueprintSpec = {
+  title: "Sistem Kasir Pintar",
+  domain: "software_engineering",
+  audienceLevel: "professional" as const,
+  roles: ["Lead Architect", "Backend Specialist"],
+  contextParameters: { target: "UMKM" },
+  smartAssumptions: ["Menggunakan SQLite lokal"],
+  primaryObjectives: ["Manajemen stok dan nota"],
+  coreSpecification: "Arsitektur modular monolith",
+  diagrams: [{
+    id: "diag-01",
+    type: "flowchart" as const,
+    title: "Alur Transaksi",
+    mermaidCode: "graph TD\nA-->B",
+    description: "Diagram alur transaksi kasir",
+    entities: ["Kasir", "Produk"],
+  }],
+  executionPhases: [{
+    phaseNumber: 0,
+    name: "Setup Dasar",
+    tasks: ["Init repo"],
+    deliverables: ["package.json"],
+  }],
+  negativeConstraints: ["Jangan gunakan mock data palsu"],
+  executionProtocol: ["Wajib uji verifikasi nyata"],
+  workManagement: {
+    statusModel: ["TODO", "DONE"],
+    trackingRules: ["Commit per fase"],
+  },
+  definitionOfDone: ["Semua build pass"],
+  renderedMasterPrompt: "MASTER PROMPT",
+};
+
+const sampleSession = AutonomousProjectSessionSchema.parse({
+  sessionId: "sess-supervision-001",
+  originalPrompt: "Buat sistem kasir toko roti",
+  domainId: "software_engineering",
+  subtopicId: "web_fullstack",
+  audienceLevel: "professional",
+  masterBlueprint: sampleBlueprintSpec,
+  phases: [samplePhase],
+  currentPhaseIndex: 0,
+  overallStatus: "ACTIVE",
+  auditHistory: [{
+    phaseIndex: 0,
+    attemptNumber: 1,
+    submissionSummary: "Laporan fase 0",
+    auditResult: sampleAuditResult,
+    timestamp: new Date().toISOString(),
+  }],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
+assert.strictEqual(sampleSession.sessionId, "sess-supervision-001");
+assert.strictEqual(sampleSession.phases[0].phaseId, "PHASE_0");
+assert.strictEqual(sampleSession.auditHistory.length, 1);
+assert.strictEqual(sampleSession.overallStatus, "ACTIVE");
+
+// E. MCP Helper Schemas
+const initInput = InitProjectSessionInputSchema.parse({
+  prompt: "Bangun platform e-commerce",
+  audienceLevel: "specialist",
+  maxAttemptsPerPhase: 3,
+});
+assert.strictEqual(initInput.maxAttemptsPerPhase, 3);
+
+const getCurrentInput = GetCurrentPhaseInputSchema.parse({
+  sessionId: "sess-123",
+});
+assert.strictEqual(getCurrentInput.sessionId, "sess-123");
+
+console.log("✅ Tahap B / Task #50 Autonomous Supervision contracts verified 100%.");
 
 console.log("\n🎉 ALL PROMPT CONTRACTS v2.0 TESTS PASSED (EXIT CODE 0)");

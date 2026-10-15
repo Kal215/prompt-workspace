@@ -23,6 +23,10 @@ import { URL } from "node:url";
 import {
   runAutoPilotMasterPipeline,
   loadPiewConfig,
+  initAutonomousProject,
+  auditAndAdvancePhase,
+  applyHumanOverride,
+  getProjectStatus,
 } from "@prompt-workspace/prompt-engine";
 import {
   SynthesisStylePreset,
@@ -33,7 +37,7 @@ import { runPromptSpider } from "@prompt-workspace/prompt-spider";
 
 const PROTOCOL_VERSION = "2024-11-05";
 const SERVER_NAME = "piew-mcp-server";
-const SERVER_VERSION = "2.2.0";
+const SERVER_VERSION = "2.4.0";
 
 const TOOLS = [
   {
@@ -158,6 +162,154 @@ const TOOLS = [
         },
       },
       required: ["prompt"],
+    },
+  },
+  {
+    name: "piew_start_project",
+    description:
+      "Start a new autonomous supervised engineering project. Generates a 10-part Universal Meta-Blueprint with Mermaid diagrams, establishes stateful execution phases, and returns Phase 0 dispatch instructions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        prompt: {
+          type: "string",
+          description: "Raw task or project description with negative constraints",
+        },
+        context: {
+          type: "string",
+          description: "Optional codebase or domain context",
+        },
+        domainId: {
+          type: "string",
+          description: "Optional domain category override",
+        },
+        subtopicId: {
+          type: "string",
+          description: "Optional subtopic ID override",
+        },
+        audienceLevel: {
+          type: "string",
+          enum: ["student", "academic", "professional", "specialist"],
+          description: "Target audience calibration level (default: specialist)",
+        },
+        maxAttemptsPerPhase: {
+          type: "number",
+          description: "Maximum repair retry attempts per phase before halting (default: 5)",
+        },
+      },
+      required: ["prompt"],
+    },
+  },
+  {
+    name: "piew_submit_phase_work",
+    description:
+      "Submit an agent's completed phase deliverables and real verification evidence for strict audit by the PIEW Supervisor. Returns VERIFIED_PROCEED (with next phase prompt) or REJECTED_NEEDS_REPAIR (with self-healing corrective prompt).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: {
+          type: "string",
+          description: "The autonomous project session ID",
+        },
+        phaseIndex: {
+          type: "number",
+          description: "0-based index of the phase being reported",
+        },
+        summaryOfWork: {
+          type: "string",
+          description: "Concrete description of the work completed in this phase",
+        },
+        deliveredArtifacts: {
+          type: "array",
+          items: {
+            anyOf: [
+              { type: "string" },
+              {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  type: { type: "string" },
+                  summary: { type: "string" },
+                  contentSnippet: { type: "string" },
+                },
+                required: ["name"],
+              },
+            ],
+          },
+          description: "List of delivered files, documents, or components",
+        },
+        verificationOutput: {
+          type: "string",
+          description:
+            "REAL execution proof from terminal commands (test logs, build output, exit codes). Evidence over claims is strictly enforced.",
+        },
+        knownIssues: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional known issues or deferred items",
+        },
+      },
+      required: [
+        "sessionId",
+        "phaseIndex",
+        "summaryOfWork",
+        "deliveredArtifacts",
+        "verificationOutput",
+      ],
+    },
+  },
+  {
+    name: "piew_get_project_status",
+    description:
+      "Query the real-time supervision status of an autonomous project session: overall state, phase progress, audit history, and active phase dispatch prompt.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: {
+          type: "string",
+          description: "The autonomous project session ID",
+        },
+      },
+      required: ["sessionId"],
+    },
+  },
+  {
+    name: "piew_human_override",
+    description:
+      "Apply Human-in-Control intervention: inject negative constraints, force phase advance/rollback, reset retries, or halt/resume the project session.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: {
+          type: "string",
+          description: "The autonomous project session ID",
+        },
+        action: {
+          type: "string",
+          enum: [
+            "FORCE_ADVANCE",
+            "FORCE_ROLLBACK",
+            "RESET_RETRIES",
+            "INJECT_CONSTRAINT",
+            "HALT",
+            "RESUME",
+          ],
+          description: "The override action to execute",
+        },
+        targetPhaseIndex: {
+          type: "number",
+          description: "Target phase index (for FORCE_ROLLBACK)",
+        },
+        additionalConstraint: {
+          type: "string",
+          description: "New negative constraint to inject (for INJECT_CONSTRAINT)",
+        },
+        reason: {
+          type: "string",
+          description: "Operator reason for audit logging",
+        },
+      },
+      required: ["sessionId", "action"],
     },
   },
 ];
@@ -308,6 +460,114 @@ async function handleToolCall(name: string, args: Record<string, any>) {
           },
         ],
         isError: false,
+      };
+    }
+
+    case "piew_start_project": {
+      const initRes = initAutonomousProject({
+        prompt: args.prompt,
+        context: args.context,
+        domainId: args.domainId,
+        subtopicId: args.subtopicId,
+        audienceLevel: args.audienceLevel,
+        maxAttemptsPerPhase: args.maxAttemptsPerPhase,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: initRes.dispatchPrompt,
+          },
+        ],
+        isError: false,
+        _meta: {
+          sessionId: initRes.session.sessionId,
+          title: initRes.session.masterBlueprint.title,
+          domain: initRes.session.domainId,
+          subtopic: initRes.session.subtopicId,
+          totalPhases: initRes.session.phases.length,
+          currentPhaseIndex: initRes.session.currentPhaseIndex,
+          overallStatus: initRes.session.overallStatus,
+          activePhase: initRes.session.phases[0],
+          phases: initRes.session.phases,
+        },
+      };
+    }
+
+    case "piew_submit_phase_work": {
+      const auditRes = auditAndAdvancePhase({
+        sessionId: args.sessionId,
+        phaseIndex: args.phaseIndex,
+        summaryOfWork: args.summaryOfWork,
+        deliveredArtifacts: args.deliveredArtifacts,
+        verificationOutput: args.verificationOutput,
+        knownIssues: args.knownIssues,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: auditRes.nextActionPrompt,
+          },
+        ],
+        isError: false,
+        _meta: {
+          verdict: auditRes.verdict,
+          score: auditRes.score,
+          evidenceCheckPassed: auditRes.evidenceCheckPassed,
+          missingDeliverables: auditRes.missingDeliverables,
+          consistencyViolations: auditRes.consistencyViolations,
+          scopeCreepOrForbiddenViolations: auditRes.scopeCreepOrForbiddenViolations,
+        },
+      };
+    }
+
+    case "piew_get_project_status": {
+      const statusRes = getProjectStatus(args.sessionId);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(statusRes, null, 2),
+          },
+        ],
+        isError: false,
+        _meta: {
+          sessionId: statusRes.sessionId,
+          overallStatus: statusRes.overallStatus,
+          progressPercentage: statusRes.progressPercentage,
+          currentPhaseIndex: statusRes.currentPhaseIndex,
+          activePhase: statusRes.activePhase,
+          phases: statusRes.phases,
+        },
+      };
+    }
+
+    case "piew_human_override": {
+      const overrideRes = applyHumanOverride({
+        sessionId: args.sessionId,
+        action: args.action,
+        targetPhaseIndex: args.targetPhaseIndex,
+        additionalConstraint: args.additionalConstraint,
+        reason: args.reason,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${overrideRes.summary}\n\n${overrideRes.updatedPrompt}`,
+          },
+        ],
+        isError: false,
+        _meta: {
+          sessionId: overrideRes.session.sessionId,
+          overallStatus: overrideRes.session.overallStatus,
+          currentPhaseIndex: overrideRes.session.currentPhaseIndex,
+          summary: overrideRes.summary,
+        },
       };
     }
 

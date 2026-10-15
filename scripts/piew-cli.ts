@@ -11,6 +11,7 @@
 import {
   runAutoPilotMasterPipeline,
   loadPiewConfig,
+  initAutonomousProject,
 } from "@prompt-workspace/prompt-engine";
 import {
   SynthesisStylePreset,
@@ -31,6 +32,7 @@ Opsi:
   --budget=<mode>     Mode budget token: balanced (default), eco, deep_audit
   --url=<url>         URL dokumentasi/GitHub referensi (maks 2, pisahkan koma atau ulang flag)
   --context=<teks>    Konteks tambahan / spesifikasi arsitektur
+  --supervise         Inisialisasi sesi supervisi otonom (Closed-Loop MCP Supervisor)
   --json              Cetak output utuh dalam format JSON
   -h, --help          Tampilkan panduan bantuan ini
 
@@ -59,9 +61,12 @@ async function main() {
   let context: string | undefined;
   const referenceUrls: string[] = [];
   let jsonOutput = false;
+  let superviseMode = false;
 
   for (const arg of args) {
-    if (arg.startsWith("--style=")) {
+    if (arg === "--supervise") {
+      superviseMode = true;
+    } else if (arg.startsWith("--style=")) {
       stylePreset = arg.split("=")[1] as SynthesisStylePreset;
     } else if (arg.startsWith("--budget=")) {
       budgetMode = arg.split("=")[1] as TokenBudgetMode;
@@ -93,6 +98,40 @@ async function main() {
     console.error("❌ Error: Prompt utama wajib diberikan.");
     printUsage();
     process.exit(1);
+  }
+
+  if (superviseMode) {
+    try {
+      const initResult = initAutonomousProject({
+        prompt,
+        context,
+        audienceLevel,
+      });
+
+      if (jsonOutput) {
+        console.log(JSON.stringify(initResult, null, 2));
+        process.exit(0);
+      }
+
+      console.log("\n" + "═".repeat(68));
+      console.log(`🏛️ PIEW AUTONOMOUS SUPERVISOR INITIALIZED: ${initResult.session.sessionId}`);
+      console.log("═".repeat(68) + "\n");
+      console.log(`Proyek: ${initResult.session.masterBlueprint.title}`);
+      console.log(`Domain: ${initResult.session.domainId} | Subtopik: ${initResult.session.subtopicId} | Audiens: ${initResult.session.audienceLevel}`);
+      console.log(`Total Fase: ${initResult.session.phases.length} fase eksekusi\n`);
+      console.log("─".repeat(68));
+      console.log("📋 INITIAL DISPATCH PROMPT (FASE 0):");
+      console.log("─".repeat(68) + "\n");
+      console.log(initResult.dispatchPrompt);
+      console.log("\n" + "─".repeat(68));
+      console.log(`💡 Instruksi Lanjutan untuk Agen:`);
+      console.log(`Gunakan MCP tool 'piew_submit_phase_work' dengan sessionId: "${initResult.session.sessionId}"`);
+      console.log("─".repeat(68) + "\n");
+      process.exit(0);
+    } catch (err: any) {
+      console.error(`❌ Gagal menginisialisasi sesi supervisi: ${err.message}`);
+      process.exit(1);
+    }
   }
 
   try {

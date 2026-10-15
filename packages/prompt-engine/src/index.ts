@@ -51,6 +51,7 @@ export * from "./config.js";
 export * from "./diagram-synthesizer.js";
 export * from "./consistency-guard.js";
 export * from "./universal-synthesizer.js";
+export * from "./supervisor.js";
 
 /**
  * Orchestrator Pipeline: Menjalankan pipeline lengkap analisis dan optimasi prompt.

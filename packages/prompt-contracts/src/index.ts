@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export * from "./task-spec.js";
+export * from "./supervision.js";
 import {
   TokenBudgetModeEnum,
   SynthesisStylePresetEnum,
