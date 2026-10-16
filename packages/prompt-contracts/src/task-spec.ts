@@ -151,6 +151,7 @@ export const UniversalBlueprintSpecSchema = z.object({
   }),
   definitionOfDone: z.array(z.string()).min(1),
   renderedMasterPrompt: z.string(),
+  metadata: z.record(z.any()).optional(),
 });
 export type UniversalBlueprintSpec = z.infer<typeof UniversalBlueprintSpecSchema>;
 

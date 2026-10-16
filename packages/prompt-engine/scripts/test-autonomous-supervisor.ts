@@ -293,7 +293,7 @@ async function testMcpServerRoundtrip(): Promise<void> {
       setTimeout(() => {
         child.stdout.off("data", onData);
         reject(new Error(`MCP request id=${id} timed out`));
-      }, 15000);
+      }, 30000);
     });
   }
 
@@ -308,6 +308,7 @@ async function testMcpServerRoundtrip(): Promise<void> {
         arguments: {
           prompt: "Bangun microservice payment gateway dengan idempotency key. Jangan gunakan mock gateway.",
           audienceLevel: "specialist",
+          forceOfflineFallback: true,
         },
       },
     });

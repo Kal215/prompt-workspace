@@ -2,6 +2,7 @@ import {
   DiagramSpecification,
   DiagramType,
   AudienceLevel,
+  DynamicBlueprintKnowledgeGraph,
 } from "@prompt-workspace/prompt-contracts";
 import {
   UniversalDomainCategory,
@@ -1264,4 +1265,177 @@ function synthesizeAcademicDiagrams(
     Step6 --> Step7[KesimpulanSkripsi: Pembahasan Hipotesis Diterima atau Ditolak]`,
     },
   ];
+}
+
+/**
+ * Anti-Crash Mermaid Layout Compiler
+ * Mengompilasi struktur knowledge graph JSON hasil ekstraksi AI menjadi kode diagram Mermaid.js
+ * yang 100% unik, kontekstual, dan lolos uji sintaks serta tata letak.
+ */
+export function compileKnowledgeGraphToMermaid(
+  graph: DynamicBlueprintKnowledgeGraph
+): DiagramSpecification[] {
+  const specs: DiagramSpecification[] = [];
+  const slug = sanitizeMermaidNodeId(graph.projectTitle || "proyek").toLowerCase();
+
+  // 1. Relational ERD (Jika ada entitas yang didefinisikan)
+  if (
+    graph.diagramStructures.entities &&
+    graph.diagramStructures.entities.length > 0
+  ) {
+    const lines: string[] = ["erDiagram"];
+    const entityNames = new Set<string>();
+
+    // Relasi antar entitas
+    if (
+      graph.diagramStructures.relationships &&
+      graph.diagramStructures.relationships.length > 0
+    ) {
+      for (const rel of graph.diagramStructures.relationships) {
+        const from = sanitizeMermaidNodeId(rel.from);
+        const to = sanitizeMermaidNodeId(rel.to);
+        entityNames.add(from);
+        entityNames.add(to);
+
+        let cardSymbol = "||--o{";
+        if (rel.cardinality === "one_to_one") cardSymbol = "||--||";
+        else if (rel.cardinality === "one_to_many") cardSymbol = "||--o{";
+        else if (rel.cardinality === "many_to_one") cardSymbol = "}o--||";
+        else if (rel.cardinality === "many_to_many") cardSymbol = "}o--o{";
+
+        const label = sanitizeMermaidLabel(rel.label || "relates_to", 25).replace(/\s+/g, "_");
+        lines.push(`    ${from} ${cardSymbol} ${to} : "${label}"`);
+      }
+    }
+
+    // Definisi tabel dan atribut
+    for (const ent of graph.diagramStructures.entities) {
+      const entName = sanitizeMermaidNodeId(ent.name);
+      entityNames.add(entName);
+      lines.push(`    ${entName} {`);
+      for (const f of ent.fields) {
+        const fType = (f.type || "string").replace(/[^a-zA-Z0-9_]/g, "");
+        const fName = sanitizeMermaidNodeId(f.name);
+        const pkMarker = f.isPrimaryKey ? " PK" : f.isForeignKey ? " FK" : "";
+        const desc = f.description
+          ? ` "${sanitizeMermaidLabel(f.description, 30).replace(/["\n\r]/g, "")}"`
+          : "";
+        lines.push(`        ${fType || "string"} ${fName}${pkMarker}${desc}`);
+      }
+      lines.push(`    }`);
+    }
+
+    specs.push(
+      applyMermaidLayoutGuard({
+        id: `erd-${slug}`,
+        type: "erd",
+        title: `Diagram Relasi Entitas (ERD) — ${graph.projectTitle}`,
+        description: `Spesifikasi model data relasional 100% kontekstual untuk ${graph.projectTitle}.`,
+        entities: Array.from(entityNames),
+        mermaidCode: lines.join("\n"),
+      })
+    );
+  }
+
+  // 2. Workflow / Process Flowchart
+  if (
+    graph.diagramStructures.workflow &&
+    graph.diagramStructures.workflow.nodes &&
+    graph.diagramStructures.workflow.nodes.length > 0
+  ) {
+    const wf = graph.diagramStructures.workflow;
+    const direction = wf.flowDirection || "TD";
+    const lines: string[] = [`flowchart ${direction}`];
+    const nodeIds = new Set<string>();
+
+    for (const node of wf.nodes) {
+      const id = sanitizeMermaidNodeId(node.id);
+      nodeIds.add(id);
+      const lbl = sanitizeMermaidLabel(node.label || id, 40).replace(/["\n\r]/g, "");
+      if (node.type === "start" || node.type === "end") {
+        lines.push(`    ${id}([${lbl}])`);
+      } else if (node.type === "decision") {
+        lines.push(`    ${id}{${lbl}}`);
+      } else if (node.type === "storage") {
+        lines.push(`    ${id}[(${lbl})]`);
+      } else {
+        lines.push(`    ${id}[${lbl}]`);
+      }
+    }
+
+    if (wf.edges && wf.edges.length > 0) {
+      for (const edge of wf.edges) {
+        const from = sanitizeMermaidNodeId(edge.from);
+        const to = sanitizeMermaidNodeId(edge.to);
+        nodeIds.add(from);
+        nodeIds.add(to);
+        if (edge.label && edge.label.trim()) {
+          const edgeLbl = sanitizeMermaidLabel(edge.label, 25).replace(/["\n\r|]/g, "");
+          lines.push(`    ${from} -- "${edgeLbl}" --> ${to}`);
+        } else {
+          lines.push(`    ${from} --> ${to}`);
+        }
+      }
+    }
+
+    specs.push(
+      applyMermaidLayoutGuard({
+        id: `flowchart-${slug}`,
+        type: "flowchart",
+        title: wf.diagramTitle || `Diagram Alur Operasional — ${graph.projectTitle}`,
+        description: `Visualisasi alur proses dan titik keputusan operasional untuk ${graph.projectTitle}.`,
+        entities: Array.from(nodeIds),
+        mermaidCode: lines.join("\n"),
+      })
+    );
+  }
+
+  // 3. Gantt Chart (Untuk pelengkap garis waktu jika hanya ada 1 diagram atau jika ada task gantt eksplisit)
+  if (
+    (graph.diagramStructures.ganttTasks && graph.diagramStructures.ganttTasks.length > 0) ||
+    (specs.length === 1 && graph.executionPhases && graph.executionPhases.length > 0)
+  ) {
+    const lines: string[] = [
+      "gantt",
+      `    title Garis Waktu Pelaksanaan — ${sanitizeMermaidLabel(graph.projectTitle, 35)}`,
+      "    dateFormat YYYY-MM-DD",
+    ];
+
+    if (
+      graph.diagramStructures.ganttTasks &&
+      graph.diagramStructures.ganttTasks.length > 0
+    ) {
+      const phasesMap = new Map<string, string[]>();
+      for (const task of graph.diagramStructures.ganttTasks) {
+        const phase = task.phase || "Fase Eksekusi";
+        if (!phasesMap.has(phase)) phasesMap.set(phase, []);
+        const tName = sanitizeMermaidLabel(task.taskName, 30).replace(/[:,\n\r]/g, " ");
+        phasesMap.get(phase)!.push(`    ${tName} :2026-11-01, ${task.durationDays}d`);
+      }
+      for (const [pName, tasks] of phasesMap.entries()) {
+        lines.push(`    section ${sanitizeMermaidLabel(pName, 25)}`);
+        lines.push(...tasks);
+      }
+    } else if (graph.executionPhases && graph.executionPhases.length > 0) {
+      for (const p of graph.executionPhases.slice(0, 6)) {
+        lines.push(`    section ${sanitizeMermaidLabel(p.phaseName, 25)}`);
+        const act = p.concreteActions[0] || p.goal;
+        const actLabel = sanitizeMermaidLabel(act, 30).replace(/[:,\n\r]/g, " ");
+        lines.push(`    ${actLabel} :p${p.phaseIndex}, 2026-11-01, 7d`);
+      }
+    }
+
+    specs.push(
+      applyMermaidLayoutGuard({
+        id: `gantt-${slug}`,
+        type: "gantt",
+        title: `Jadwal & Fase Proyek (Gantt) — ${graph.projectTitle}`,
+        description: `Garis waktu pelaksanaan dan deliverable untuk ${graph.projectTitle}.`,
+        entities: graph.executionPhases.map((p) => p.phaseName),
+        mermaidCode: lines.join("\n"),
+      })
+    );
+  }
+
+  return specs;
 }

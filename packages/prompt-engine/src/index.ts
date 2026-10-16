@@ -52,6 +52,7 @@ export * from "./diagram-synthesizer.js";
 export * from "./consistency-guard.js";
 export * from "./universal-synthesizer.js";
 export * from "./supervisor.js";
+export * from "./dynamic-llm-synthesizer.js";
 
 /**
  * Orchestrator Pipeline: Menjalankan pipeline lengkap analisis dan optimasi prompt.

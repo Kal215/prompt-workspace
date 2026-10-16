@@ -16,7 +16,10 @@ import {
   classifyUniversalDomain,
   detectDomainSubtopic,
 } from "@prompt-workspace/domain-rules";
-import { synthesizeUniversalBlueprint } from "./universal-synthesizer.js";
+import {
+  synthesizeUniversalBlueprint,
+  synthesizeUniversalBlueprintAsync,
+} from "./universal-synthesizer.js";
 
 // ──────────────────────────────────────────────
 // In-Memory & File-Based Session Storage (Isomorphic / Browser-Safe)
@@ -611,6 +614,108 @@ export function initAutonomousProject(
     originalPrompt: prompt,
     domainId: domainCategory,
     subtopicId: subtopic,
+    audienceLevel,
+    masterBlueprint: blueprint,
+    phases,
+    currentPhaseIndex: 0,
+    overallStatus: "ACTIVE",
+    auditHistory: [],
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  // 3. Simpan sesi & bangkitkan Initial Dispatch Prompt Fase 0
+  saveProjectSession(session);
+
+  const dispatchPrompt = generatePhaseDispatchPrompt({
+    session,
+    targetPhase: session.phases[0],
+    isInitial: true,
+  });
+
+  return {
+    session,
+    dispatchPrompt,
+  };
+}
+
+/**
+ * Versi Async dari Inisialisasi Proyek Otonom dengan Live LLM Dynamic Synthesis
+ */
+export async function initAutonomousProjectAsync(
+  rawInput: InitProjectSessionInput
+): Promise<InitProjectResult> {
+  const input = InitProjectSessionInputSchema.parse(rawInput);
+  const prompt = input.prompt.trim();
+  const audienceLevel: AudienceLevel = input.audienceLevel || "specialist";
+
+  // 1. Bangkitkan Master Blueprint Universal 10-Bagian + Diagram Mermaid secara dinamis via LLM
+  const synthesis = await synthesizeUniversalBlueprintAsync({
+    prompt,
+    audienceLevel,
+    domain: input.domainId,
+  });
+  const blueprint = synthesis.blueprint;
+
+  // Ekstrak batasan larangan eksplisit pengguna dari prompt asli (pecah per klausul)
+  const userNegativeConstraints: string[] = [];
+  const rawSegments = prompt.split(/(?:\.|\n|;|\bdan\s+(?=dilarang|jangan|tidak boleh|no\b))/i);
+  for (const seg of rawSegments) {
+    const trimmed = seg.trim();
+    const match = /(?:dilarang|jangan|tidak boleh|no)\s+([^.\n;,]+)/i.exec(trimmed);
+    if (match && match[0]) {
+      const c = match[0].trim();
+      if (c.length >= 5) {
+        userNegativeConstraints.push(c);
+      }
+    }
+  }
+
+  if (userNegativeConstraints.length > 0) {
+    blueprint.negativeConstraints = [
+      ...userNegativeConstraints,
+      ...blueprint.negativeConstraints,
+    ];
+  }
+
+  const sessionId = `piew-proj-${generateUUID().slice(0, 8)}`;
+
+  // 2. Petakan seluruh fase eksekusi menjadi antrean stateful
+  const phases: ProjectPhaseState[] = blueprint.executionPhases.map(
+    (ep, idx) => {
+      const phaseId = `PHASE_${ep.phaseNumber}`;
+      return ProjectPhaseStateSchema.parse({
+        phaseId,
+        phaseIndex: ep.phaseNumber,
+        title: ep.name,
+        objective:
+          ep.description ||
+          (ep.tasks.length > 0
+            ? `Tuntaskan implementasi: ${ep.tasks.join(", ")}`
+            : `Eksekusi deliverables fase ${ep.phaseNumber}`),
+        requiredDeliverables:
+          ep.deliverables && ep.deliverables.length > 0
+            ? ep.deliverables
+            : [`Deliverables utama untuk ${ep.name}`],
+        acceptanceCriteria: [
+          ...ep.tasks.map((t) => `Selesaikan tugas teknis: ${t}`),
+          ...(blueprint.definitionOfDone.slice(0, 2)),
+        ],
+        status: idx === 0 ? "IN_PROGRESS" : "TODO",
+        retryCount: 0,
+        maxRetries: input.maxAttemptsPerPhase || 5,
+        repairHistory: [],
+        startedAt: idx === 0 ? new Date().toISOString() : undefined,
+      });
+    }
+  );
+
+  const now = new Date().toISOString();
+  const session: AutonomousProjectSession = AutonomousProjectSessionSchema.parse({
+    sessionId,
+    projectTitle: blueprint.title,
+    domainId: blueprint.domain,
+    subtopicId: input.subtopicId || "universal_dynamic",
     audienceLevel,
     masterBlueprint: blueprint,
     phases,

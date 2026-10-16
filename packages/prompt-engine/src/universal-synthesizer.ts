@@ -3,6 +3,7 @@ import {
   AudienceLevel,
   DiagramSpecification,
   ExecutionPhase,
+  DynamicSynthesisMetadata,
 } from "@prompt-workspace/prompt-contracts";
 import {
   classifyUniversalDomain,
@@ -17,7 +18,11 @@ import {
   getNegativeConstraints,
   getDefinitionOfDone,
 } from "@prompt-workspace/domain-rules";
-import { synthesizeUniversalDiagrams } from "./diagram-synthesizer.js";
+import {
+  synthesizeUniversalDiagrams,
+  compileKnowledgeGraphToMermaid,
+} from "./diagram-synthesizer.js";
+import { extractDynamicBlueprintWithLLM } from "./dynamic-llm-synthesizer.js";
 
 // Re-export for 100% backward compatibility
 export {
@@ -36,6 +41,8 @@ export interface UniversalSynthesisInput {
   context?: string | null;
   audienceLevel?: AudienceLevel;
   domain?: string;
+  negativeConstraints?: string[];
+  forceOfflineFallback?: boolean;
 }
 
 export interface UniversalSynthesisResult {
@@ -43,6 +50,196 @@ export interface UniversalSynthesisResult {
   consistencyScore: number;
   consistencyValid: boolean;
   warnings: string[];
+  metadata?: DynamicSynthesisMetadata;
+}
+
+/**
+ * Mengekstrak batasan negatif eksplisit dari teks prompt pengguna (misal: "Jangan buat POS")
+ */
+export function extractNegativeConstraintsFromPrompt(prompt: string): string[] {
+  if (!prompt || typeof prompt !== "string") return [];
+  const constraints: string[] = [];
+  const regex = /(?:jangan\s+buat|jangan\s+gunakan|jangan|tanpa|dilarang\s+membuat|dilarang|do not\s+build|do not|never|no)\s+([^.,;\n]+)/gi;
+  let match;
+  while ((match = regex.exec(prompt)) !== null) {
+    const raw = match[1].trim();
+    if (raw.length > 2 && !raw.startsWith("lupa") && !raw.startsWith("khawatir")) {
+      constraints.push(`Dilarang mengikutsertakan atau membangun modul/fitur: ${raw}`);
+    }
+  }
+  return constraints;
+}
+
+/**
+ * Sintesis Blueprint Universal Asinkron dengan Dukungan Live LLM Dynamic Synthesis
+ */
+export async function synthesizeUniversalBlueprintAsync(
+  input: UniversalSynthesisInput
+): Promise<UniversalSynthesisResult> {
+  const rawPrompt = ((input.prompt || (input as any).primaryGoal) || "").trim();
+  const audience: AudienceLevel = input.audienceLevel || "specialist";
+  const explicitNegative = input.negativeConstraints || [];
+  const detectedNegative = extractNegativeConstraintsFromPrompt(rawPrompt);
+  const activeNegativeConstraints = Array.from(new Set([...explicitNegative, ...detectedNegative]));
+
+  // Tier 1: Coba Live LLM Dynamic Synthesis jika tidak dipaksa offline
+  if (!input.forceOfflineFallback) {
+    try {
+      const llmResult = await extractDynamicBlueprintWithLLM({
+        prompt: rawPrompt,
+        audienceLevel: audience,
+        domain: input.domain,
+        context: input.context,
+        negativeConstraints: activeNegativeConstraints,
+      });
+
+      if (llmResult && llmResult.graph) {
+        const { graph, metadata } = llmResult;
+        const diagrams = compileKnowledgeGraphToMermaid(graph);
+
+        const roles = graph.expertCouncil.map(
+          (m) => `**${m.role}** (${m.focus}): ${m.concreteResponsibility}`
+        );
+
+        const contextParameters: Record<string, string> = {};
+        for (const p of graph.coreParameters) {
+          contextParameters[p.name] = `${p.value} — ${p.rationale}`;
+        }
+
+        const smartAssumptions: string[] = [
+          ...graph.smartAssumptions,
+          ...graph.explicitFacts.map((f) => `[FAKTA PROMPT]: ${f}`),
+          ...graph.openDecisions.map(
+            (d) => `[KEPUTUSAN]: ${d.decision} -> Dipilih: ${d.chosenPath} (${d.tradeOff})`
+          ),
+        ];
+
+        const primaryObjectives = graph.qualityObjectives.map(
+          (q) => `**${q.objective}**: ${q.metric} (Target: ${q.targetCriteria})`
+        );
+
+        const coreSpecification = [
+          `### 4.1 Arsitektur & Gambaran Sistem:`,
+          graph.coreSpecification.architectureOverview,
+          `\n### 4.2 Kapabilitas Fungsional Inti:`,
+          ...graph.coreSpecification.functionalCapabilities.map((c) => `- ${c}`),
+          `\n### 4.3 Tumpukan Teknologi / Metodologi:`,
+          ...graph.coreSpecification.technicalStackOrMethodology.map((s) => `- ${s}`),
+          `\n### 4.4 Alur Data & Operasional:`,
+          graph.coreSpecification.dataOrOperationalFlow,
+        ].join("\n");
+
+        const executionPhases: ExecutionPhase[] = graph.executionPhases.map((p) => ({
+          phaseNumber: p.phaseIndex,
+          name: p.phaseName,
+          tasks: p.concreteActions,
+          deliverables: p.deliverables.map((d) => `${d.name} (${d.description})`),
+        }));
+
+        const negativeConstraints: string[] = [
+          ...graph.domainGuardrails.negativeConstraintsHonored.map(
+            (c) => `[LARANGAN MUTLAK PENGGUNA]: ${c}`
+          ),
+          ...graph.domainGuardrails.antiPatternsForbidden.map(
+            (a) => `[ANTI-PATTERN TERLARANG]: ${a}`
+          ),
+          `Konsekuensi Pelanggaran: ${graph.domainGuardrails.consequenceOfViolation}`,
+        ];
+
+        const executionProtocol = [
+          "Step 1 — INSPECT: Pelajari seluruh konteks, repositori, data awal, atau dokumen yang tersedia sebelum memulai perubahan.",
+          "Step 2 — PLAN: Rancang rencana implementasi bertahap dan petakan ketergantungan antar-task (dependency tree).",
+          "Step 3 — IMPLEMENT: Bangun artefak, dokumen, atau modul kode secara modular dan patuhi standar spesifikasi pada Bagian 4.",
+          "Step 4 — VERIFY: Uji setiap keluaran menggunakan verifikasi faktual atau automated test suite (Pastikan 100% lulus / Exit Code 0).",
+          "Step 5 — REPORT: Laporkan bukti artefak konkret yang selesai, kriteria yang terpenuhi, dan batasan yang terverifikasi.",
+        ];
+
+        const workManagement = {
+          statusModel: ["TODO", "IN_PROGRESS", "BLOCKED", "DONE", "VERIFIED"],
+          trackingRules: [
+            "Setiap task wajib memiliki: Task ID, Deskripsi, Prioritas, Ketergantungan, Kriteria Penerimaan, dan Bukti Verifikasi.",
+            "Status DONE hanya berlaku jika dokumen atau kode telah selesai ditulis.",
+            "Status VERIFIED hanya boleh diberikan jika kriteria penerimaan telah dibuktikan secara empiris atau lulus pengujian sistem.",
+            "Dilarang menandai pekerjaan selesai hanya karena sebagian output visual terlihat bagus.",
+          ],
+        };
+
+        const definitionOfDone = [
+          `Seluruh ${primaryObjectives.length} standar mutu pada Bagian 3 terverifikasi 100%.`,
+          `Seluruh diagram Mermaid pada Bagian 5 valid tanpa syntax error.`,
+          `Seluruh fase eksekusi pada Bagian 6 menghasilkan deliverable nyata.`,
+          `Tidak ada pelanggaran batasan negatif pada Bagian 7.`,
+        ];
+
+        const renderedMasterPrompt = renderBlueprintToMarkdown({
+          title: graph.projectTitle,
+          domain: graph.domainClassification,
+          audienceLevel: audience,
+          roles,
+          contextParameters,
+          smartAssumptions,
+          primaryObjectives,
+          coreSpecification,
+          diagrams,
+          executionPhases,
+          negativeConstraints,
+          executionProtocol,
+          workManagement,
+          definitionOfDone,
+        });
+
+        const blueprint: UniversalBlueprintSpec = {
+          title: graph.projectTitle,
+          domain: graph.domainClassification,
+          audienceLevel: audience,
+          roles,
+          contextParameters,
+          smartAssumptions,
+          primaryObjectives,
+          coreSpecification,
+          diagrams,
+          executionPhases,
+          negativeConstraints,
+          executionProtocol,
+          workManagement,
+          definitionOfDone,
+          renderedMasterPrompt,
+          metadata: metadata as any,
+        };
+
+        const audit = auditCrossArtifactConsistency({
+          diagrams,
+          coreSpecification,
+          executionPhases,
+          additionalTextContext: rawPrompt,
+        });
+
+        return {
+          blueprint,
+          consistencyScore: audit.score,
+          consistencyValid: audit.isConsistent,
+          warnings: audit.warnings,
+          metadata,
+        };
+      }
+    } catch (err: any) {
+      console.warn(`[UniversalSynthesizer] Dynamic LLM failed (${err.message}), falling back to deterministic.`);
+    }
+  }
+
+  // Tier 2: Deterministic Fallback
+  const fallbackResult = synthesizeUniversalBlueprint(input);
+  return {
+    ...fallbackResult,
+    metadata: {
+      synthesisMode: "deterministic_fallback",
+      providerId: "deterministic_rules",
+      model: "piew-rules-v2",
+      latencyMs: 8,
+      generatedAt: new Date().toISOString(),
+      activeNegativeConstraints,
+    },
+  };
 }
 
 /**
