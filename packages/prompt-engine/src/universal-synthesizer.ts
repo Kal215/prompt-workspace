@@ -23,6 +23,10 @@ import {
   compileKnowledgeGraphToMermaid,
 } from "./diagram-synthesizer.js";
 import { extractDynamicBlueprintWithLLM } from "./dynamic-llm-synthesizer.js";
+import {
+  gatherMcpExternalContext,
+  formatMcpContextForPrompt,
+} from "./mcp-bridge.js";
 
 // Re-export for 100% backward compatibility
 export {
@@ -43,6 +47,8 @@ export interface UniversalSynthesisInput {
   domain?: string;
   negativeConstraints?: string[];
   forceOfflineFallback?: boolean;
+  enableMcpEnrichment?: boolean;
+  activeConnectorIds?: string[];
 }
 
 export interface UniversalSynthesisResult {
@@ -82,6 +88,26 @@ export async function synthesizeUniversalBlueprintAsync(
   const detectedNegative = extractNegativeConstraintsFromPrompt(rawPrompt);
   const activeNegativeConstraints = Array.from(new Set([...explicitNegative, ...detectedNegative]));
 
+  // Inbound MCP Context Enrichment (Arah 1: Menarik fakta/desain/skema dari server MCP)
+  let effectiveContext = input.context || "";
+  let mcpContexts: any[] = [];
+
+  if (input.enableMcpEnrichment !== false) {
+    try {
+      mcpContexts = await gatherMcpExternalContext(rawPrompt, {
+        activeConnectorIds: input.activeConnectorIds,
+      });
+      if (mcpContexts.length > 0) {
+        const formattedMcp = formatMcpContextForPrompt(mcpContexts);
+        effectiveContext = effectiveContext
+          ? `${effectiveContext}\n\n${formattedMcp}`
+          : formattedMcp;
+      }
+    } catch (e: any) {
+      // Abaikan kegagalan enrichment agar sintesis tidak terputus
+    }
+  }
+
   // Tier 1: Coba Live LLM Dynamic Synthesis jika tidak dipaksa offline
   if (!input.forceOfflineFallback) {
     try {
@@ -89,12 +115,16 @@ export async function synthesizeUniversalBlueprintAsync(
         prompt: rawPrompt,
         audienceLevel: audience,
         domain: input.domain,
-        context: input.context,
+        context: effectiveContext || null,
         negativeConstraints: activeNegativeConstraints,
       });
 
       if (llmResult && llmResult.graph) {
         const { graph, metadata } = llmResult;
+        if (mcpContexts.length > 0) {
+          metadata.mcpEnriched = true;
+          metadata.mcpConnectors = mcpContexts.map((c: any) => c.connectorId);
+        }
         const diagrams = compileKnowledgeGraphToMermaid(graph);
 
         const roles = graph.expertCouncil.map(
@@ -228,7 +258,10 @@ export async function synthesizeUniversalBlueprintAsync(
   }
 
   // Tier 2: Deterministic Fallback
-  const fallbackResult = synthesizeUniversalBlueprint(input);
+  const fallbackResult = synthesizeUniversalBlueprint({
+    ...input,
+    context: effectiveContext,
+  });
   return {
     ...fallbackResult,
     metadata: {
@@ -238,6 +271,8 @@ export async function synthesizeUniversalBlueprintAsync(
       latencyMs: 8,
       generatedAt: new Date().toISOString(),
       activeNegativeConstraints,
+      mcpEnriched: mcpContexts.length > 0,
+      mcpConnectors: mcpContexts.map((c: any) => c.connectorId),
     },
   };
 }
