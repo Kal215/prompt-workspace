@@ -25,6 +25,7 @@
     "test:closed-loop": "npx tsx packages/prompt-engine/scripts/test-closed-loop.ts",
     "test:master-synthesis": "npx tsx packages/prompt-engine/scripts/test-master-synthesis.ts",
     "test:engine-v2-2": "npx tsx packages/prompt-engine/scripts/test-engine-v2-2.ts",
+    "test:agent-blueprint": "npx tsx packages/prompt-engine/scripts/test-agent-blueprint-v1.ts",
     "piew": "npx tsx scripts/piew-cli.ts",
     "mcp:start": "npx tsx scripts/piew-mcp-server.ts",
     "mcp:sse": "npx tsx scripts/piew-mcp-server.ts --sse",

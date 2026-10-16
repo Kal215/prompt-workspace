@@ -29,6 +29,11 @@ import {
   applyHumanOverride,
   getProjectStatus,
   exportHandoverBundle,
+  BoundedAgentRuntime,
+  AgentMemoryStore,
+  AgentSkillRegistry,
+  ScientificExperimentRunner,
+  AgentPolicyEngine,
 } from "@prompt-workspace/prompt-engine";
 import {
   SynthesisStylePreset,
@@ -407,6 +412,89 @@ const TOOLS = [
         isActive: { type: "boolean", description: "Whether endpoint is active (default: true)" },
       },
       required: ["name", "endpointUrl", "defaultModel"],
+    },
+  },
+  {
+    name: "piew_run_bounded_agent",
+    description:
+      "Run Bounded Autonomous Agent Loop under deterministic policy controls and budget limits.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        prompt: { type: "string", description: "Goal or prompt to optimize" },
+        ownerId: { type: "string", description: "Caller owner identifier" },
+        hardConstraints: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of absolute hard constraints",
+        },
+        maxSteps: { type: "number", description: "Maximum loop iterations" },
+      },
+      required: ["prompt"],
+    },
+  },
+  {
+    name: "piew_manage_memory",
+    description:
+      "Query or propose memory records in Hybrid Memory v1 store under strict anti-poisoning and owner isolation.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["query", "propose"],
+          description: "Operation to perform",
+        },
+        ownerId: { type: "string", description: "Owner ID for isolation" },
+        content: { type: "string", description: "Content for propose action" },
+        query: { type: "string", description: "Search query for query action" },
+        type: {
+          type: "string",
+          enum: ["working", "episodic", "semantic", "procedural", "experimental"],
+          description: "Memory type",
+        },
+      },
+      required: ["action", "ownerId"],
+    },
+  },
+  {
+    name: "piew_manage_skills",
+    description:
+      "Query or list active declarative skills in Declarative Skill Registry v1.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["list_active", "get_skill"],
+          description: "Skill action",
+        },
+        skillName: { type: "string", description: "Target skill name" },
+      },
+      required: ["action"],
+    },
+  },
+  {
+    name: "piew_run_paired_experiment",
+    description:
+      "Run scientific paired experiment across baselines B0..B4 on tuning or holdout splits.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        prompt: { type: "string", description: "Target prompt for experiment" },
+        ownerId: { type: "string", description: "Caller owner ID" },
+        split: {
+          type: "string",
+          enum: ["tuning", "holdout"],
+          description: "Dataset split to evaluate",
+        },
+        hardConstraints: {
+          type: "array",
+          items: { type: "string" },
+          description: "Hard constraints to enforce",
+        },
+      },
+      required: ["prompt"],
     },
   },
 ];
@@ -804,6 +892,190 @@ async function handleToolCall(name: string, args: Record<string, any>) {
         ],
         isError: false,
         _meta: saved,
+      };
+    }
+
+    case "piew_run_bounded_agent": {
+      const policyEngine = new AgentPolicyEngine();
+      const ownerId = String(args.ownerId || "mcp-user");
+      // Evaluasi izin eksekusi agent melalui Policy Engine terlebih dahulu
+      const proposal = {
+        actionId: "mcp-agent-exec",
+        toolId: "optimize_prompt",
+        arguments: args,
+        purpose: "Run bounded autonomous agent loop via MCP",
+        resourceScope: ["user", "workspace"],
+      };
+      const policyDecision = policyEngine.evaluateAction(proposal, {
+        currentStep: 1,
+        currentRevisions: 0,
+        durationMs: 0,
+        providerCallsCount: 0,
+        callerOwnerId: ownerId,
+      });
+
+      if (policyDecision.decision === "deny") {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ POLICY_DENIED: ${policyDecision.reasonCodes.join("; ")}`,
+            },
+          ],
+          isError: true,
+          _meta: { policyDecision },
+        };
+      }
+
+      const runtime = new BoundedAgentRuntime({ policyEngine });
+      const record = await runtime.executeBoundedAgentRun({
+        ownerId,
+        prompt: String(args.prompt || ""),
+        intent: {
+          hardConstraints: Array.isArray(args.hardConstraints) ? args.hardConstraints : [],
+        },
+        budget: {
+          maxSteps: typeof args.maxSteps === "number" ? args.maxSteps : 12,
+        },
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: record.currentPrompt,
+          },
+        ],
+        isError: record.status === "failed",
+        _meta: record,
+      };
+    }
+
+    case "piew_manage_memory": {
+      const memoryStore = new AgentMemoryStore();
+      const ownerId = String(args.ownerId || "mcp-user");
+      const action = String(args.action || "query");
+
+      if (action === "query") {
+        const memories = memoryStore.queryMemories({
+          ownerId,
+          query: args.query ? String(args.query) : undefined,
+          type: args.type,
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(memories, null, 2),
+            },
+          ],
+          isError: false,
+          _meta: { count: memories.length },
+        };
+      } else if (action === "propose") {
+        try {
+          const record = memoryStore.proposeMemory({
+            type: args.type || "semantic",
+            scope: "user",
+            ownerId,
+            content: String(args.content || ""),
+            sourceRunId: "mcp-user-action",
+          });
+          return {
+            content: [
+              {
+                type: "text",
+                text: `✅ Usulan memory berhasil dicatat dengan ID: ${record.id} [status: ${record.status}]`,
+              },
+            ],
+            isError: false,
+            _meta: record,
+          };
+        } catch (err: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `❌ Usulan memory ditolak: ${err.message}`,
+              },
+            ],
+            isError: true,
+            _meta: { error: err.message },
+          };
+        }
+      }
+      throw new Error(`Aksi memory '${action}' tidak valid.`);
+    }
+
+    case "piew_manage_skills": {
+      const skillRegistry = new AgentSkillRegistry();
+      const action = String(args.action || "list_active");
+
+      if (action === "list_active") {
+        const activeSkills = skillRegistry.getActiveSkills();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(activeSkills, null, 2),
+            },
+          ],
+          isError: false,
+          _meta: { count: activeSkills.length },
+        };
+      } else if (action === "get_skill") {
+        const skill = skillRegistry.getSkill(String(args.skillName || ""));
+        return {
+          content: [
+            {
+              type: "text",
+              text: skill ? JSON.stringify(skill, null, 2) : "Skill tidak ditemukan.",
+            },
+          ],
+          isError: !skill,
+          _meta: skill,
+        };
+      }
+      throw new Error(`Aksi skills '${action}' tidak valid.`);
+    }
+
+    case "piew_run_paired_experiment": {
+      const runner = new ScientificExperimentRunner();
+      const ownerId = String(args.ownerId || "mcp-user");
+      const split = args.split === "tuning" ? "tuning" : "holdout";
+      const prompt = String(args.prompt || "");
+      const hardConstraints = Array.isArray(args.hardConstraints) ? args.hardConstraints : [];
+
+      const report = await runner.runPairedPromptExperiment({
+        dataset: {
+          datasetId: "mcp-experiment-dataset",
+          version: "1.0.0",
+          createdAt: new Date().toISOString(),
+          sha256Hash: "mcp-exp-hash",
+          testCases: [
+            {
+              id: "tc-mcp-01",
+              domain: "software_engineering",
+              prompt,
+              hardConstraints,
+              expectedBehaviors: ["Menghasilkan rancangan modular"],
+              split,
+            },
+          ],
+        },
+        split,
+        ownerId,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(report, null, 2),
+          },
+        ],
+        isError: false,
+        _meta: report,
       };
     }
 
