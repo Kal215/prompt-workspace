@@ -114,11 +114,11 @@ export async function runOptimizationPipeline(
     );
   }
 
-  // Inisialisasi adapter bersama agar memanfaatkan pool rotasi key yang sama
+  // Inisialisasi adapter bersama agar memanfaatkan pool rotasi key dan cascade failover
   const providerId: ProviderId = (validatedRequest.providerId as ProviderId) || "groq";
   const targetModel = validatedRequest.targetModel || undefined;
   const resolvedAdapter: LLMProviderAdapter =
-    adapter || createProviderAdapter({ providerId, targetModel });
+    adapter || createProviderAdapter({ providerId, targetModel, enableCascade: true });
 
   // Resolusi route, Domain Rule Pack & Blueprint
   const route = detectTaskArchetypeAndDomain(
@@ -245,8 +245,20 @@ export async function runOptimizationPipeline(
     (evaluationResult?.telemetry?.usage?.completionTokens || 0);
   const totalTokens = promptTokens + completionTokens;
 
-  const effectiveProviderId: ProviderId =
-    (resolvedAdapter.providerId as ProviderId) || providerId || "groq";
+  const actualFromCascade =
+    "getActualProviderId" in resolvedAdapter && typeof (resolvedAdapter as any).getActualProviderId === "function"
+      ? (resolvedAdapter as any).getActualProviderId()
+      : null;
+
+  const rawEffectiveProviderId =
+    actualFromCascade ||
+    (resolvedAdapter.providerId === "cascade" ? providerId : resolvedAdapter.providerId) ||
+    providerId ||
+    "groq";
+
+  const effectiveProviderId: ProviderId = (
+    rawEffectiveProviderId === "cascade" ? (providerId || "groq") : rawEffectiveProviderId
+  ) as ProviderId;
 
   const modelTarget =
     optimizationResult.telemetry?.model ||
