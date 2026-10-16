@@ -62,7 +62,9 @@ export async function POST(request: Request) {
       taskType: body.taskType ?? null,
       constraints: Array.isArray(body.constraints) ? body.constraints : [],
       requestId: body.requestId || crypto.randomUUID(),
-      providerId: body.providerId ?? null,
+      providerId: ["groq", "gemini", "openrouter", "ollama"].includes(body.providerId)
+        ? body.providerId
+        : null,
       targetModel: body.targetModel ?? null,
     };
 

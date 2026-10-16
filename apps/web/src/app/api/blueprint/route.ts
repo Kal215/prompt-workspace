@@ -50,7 +50,12 @@ export async function POST(request: Request) {
       : [];
 
     const domain = typeof body.domain === "string" ? body.domain.trim() : undefined;
-    const audienceLevel = typeof body.audienceLevel === "string" ? (body.audienceLevel as any) : "specialist";
+    const validLevels = ["student", "academic", "professional", "specialist"] as const;
+    type AudienceLevelType = (typeof validLevels)[number];
+    const audienceLevel: AudienceLevelType =
+      typeof body.audienceLevel === "string" && validLevels.includes(body.audienceLevel as AudienceLevelType)
+        ? (body.audienceLevel as AudienceLevelType)
+        : "specialist";
 
     // Gabungkan goal dan batasan ke format prompt
     let promptText = goal;
