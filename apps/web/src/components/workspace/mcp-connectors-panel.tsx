@@ -22,6 +22,7 @@ export interface McpConnectorsPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onConnectorsChanged?: () => void;
+  onSwitchToProviders?: () => void;
 }
 
 type FilterTab = "all" | "on-device" | "available";
@@ -30,6 +31,7 @@ export function McpConnectorsModal({
   isOpen,
   onClose,
   onConnectorsChanged,
+  onSwitchToProviders,
 }: McpConnectorsPanelProps) {
   const [connectors, setConnectors] = useState<McpConnectorConfig[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -339,13 +341,30 @@ export function McpConnectorsModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-400 font-medium hidden sm:inline">Settings</span>
+                <span className="text-xs text-zinc-400 hidden sm:inline">&gt;</span>
                 <h2 className="text-base font-semibold">Connectors</h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
                   Model Context Protocol
                 </span>
+
+                {onSwitchToProviders && (
+                  <div className="hidden sm:flex items-center gap-1 bg-zinc-200/60 dark:bg-zinc-800/60 p-0.5 rounded-lg ml-2">
+                    <button
+                      type="button"
+                      onClick={onSwitchToProviders}
+                      className="px-2 py-0.5 text-[11px] rounded text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-zinc-800 transition-colors font-mono cursor-pointer"
+                    >
+                      ⚡ Providers
+                    </button>
+                    <span className="px-2 py-0.5 text-[11px] rounded bg-white dark:bg-zinc-900 font-semibold shadow-2xs text-foreground font-mono">
+                      🔌 Connectors
+                    </span>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Connect PIEW with local tools, external design systems, databases & APIs.
+                Connect PIEW with local tools, external design systems, databases &amp; APIs.
               </p>
             </div>
           </div>

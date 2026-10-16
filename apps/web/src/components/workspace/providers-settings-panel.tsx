@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Loader2,
   Sliders,
+  Plug,
 } from "lucide-react";
 import {
   CloudProviderMeta,
@@ -33,6 +34,7 @@ export interface ProvidersSettingsModalProps {
   onClose: () => void;
   onSelectProvider?: (providerId: string, model?: string) => void;
   initialTab?: "accounts" | "api-keys" | "custom-endpoints" | "local-models";
+  onSwitchToConnectors?: () => void;
 }
 
 type SettingsTab = "accounts" | "api-keys" | "custom-endpoints" | "local-models";
@@ -43,6 +45,7 @@ export function ProvidersSettingsModal({
   isOpen,
   onClose,
   onSelectProvider,
+  onSwitchToConnectors,
   initialTab = "api-keys",
 }: ProvidersSettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
@@ -402,6 +405,21 @@ export function ProvidersSettingsModal({
                     Active: {activeEndpointId}
                   </span>
                 )}
+
+                {onSwitchToConnectors && (
+                  <div className="hidden sm:flex items-center gap-1 bg-zinc-200/60 dark:bg-zinc-800/60 p-0.5 rounded-lg ml-2">
+                    <span className="px-2 py-0.5 text-[11px] rounded bg-white dark:bg-zinc-900 font-semibold shadow-2xs text-foreground font-mono">
+                      ⚡ Providers
+                    </span>
+                    <button
+                      type="button"
+                      onClick={onSwitchToConnectors}
+                      className="px-2 py-0.5 text-[11px] rounded text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-zinc-800 transition-colors font-mono cursor-pointer"
+                    >
+                      🔌 Connectors
+                    </button>
+                  </div>
+                )}
               </div>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                 Konfigurasi kunci API cloud, OpenAI-compatible custom endpoints, dan model lokal.
@@ -511,6 +529,26 @@ export function ProvidersSettingsModal({
                   >
                     <HardDrive className="w-3.5 h-3.5" />
                     <span>Local Models</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Group / Tab: 🔌 Connectors Hub (MCP) */}
+              {onSwitchToConnectors && (
+                <div className="pt-2 mt-2 border-t border-zinc-200 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    data-testid="sidebar-connectors-hub-tab"
+                    onClick={onSwitchToConnectors}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Plug className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Connectors (MCP)</span>
+                    </div>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      Hub
+                    </span>
                   </button>
                 </div>
               )}
