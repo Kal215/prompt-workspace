@@ -128,15 +128,16 @@ export default function Home() {
   const [isProvidersSettingsOpen, setIsProvidersSettingsOpen] = useState(false);
 
   // Mode Navigasi Tab Teratas: Mission Control (v3.1) vs Classic Studio (v2.0)
-  const [activeMainTab, setActiveMainTab] = useState<"mission-control" | "classic">(() => {
+  const [activeMainTab, setActiveMainTab] = useState<"mission-control" | "classic">("classic");
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("tab") === "classic" || window.location.port === "3124") {
-        return "classic";
+      if (params.get("tab") === "mission-control") {
+        setActiveMainTab("mission-control");
       }
     }
-    return "mission-control";
-  });
+  }, []);
 
   // Ambil kapabilitas provider dari /api/providers saat mount
   useEffect(() => {
