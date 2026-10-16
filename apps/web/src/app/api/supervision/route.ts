@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import {
   initAutonomousProject,
   getProjectStatus,
+  getProjectSession,
   auditAndAdvancePhase,
   applyHumanOverride,
   exportHandoverBundle,
@@ -116,9 +117,11 @@ export async function POST(request: Request) {
         }
 
         const statusReport = getProjectStatus(sessionId);
+        const session = getProjectSession(sessionId);
         return NextResponse.json({
           success: true,
           statusReport,
+          session,
         });
       }
 
@@ -182,11 +185,29 @@ export async function POST(request: Request) {
           );
         }
 
+        const rawAction = body.overrideAction || body.action || "INJECT_CONSTRAINT";
+        let engineAction: "INJECT_CONSTRAINT" | "FORCE_ADVANCE" | "FORCE_ROLLBACK" | "RESET_RETRIES" | "HALT" | "RESUME" = "INJECT_CONSTRAINT";
+        if (rawAction === "FORCE_VERIFY_PHASE" || rawAction === "FORCE_ADVANCE") {
+          engineAction = "FORCE_ADVANCE";
+        } else if (rawAction === "ABORT_PROJECT" || rawAction === "HALT") {
+          engineAction = "HALT";
+        } else if (rawAction === "RESUME_PROJECT" || rawAction === "RESUME") {
+          engineAction = "RESUME";
+        } else if (rawAction === "RESET_RETRIES") {
+          engineAction = "RESET_RETRIES";
+        } else if (rawAction === "FORCE_ROLLBACK" || rawAction === "ROLLBACK") {
+          engineAction = "FORCE_ROLLBACK";
+        } else {
+          engineAction = "INJECT_CONSTRAINT";
+        }
+
         const overrideInput = {
           sessionId,
-          action: body.overrideAction || "INJECT_NEGATIVE_CONSTRAINT",
-          rationale: body.instruction || body.rationale || "Intervensi human-in-control",
-          injectedConstraints: Array.isArray(body.injectedConstraints) ? body.injectedConstraints : [],
+          action: engineAction,
+          additionalConstraint:
+            body.additionalConstraint ||
+            (Array.isArray(body.injectedConstraints) ? body.injectedConstraints.join("; ") : body.instruction || "Batasan tambahan operator"),
+          reason: body.instruction || body.reason || "Intervensi human-in-control",
           targetPhaseIndex: typeof body.targetPhaseIndex === "number" ? body.targetPhaseIndex : undefined,
         };
 
@@ -207,9 +228,29 @@ export async function POST(request: Request) {
         }
 
         const exportRes = exportHandoverBundle(sessionId, body.targetDirectory);
+        const session = getProjectSession(sessionId);
+        let certMarkdown = "";
+        let jsonContent = "";
+        let blueprintMarkdown = "";
+
+        if (session) {
+          blueprintMarkdown = session.masterBlueprint.renderedMasterPrompt || "";
+        }
+        try {
+          if (exportRes.success && exportRes.markdownPath && fs.existsSync(exportRes.markdownPath)) {
+            certMarkdown = fs.readFileSync(exportRes.markdownPath, "utf-8");
+          }
+          if (exportRes.success && exportRes.jsonPath && fs.existsSync(exportRes.jsonPath)) {
+            jsonContent = fs.readFileSync(exportRes.jsonPath, "utf-8");
+          }
+        } catch {}
+
         return NextResponse.json({
           success: exportRes.success,
           exportRes,
+          certMarkdown,
+          jsonContent,
+          blueprintMarkdown,
         });
       }
 
