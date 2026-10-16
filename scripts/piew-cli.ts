@@ -17,6 +17,13 @@ import {
   SynthesisStylePreset,
   TokenBudgetMode,
 } from "@prompt-workspace/prompt-contracts";
+import {
+  listCatalogProviders,
+  listCustomEndpoints,
+  testProviderConnection,
+  getCustomEndpoint,
+  getCatalogProvider,
+} from "@prompt-workspace/provider-adapters";
 
 function printUsage() {
   console.log(`
@@ -33,6 +40,8 @@ Opsi:
   --url=<url>         URL dokumentasi/GitHub referensi (maks 2, pisahkan koma atau ulang flag)
   --context=<teks>    Konteks tambahan / spesifikasi arsitektur
   --supervise         Inisialisasi sesi supervisi otonom (Closed-Loop MCP Supervisor)
+  --providers         Tampilkan daftar penyedia built-in dan custom endpoints
+  --test-provider=<id> Uji koneksi diagnostik ke provider atau custom endpoint
   --json              Cetak output utuh dalam format JSON
   -h, --help          Tampilkan panduan bantuan ini
 
@@ -62,9 +71,15 @@ async function main() {
   const referenceUrls: string[] = [];
   let jsonOutput = false;
   let superviseMode = false;
+  let listProvidersMode = false;
+  let testProviderTarget: string | undefined;
 
   for (const arg of args) {
-    if (arg === "--supervise") {
+    if (arg === "--providers" || arg === "--list-providers") {
+      listProvidersMode = true;
+    } else if (arg.startsWith("--test-provider=")) {
+      testProviderTarget = arg.slice("--test-provider=".length).trim();
+    } else if (arg === "--supervise") {
       superviseMode = true;
     } else if (arg.startsWith("--style=")) {
       stylePreset = arg.split("=")[1] as SynthesisStylePreset;
@@ -92,6 +107,90 @@ async function main() {
   // Smart Auto-Detection: Aktifkan mode blueprint secara default kecuali diminta --prompt-only
   if (showBlueprint === undefined) {
     showBlueprint = !promptOnly;
+  }
+
+  if (listProvidersMode) {
+    const catalog = listCatalogProviders();
+    const custom = await listCustomEndpoints();
+
+    if (jsonOutput) {
+      console.log(JSON.stringify({ catalog, customEndpoints: custom }, null, 2));
+      process.exit(0);
+    }
+
+    console.log("\n=======================================================");
+    console.log("🌐 PIEW MULTI-PROVIDER & CUSTOM ENDPOINT REGISTRY");
+    console.log("=======================================================\n");
+
+    console.log("📦 BUILT-IN PROVIDERS:");
+    for (const p of catalog) {
+      const statusIcon = p.configured ? "✅ Configured" : "⚪ Not Configured";
+      console.log(` • [${p.providerId}] ${p.displayName}`);
+      console.log(`   Model Default : ${p.defaultModel}`);
+      console.log(`   Status        : ${statusIcon} ${p.maskedKeyHint ? `(${p.maskedKeyHint})` : ""}`);
+      if (p.getKeyUrl) console.log(`   Dapatkan Key  : ${p.getKeyUrl}`);
+      console.log("");
+    }
+
+    console.log("🔌 CUSTOM ENDPOINTS (~/.piew/providers.json):");
+    if (custom.length === 0) {
+      console.log("   (Belum ada custom endpoint terdaftar)");
+    } else {
+      for (const e of custom) {
+        const localBadge = e.isLocal ? "[LOKAL/PRIVATE]" : "[REMOTE]";
+        const statusBadge = e.isActive ? "AKTIF" : "NONAKTIF";
+        console.log(` • ${e.name} (${e.providerId}) ${localBadge} - ${statusBadge}`);
+        console.log(`   URL           : ${e.endpointUrl}`);
+        console.log(`   Mode API      : ${e.apiMode}`);
+        console.log(`   Model Default : ${e.defaultModel}`);
+        console.log(`   API Key       : ${e.hasSavedKey ? "Tersimpan (Masked)" : e.envKeyRef || "None"}`);
+        console.log("");
+      }
+    }
+    process.exit(0);
+  }
+
+  if (testProviderTarget) {
+    console.log(`\n⚡ Menguji koneksi ke provider/endpoint: ${testProviderTarget}...`);
+    // Cari di custom endpoint dulu
+    const custom = await getCustomEndpoint(testProviderTarget);
+    if (custom) {
+      // Ambil record lengkap dengan key internal untuk runtime test
+      const storeList = await listCustomEndpoints({ includeSecrets: true });
+      const targetRecord = storeList.find((r: any) => r.id === custom.id || r.providerId === custom.providerId) as any;
+      const testResult = await testProviderConnection({
+        endpointUrl: custom.endpointUrl,
+        apiMode: custom.apiMode,
+        apiKey: targetRecord?.savedApiKey,
+        providerId: custom.providerId,
+        model: custom.defaultModel,
+      });
+
+      if (jsonOutput) {
+        console.log(JSON.stringify(testResult, null, 2));
+      } else {
+        const icon = testResult.ok ? "✅" : "❌";
+        console.log(`${icon} Hasil Uji Koneksi:`);
+        console.log(`   Status        : ${testResult.ok ? "BERHASIL" : "GAGAL"}`);
+        console.log(`   Latensi       : ${testResult.latencyMs}ms`);
+        console.log(`   Detected Mode : ${testResult.detectedApiMode}`);
+        console.log(`   Pesan         : ${testResult.message}`);
+        if (testResult.discoveredModels.length > 0) {
+          console.log(`   Model Ditemukan (${testResult.discoveredModels.length}): ${testResult.discoveredModels.slice(0, 5).join(", ")}${testResult.discoveredModels.length > 5 ? "..." : ""}`);
+        }
+      }
+      process.exit(testResult.ok ? 0 : 1);
+    }
+
+    const cat = getCatalogProvider(testProviderTarget);
+    if (cat) {
+      console.log(`ℹ️ Provider ${cat.displayName} (${cat.providerId}) terdaftar di katalog built-in.`);
+      console.log(`   Status konfigurasi: ${cat.configured ? "Ready (" + cat.maskedKeyHint + ")" : "Belum ada API key di environment"}`);
+      process.exit(0);
+    }
+
+    console.error(`❌ Provider atau endpoint "${testProviderTarget}" tidak ditemukan.`);
+    process.exit(1);
   }
 
   if (!prompt) {

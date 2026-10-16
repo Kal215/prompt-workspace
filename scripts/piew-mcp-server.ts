@@ -35,6 +35,13 @@ import {
 } from "@prompt-workspace/prompt-contracts";
 import { runPromptCrawler } from "@prompt-workspace/prompt-crawler";
 import { runPromptSpider } from "@prompt-workspace/prompt-spider";
+import {
+  listCatalogProviders,
+  listCustomEndpoints,
+  getCustomEndpoint,
+  saveCustomEndpoint,
+  testProviderConnection,
+} from "@prompt-workspace/provider-adapters";
 
 const PROTOCOL_VERSION = "2024-11-05";
 const SERVER_NAME = "piew-mcp-server";
@@ -342,6 +349,61 @@ const TOOLS = [
       required: ["sessionId"],
     },
   },
+  {
+    name: "piew_list_providers",
+    description:
+      "List all configured LLM providers and custom endpoints (Groq, OpenRouter, Anthropic, Gemini, DeepSeek, Ollama, vLLM, private endpoints) with zero secret leakage.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "piew_test_provider",
+    description:
+      "Run diagnostic connection test and latency benchmark for a specific provider or custom endpoint.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        providerOrEndpointId: {
+          type: "string",
+          description: "ID or slug of the provider/endpoint to test (e.g. 'groq', 'lyra-pc')",
+        },
+        endpointUrl: {
+          type: "string",
+          description: "Optional direct URL to test on the fly",
+        },
+        apiKey: {
+          type: "string",
+          description: "Optional API key for on-the-fly test",
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "piew_register_custom_endpoint",
+    description:
+      "Register or update a custom LLM endpoint (e.g. vLLM, llama.cpp, 9Router, private IP) with persistent storage in ~/.piew/providers.json.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Optional existing endpoint ID to update" },
+        name: { type: "string", description: "Display name (e.g. 'Lyra PC', 'Local Vision')" },
+        endpointUrl: { type: "string", description: "Base URL (e.g. 'http://100.127.180.57:20128/v1')" },
+        apiMode: {
+          type: "string",
+          enum: ["auto_detect", "chat_completions", "responses_api", "anthropic_messages"],
+          description: "API communication mode (default: auto_detect)",
+        },
+        defaultModel: { type: "string", description: "Default model name (e.g. 'hermes-agent')" },
+        apiKey: { type: "string", description: "API key (leave blank to keep existing key on update)" },
+        envKeyRef: { type: "string", description: "Optional env variable reference (e.g. '${HERMES_CUSTOM_KEY}')" },
+        isActive: { type: "boolean", description: "Whether endpoint is active (default: true)" },
+      },
+      required: ["name", "endpointUrl", "defaultModel"],
+    },
+  },
 ];
 
 type ResponseSender = (
@@ -634,6 +696,99 @@ async function handleToolCall(name: string, args: Record<string, any>) {
           markdownPath: exportRes.markdownPath,
           jsonPath: exportRes.jsonPath,
         },
+      };
+    }
+
+    case "piew_list_providers": {
+      const catalog = listCatalogProviders();
+      const customEndpoints = await listCustomEndpoints();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ catalog, customEndpoints }, null, 2),
+          },
+        ],
+        isError: false,
+        _meta: {
+          catalogCount: catalog.length,
+          customEndpointCount: customEndpoints.length,
+        },
+      };
+    }
+
+    case "piew_test_provider": {
+      let endpointUrl = args.endpointUrl;
+      let apiKey = args.apiKey;
+      let apiMode = args.apiMode;
+      let model = args.model;
+      let providerId = args.providerOrEndpointId;
+
+      if (args.providerOrEndpointId && !endpointUrl) {
+        const custom = await getCustomEndpoint(args.providerOrEndpointId);
+        if (custom) {
+          endpointUrl = custom.endpointUrl;
+          apiMode = custom.apiMode;
+          model = custom.defaultModel;
+          const storeList = await listCustomEndpoints({ includeSecrets: true });
+          const targetRec = storeList.find((r: any) => r.id === custom.id || r.providerId === custom.providerId) as any;
+          apiKey = targetRec?.savedApiKey;
+        }
+      }
+
+      if (!endpointUrl) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `⚠️ Endpoint URL atau provider ID valid wajib diberikan untuk pengujian koneksi.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const testRes = await testProviderConnection({
+        endpointUrl,
+        apiKey,
+        apiMode,
+        model,
+        providerId,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(testRes, null, 2),
+          },
+        ],
+        isError: !testRes.ok,
+        _meta: testRes,
+      };
+    }
+
+    case "piew_register_custom_endpoint": {
+      const saved = await saveCustomEndpoint({
+        id: args.id ? String(args.id) : undefined,
+        name: String(args.name || ""),
+        endpointUrl: String(args.endpointUrl || ""),
+        apiMode: (args.apiMode as any) || "auto_detect",
+        defaultModel: String(args.defaultModel || ""),
+        apiKey: args.apiKey ? String(args.apiKey) : undefined,
+        envKeyRef: args.envKeyRef ? String(args.envKeyRef) : undefined,
+        isActive: args.isActive !== undefined ? Boolean(args.isActive) : true,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `✅ Custom endpoint "${saved.name}" (${saved.providerId}) berhasil didaftarkan/diperbarui!`,
+          },
+        ],
+        isError: false,
+        _meta: saved,
       };
     }
 

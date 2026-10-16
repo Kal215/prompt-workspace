@@ -19,8 +19,20 @@ export function redactApiKey(text: string): string {
     .replace(BEARER_REGEX, "Bearer [REDACTED_TOKEN]");
 }
 
-export function maskKey(id: string, key: string): string {
-  if (!key) return `${id} (EMPTY)`;
+/**
+ * Masking API key.
+ * Mendukung format maskKey(id, key) untuk kompatibilitas lama
+ * maupun maskKey(key) untuk masking langsung sk-••••1234
+ */
+export function maskKey(idOrKey: string, maybeKey?: string): string {
+  if (maybeKey !== undefined) {
+    if (!maybeKey) return `${idOrKey} (EMPTY)`;
+    const last4 = maybeKey.slice(-4);
+    return `${idOrKey} (***${last4})`;
+  }
+  const key = idOrKey;
+  if (!key) return "•••• (EMPTY)";
+  if (key.length <= 6) return `••••${key.slice(-2)}`;
   const last4 = key.slice(-4);
-  return `${id} (***${last4})`;
+  return `••••${last4}`;
 }
