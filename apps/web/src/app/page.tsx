@@ -133,7 +133,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PromptOptimizationResult | null>(null);
 
-  // Mode Navigasi Tab Teratas: Mission Control (v3.0) vs Classic Studio (v2.0)
+  // Mode Navigasi Tab Teratas: Mission Control (v3.1) vs Classic Studio (v2.0)
   const [activeMainTab, setActiveMainTab] = useState<"mission-control" | "classic">(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -486,10 +486,10 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-xs sm:text-sm tracking-tight text-foreground">
-                Prompt Intelligence Workspace — PIEW Mission Control v3.0
+                Prompt Intelligence Workspace — PIEW Mission Control v3.1
               </span>
               <span className="text-[10px] text-muted-foreground hidden sm:inline-block border border-border/70 px-1.5 py-0.2 rounded font-mono bg-muted/40">
-                v3.0
+                v3.1
               </span>
             </div>
           </div>
@@ -555,7 +555,7 @@ export default function Home() {
               }`}
             >
               <Cpu className="w-3.5 h-3.5 text-amber-500" />
-              <span>🏛 Autonomous Mission Control (v3.0)</span>
+              <span>🏛 Autonomous Mission Control (v3.1)</span>
             </button>
             <button
               type="button"

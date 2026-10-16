@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   Play,
+  Pause,
   RotateCcw,
   FastForward,
   AlertOctagon,
@@ -23,6 +24,13 @@ import {
   Send,
   Loader2,
   Lock,
+  Copy,
+  Check,
+  FolderOpen,
+  X,
+  FileText,
+  AlertTriangle,
+  ChevronRight,
 } from "lucide-react";
 
 interface SupervisionConsoleProps {
@@ -32,18 +40,23 @@ interface SupervisionConsoleProps {
 export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps) {
   const [sessions, setSessions] = useState<any[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>(initialSessionId || "");
-  const [sessionData, setSessionData] = useState<any | null>(null);
+  const [statusReport, setStatusReport] = useState<any | null>(null);
+  const [sessionObj, setSessionObj] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // New session modal / form
+  // Modals & Panels
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState<boolean>(false);
   const [isNewModalOpen, setIsNewModalOpen] = useState<boolean>(false);
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState<boolean>(false);
+
+  // New session form
   const [newGoal, setNewGoal] = useState<string>(
     "Buat sistem kasir toko roti dengan manajemen stok barang dan laporan laba rugi. DILARANG membuat modul POS fisik."
   );
   const [newConstraints, setNewConstraints] = useState<string>(
-    "DILARANG membuat modul POS fisik\nDILARANG menggunakan mock/dummy data"
+    "DILARANG membuat modul POS fisik\nDILARANG menggunakan mock/dummy data di production"
   );
   const [isCreatingSession, setIsCreatingSession] = useState<boolean>(false);
 
@@ -54,17 +67,20 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
   const [verificationCommand, setVerificationCommand] = useState<string>("");
   const [isSubmittingPhase, setIsSubmittingPhase] = useState<boolean>(false);
 
-  // Human Override Modal
-  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState<boolean>(false);
-  const [overrideAction, setOverrideAction] = useState<string>("INJECT_NEGATIVE_CONSTRAINT");
+  // Human Override State (4 Modes)
+  const [overrideAction, setOverrideAction] = useState<string>("INJECT_CONSTRAINT");
   const [overrideInstruction, setOverrideInstruction] = useState<string>("");
   const [overrideConstraints, setOverrideConstraints] = useState<string>("");
   const [isApplyingOverride, setIsApplyingOverride] = useState<boolean>(false);
 
-  // Export status
+  // Inspector & Export state
+  const [activeLogTab, setActiveLogTab] = useState<"stdout" | "stderr" | "raw">("stdout");
+  const [copiedPromptType, setCopiedPromptType] = useState<string | null>(null);
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
 
-  // Fetch session list
+  // Fetch session list from ~/.piew/sessions/
   const fetchSessionList = async () => {
     setIsRefreshing(true);
     try {
@@ -83,7 +99,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
     }
   };
 
-  // Fetch specific session status
+  // Fetch specific session status and raw object
   const fetchSessionStatus = async (sessionId: string) => {
     if (!sessionId) return;
     setIsLoading(true);
@@ -98,7 +114,8 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
       if (!resp.ok || !data.success) {
         throw new Error(data.error || "Gagal mengambil status sesi supervisi");
       }
-      setSessionData(data.statusReport);
+      setStatusReport(data.statusReport || null);
+      setSessionObj(data.session || null);
     } catch (err: unknown) {
       setError((err as Error)?.message || "Terjadi kesalahan saat memuat status sesi.");
     } finally {
@@ -115,6 +132,48 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
       fetchSessionStatus(activeSessionId);
     }
   }, [activeSessionId]);
+
+  // Derived audit details
+  const latestAuditAttempt = sessionObj?.auditHistory?.slice(-1)[0] || null;
+  const latestAuditResult = latestAuditAttempt?.auditResult || null;
+  const activePhaseIndex = statusReport?.currentPhaseIndex ?? 0;
+  const activePhase = statusReport?.phases?.[activePhaseIndex] || null;
+  const isRejectedNeedsRepair = activePhase?.status === "REJECTED_NEEDS_REPAIR";
+  const isHalted = sessionObj?.overallStatus === "HALTED_MAX_RETRIES";
+  const isCompleted = sessionObj?.overallStatus === "COMPLETED";
+
+  // Corrective and Dispatch prompts
+  const correctivePrompt =
+    latestAuditResult?.nextActionPrompt ||
+    latestAuditAttempt?.lastAuditSummary ||
+    "";
+  const dispatchPrompt =
+    statusReport?.latestPrompt ||
+    sessionObj?.masterBlueprint?.renderedMasterPrompt ||
+    "";
+
+  // Handle Copy to Clipboard with Toast feedback
+  const copyToClipboard = async (text: string, typeKey: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedPromptType(typeKey);
+      setTimeout(() => setCopiedPromptType(null), 2500);
+    } catch {}
+  };
+
+  // Handle Download client-side helper
+  const triggerClientDownload = (fileName: string, content: string, mimeType = "text/markdown") => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8` });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   // Handle Start New Session
   const handleStartSession = async (e: React.FormEvent) => {
@@ -157,7 +216,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
   // Handle Phase Submission
   const handleSubmitPhase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeSessionId || !sessionData) return;
+    if (!activeSessionId) return;
 
     setIsSubmittingPhase(true);
     setError(null);
@@ -173,7 +232,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
         body: JSON.stringify({
           action: "submit",
           sessionId: activeSessionId,
-          phaseIndex: sessionData.activePhaseIndex,
+          phaseIndex: activePhaseIndex,
           workSummary: workSummary.trim() || "Menyelesaikan seluruh deliverable fase sesuai spesifikasi.",
           artifacts: artifactsList,
           testOutput: testOutput.trim() || "PASS - Seluruh verifikasi lolos 100%",
@@ -186,9 +245,8 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
         throw new Error(data.error || "Audit fase gagal diproses");
       }
 
-      // Refresh status report
       await fetchSessionStatus(activeSessionId);
-      // Reset form fields
+      await fetchSessionList();
       setWorkSummary("");
       setArtifactsInput("");
       setTestOutput("");
@@ -200,17 +258,22 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
     }
   };
 
-  // Handle Human Override
-  const handleApplyOverride = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handle Human Override (All 4 Modes)
+  const handleApplyOverrideAction = async (
+    actionType: string,
+    customInstruction?: string,
+    customConstraints?: string[]
+  ) => {
     if (!activeSessionId) return;
 
     setIsApplyingOverride(true);
     try {
-      const constraintsList = overrideConstraints
-        .split("\n")
-        .map((c) => c.trim())
-        .filter((c) => c.length > 0);
+      const constraintsList =
+        customConstraints ||
+        overrideConstraints
+          .split("\n")
+          .map((c) => c.trim())
+          .filter((c) => c.length > 0);
 
       const resp = await fetch("/api/supervision", {
         method: "POST",
@@ -218,8 +281,8 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
         body: JSON.stringify({
           action: "override",
           sessionId: activeSessionId,
-          overrideAction,
-          instruction: overrideInstruction.trim() || "Instruksi intervensi manual",
+          overrideAction: actionType,
+          instruction: customInstruction || overrideInstruction.trim() || "Intervensi operator manusia",
           injectedConstraints: constraintsList,
         }),
       });
@@ -233,6 +296,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
       setOverrideInstruction("");
       setOverrideConstraints("");
       await fetchSessionStatus(activeSessionId);
+      await fetchSessionList();
     } catch (err: unknown) {
       setError((err as Error)?.message || "Gagal menerapkan intervensi.");
     } finally {
@@ -240,26 +304,41 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
     }
   };
 
-  // Handle Export Handover Bundle
-  const handleExportBundle = async () => {
+  // Handle Export and Download Handover Bundle
+  const handleExportAndDownload = async (targetType: "certificate" | "bundle" | "blueprint") => {
     if (!activeSessionId) return;
+    setIsExporting(true);
+    setExportNotice("Menghasilkan paket serah terima proyek...");
     try {
-      setExportNotice("Mengekspor bundel serah terima...");
       const resp = await fetch("/api/supervision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "export", sessionId: activeSessionId }),
       });
       const data = await resp.json();
-      if (data.success) {
-        setExportNotice(`Sertifikat & bundel tersimpan di disk: ${data.exportRes?.markdownPath || "OK"}`);
-      } else {
-        setExportNotice(`Gagal ekspor: ${data.error}`);
+
+      if (!data.success) {
+        throw new Error(data.error || "Gagal mengekspor bundel serah terima.");
       }
-      setTimeout(() => setExportNotice(null), 6000);
+
+      if (targetType === "certificate" && data.certMarkdown) {
+        triggerClientDownload(`PIEW-AUDIT-CERTIFICATE-${activeSessionId}.md`, data.certMarkdown);
+        setExportNotice(`Sertifikat audit PIEW-AUDIT-CERTIFICATE-${activeSessionId}.md berhasil diunduh.`);
+      } else if (targetType === "bundle" && data.jsonContent) {
+        triggerClientDownload(`piew-handover-bundle-${activeSessionId}.json`, data.jsonContent, "application/json");
+        setExportNotice(`Bundel serah terima piew-handover-bundle-${activeSessionId}.json berhasil diunduh.`);
+      } else if (targetType === "blueprint" && data.blueprintMarkdown) {
+        triggerClientDownload(`MASTER-BLUEPRINT-${activeSessionId}.md`, data.blueprintMarkdown);
+        setExportNotice(`Cetak biru MASTER-BLUEPRINT-${activeSessionId}.md berhasil diunduh.`);
+      } else {
+        setExportNotice(`Berkas diekspor ke disk: ${data.exportRes?.markdownPath || "Tersimpan"}`);
+      }
+      setTimeout(() => setExportNotice(null), 5000);
     } catch (err: unknown) {
-      setExportNotice(`Error: ${(err as Error)?.message}`);
+      setExportNotice(`Error ekspor: ${(err as Error)?.message}`);
       setTimeout(() => setExportNotice(null), 4000);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -267,19 +346,22 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
     switch (status) {
       case "VERIFIED":
         return (
-          <span className="px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+          <span className="px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" />
             VERIFIED
           </span>
         );
       case "IN_PROGRESS":
         return (
-          <span className="px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-sky-500/10 text-sky-500 border border-sky-500/20">
+          <span className="px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-sky-500/10 text-sky-500 border border-sky-500/20 flex items-center gap-1">
+            <Play className="w-3 h-3 animate-pulse" />
             IN_PROGRESS
           </span>
         );
       case "REJECTED_NEEDS_REPAIR":
         return (
-          <span className="px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-red-500/10 text-red-500 border border-red-500/20">
+          <span className="px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-red-500/15 text-red-500 border border-red-500/30 animate-pulse flex items-center gap-1">
+            <AlertOctagon className="w-3 h-3" />
             NEEDS_REPAIR
           </span>
         );
@@ -294,7 +376,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* Console Top Toolbar */}
+      {/* Console Top Bar: Title, Session Selector & Quick Action Controls */}
       <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs backdrop-blur-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
@@ -303,22 +385,23 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                PIEW Autonomous Supervision Console v2.4+
+                PIEW Autonomous Supervision Console v3.1
               </h3>
               <span className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                Stateful MCP
+                Zero-Trust MCP
               </span>
             </div>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-              Audit 4 lapis (Deliverables, Diagram Sync, Negative Constraints, Evidence-over-Claims) & Zero-Trust Command Runner.
+              Audit 4 Lapis Otonom, Verifikasi Artefak Disk (SHA-256), Eksekusi Command Mandiri, dan 4-Mode Human Override.
             </p>
           </div>
         </div>
 
-        {/* Session Selector & Controls */}
+        {/* Toolbar: Session Selection & Navigation Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Sesi Dropdown */}
           <div className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-950 px-2 py-1 rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <span className="text-[11px] text-zinc-400">Sesi:</span>
+            <span className="text-[11px] text-zinc-400 font-mono">Sesi:</span>
             <select
               value={activeSessionId}
               onChange={(e) => setActiveSessionId(e.target.value)}
@@ -337,101 +420,200 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
             type="button"
             onClick={() => fetchSessionStatus(activeSessionId)}
             disabled={isRefreshing || !activeSessionId}
-            title="Refresh status sesi"
-            className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors"
+            title="Refresh status sesi aktif"
+            className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
 
+          {/* Button: Riwayat Proyek Persisten (~/.piew/sessions/) */}
+          <button
+            type="button"
+            onClick={() => setIsHistoryDrawerOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-sky-500" />
+            <span>Riwayat Sesi ({sessions.length})</span>
+          </button>
+
+          {/* Button: Mulai Sesi Baru */}
           <button
             type="button"
             onClick={() => setIsNewModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-xs cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Mulai Sesi Baru</span>
+            <span>Mulai Proyek Baru</span>
           </button>
 
           {activeSessionId && (
-            <>
-              <button
-                type="button"
-                onClick={() => setIsOverrideModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
-              >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Human Override</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExportBundle}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Sertifikat Audit</span>
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => setIsOverrideModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors cursor-pointer"
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>Human Override</span>
+            </button>
           )}
         </div>
       </div>
 
+      {/* Export / Notification Banner */}
       {exportNotice && (
-        <div className="p-3 text-xs rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-300 flex items-center gap-2">
-          <Activity className="w-4 h-4 shrink-0 animate-pulse" />
-          <span>{exportNotice}</span>
+        <div className="p-3 text-xs rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-300 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 shrink-0 animate-pulse" />
+            <span>{exportNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExportNotice(null)}
+            className="text-zinc-400 hover:text-zinc-200 p-0.5 cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
       {error && (
-        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-500">
-          {error}
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-500 flex items-center justify-between">
+          <span>{error}</span>
+          <button type="button" onClick={() => setError(null)} className="p-0.5 text-red-400 cursor-pointer">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
-      {!sessionData ? (
+      {/* Human-in-Control Action Panel (4 Quick Action Buttons) */}
+      {activeSessionId && (
+        <div className="p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              Panel Intervensi Manusia (Human Override 4 Mode):
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Mode 1: Inject Constraint */}
+            <button
+              type="button"
+              onClick={() => {
+                setOverrideAction("INJECT_CONSTRAINT");
+                setIsOverrideModalOpen(true);
+              }}
+              className="px-2.5 py-1 text-xs rounded-lg font-medium border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all cursor-pointer flex items-center gap-1"
+            >
+              <span>🛑 Suntik Batasan Baru</span>
+            </button>
+
+            {/* Mode 2: Force Verify Phase */}
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm(`Paksa fase [${activePhaseIndex}] ${activePhase?.phaseName || ""} menjadi VERIFIED?`)) {
+                  handleApplyOverrideAction("FORCE_VERIFY_PHASE", "Otorisasi manual operator: false-positive override");
+                }
+              }}
+              className="px-2.5 py-1 text-xs rounded-lg font-medium border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer flex items-center gap-1"
+            >
+              <span>⚡ Paksa Loloskan Fase</span>
+            </button>
+
+            {/* Mode 3: Pause / Resume */}
+            <button
+              type="button"
+              onClick={() => {
+                if (isHalted) {
+                  handleApplyOverrideAction("RESUME_PROJECT", "Lanjutkan proyek dari penundaan");
+                } else {
+                  handleApplyOverrideAction("ABORT_PROJECT", "Jeda operasional sementara");
+                }
+              }}
+              className="px-2.5 py-1 text-xs rounded-lg font-medium border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer flex items-center gap-1"
+            >
+              {isHalted ? (
+                <>
+                  <Play className="w-3 h-3 text-emerald-500" />
+                  <span>Lanjutkan Proyek (Resume)</span>
+                </>
+              ) : (
+                <>
+                  <Pause className="w-3 h-3 text-amber-500" />
+                  <span>Jeda Proyek (Pause)</span>
+                </>
+              )}
+            </button>
+
+            {/* Mode 4: Abort Project */}
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm("Hentikan proyek darurat? Status proyek akan menjadi HALTED.")) {
+                  handleApplyOverrideAction("ABORT_PROJECT", "Pembatalan darurat oleh pengguna");
+                }
+              }}
+              className="px-2.5 py-1 text-xs rounded-lg font-medium border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-all cursor-pointer flex items-center gap-1"
+            >
+              <AlertOctagon className="w-3 h-3" />
+              <span>Hentikan Proyek (Abort)</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!statusReport ? (
         <div className="p-12 text-center rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/30">
           <Activity className="w-8 h-8 text-zinc-400 mx-auto mb-2 animate-bounce" />
           <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
             Tidak Ada Sesi Supervisi yang Dipilih
           </h4>
           <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
-            Pilih sesi yang sudah ada di toolbar atas atau klik tombol <strong>Mulai Sesi Baru</strong> untuk menginisialisasi sesi supervisi otonom.
+            Pilih sesi yang tersimpan di disk atau klik tombol <strong>Mulai Proyek Baru</strong> untuk menginisialisasi loop supervisi otonom.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Phase Stepper & Audit Radar (5 Cols) */}
           <div className="lg:col-span-5 flex flex-col gap-4">
-            {/* Radar Score Card */}
+            {/* Audit Radar Score Card (0-100) */}
             <div className="p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  Audit Radar & State Integrity
+                  Audit Radar & Status Proyek
                 </span>
-                <span className="px-2 py-0.5 text-xs font-mono font-bold rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-                  {sessionData.overallState}
+                <span
+                  className={`px-2 py-0.5 text-xs font-mono font-bold rounded-md ${
+                    isHalted
+                      ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                      : isCompleted
+                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                  }`}
+                >
+                  {statusReport.overallStatus || "ACTIVE"}
                 </span>
               </div>
 
               {/* Progress Bar */}
               <div className="space-y-1.5 mb-4">
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Kemajuan Proyek</span>
+                  <span className="text-zinc-500">Kemajuan Proyek (Fase Terverifikasi)</span>
                   <span className="font-mono font-bold text-zinc-900 dark:text-zinc-100">
-                    {sessionData.progressPercent}%
+                    {statusReport.progressPercentage}%
                   </span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                   <div
                     className="h-full bg-emerald-500 transition-all duration-300"
-                    style={{ width: `${sessionData.progressPercent}%` }}
+                    style={{ width: `${statusReport.progressPercentage}%` }}
                   />
                 </div>
               </div>
 
-              {/* 4 Pillars of Audit Score */}
+              {/* 4 Pillars Audit Radar Score */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-950/40">
                   <div className="flex items-center gap-1 text-[11px] text-zinc-500">
@@ -439,7 +621,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                     <span>Evidence Check</span>
                   </div>
                   <div className="mt-1 text-sm font-semibold font-mono text-zinc-800 dark:text-zinc-200">
-                    {sessionData.lastAudit?.evidenceCheckPassed ? "PASSED (100%)" : "ACTIVE"}
+                    {latestAuditResult?.evidenceCheckPassed ? "100/100 (PASSED)" : "READY"}
                   </div>
                 </div>
 
@@ -449,41 +631,46 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                     <span>Anti-Scope-Creep</span>
                   </div>
                   <div className="mt-1 text-sm font-semibold font-mono text-zinc-800 dark:text-zinc-200">
-                    {sessionData.lastAudit?.antiScopeCreepPassed ? "CLEAN" : "ACTIVE"}
+                    {latestAuditResult?.scopeCreepOrForbiddenViolations?.length === 0
+                      ? "CLEAN (0 Celah)"
+                      : "TERPROTEKSI"}
                   </div>
                 </div>
 
                 <div className="p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-950/40">
                   <div className="flex items-center gap-1 text-[11px] text-zinc-500">
                     <Terminal className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Zero-Trust Exec</span>
+                    <span>Zero-Trust Runner</span>
                   </div>
                   <div className="mt-1 text-sm font-semibold font-mono text-zinc-800 dark:text-zinc-200">
-                    {sessionData.lastAudit?.activeCommandExitCode === 0 ? "EXIT 0" : "ACTIVE"}
+                    {latestAuditResult?.independentExecutionResult?.executed
+                      ? `EXIT ${latestAuditResult.independentExecutionResult.exitCode}`
+                      : "STANDBY"}
                   </div>
                 </div>
 
                 <div className="p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-950/40">
                   <div className="flex items-center gap-1 text-[11px] text-zinc-500">
                     <Hash className="w-3.5 h-3.5 text-purple-500" />
-                    <span>SHA-256 Integrity</span>
+                    <span>Artefak Disk (SHA-256)</span>
                   </div>
                   <div className="mt-1 text-sm font-semibold font-mono text-zinc-800 dark:text-zinc-200">
-                    VERIFIED
+                    {latestAuditResult?.artifactIntegrity?.filter((a: any) => a.existsOnDisk).length || 0} /{" "}
+                    {latestAuditResult?.artifactIntegrity?.length || 0} File
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Phase Stepper List */}
+            {/* Phase Stepper List (0 to 5) */}
             <div className="p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs">
               <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-amber-500" />
-                Garis Waktu 6 Fase Eksekusi
+                Roadmap 6 Fase Eksekusi Proyek
               </h4>
-              <div className="space-y-3">
-                {sessionData.phases?.map((ph: any, idx: number) => {
-                  const isActive = idx === sessionData.activePhaseIndex;
+              <div className="space-y-2.5">
+                {statusReport.phases?.map((ph: any, idx: number) => {
+                  const isActive = idx === activePhaseIndex;
                   return (
                     <div
                       key={idx}
@@ -505,7 +692,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                             {idx}
                           </span>
                           <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                            {ph.phaseName}
+                            {ph.title || ph.phaseName || `Fase ${idx}`}
                           </span>
                         </div>
                         {getStatusBadge(ph.status)}
@@ -526,15 +713,15 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
             </div>
           </div>
 
-          {/* Right Column: Active Phase Workbench & Hacker Terminal Inspector (7 Cols) */}
+          {/* Right Column: Active Phase Workbench, Command Runner, Artifact Table & Download Center (7 Cols) */}
           <div className="lg:col-span-7 flex flex-col gap-4">
-            {/* Active Phase Dispatch Instructions */}
+            {/* Active Phase Dispatch / Corrective Action Card */}
             <div className="p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                   <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                    Fase Aktif: [{sessionData.activePhaseIndex}] {sessionData.activePhaseName}
+                    Fase Aktif: [{activePhaseIndex}] {activePhase?.title || activePhase?.phaseName || "In Progress"}
                   </h4>
                 </div>
                 <span className="text-[11px] font-mono text-zinc-400">
@@ -542,13 +729,65 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                 </span>
               </div>
 
-              {sessionData.nextDispatchPrompt && (
-                <div className="mb-4">
-                  <span className="text-[11px] uppercase font-semibold text-zinc-400 block mb-1 tracking-wider">
-                    Instruksi Penugasan Agent (Dispatch Prompt):
-                  </span>
-                  <pre className="p-3 rounded-xl bg-zinc-950 text-zinc-300 font-mono text-[11px] max-h-[180px] overflow-auto whitespace-pre-wrap leading-relaxed border border-zinc-800">
-                    {sessionData.nextDispatchPrompt}
+              {/* Feature 1: REJECTED_NEEDS_REPAIR Alert & 1-Click Copy Corrective Prompt */}
+              {isRejectedNeedsRepair && correctivePrompt && (
+                <div className="mb-4 p-3.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold">
+                      <AlertTriangle className="w-4 h-4 text-red-500 animate-bounce" />
+                      <span>Fase Ditolak Supervisor! Perbaiki Sesuai Instruksi Mandiri:</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(correctivePrompt, "corrective")}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                    >
+                      {copiedPromptType === "corrective" ? (
+                        <>
+                          <Check className="w-3 h-3 text-white" />
+                          <span>Tersalin ke Clipboard!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy Corrective Repair Prompt</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="p-2.5 rounded-lg bg-black/60 font-mono text-[11px] text-red-200 max-h-[140px] overflow-auto whitespace-pre-wrap leading-relaxed border border-red-900/50">
+                    {correctivePrompt}
+                  </pre>
+                </div>
+              )}
+
+              {/* Feature 1: Phase Dispatch Prompt & 1-Click Copy Phase Prompt */}
+              {dispatchPrompt && !isRejectedNeedsRepair && (
+                <div className="mb-4 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] uppercase font-semibold text-zinc-400 tracking-wider">
+                      Instruksi Penugasan Agent (Dispatch Prompt):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(dispatchPrompt, "dispatch")}
+                      className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      {copiedPromptType === "dispatch" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-500" />
+                          <span className="text-emerald-500">Tersalin ke Clipboard!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy Phase Dispatch Prompt</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-zinc-950 text-zinc-300 font-mono text-[11px] max-h-[160px] overflow-auto whitespace-pre-wrap leading-relaxed border border-zinc-800">
+                    {dispatchPrompt}
                   </pre>
                 </div>
               )}
@@ -565,7 +804,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                     type="text"
                     value={workSummary}
                     onChange={(e) => setWorkSummary(e.target.value)}
-                    placeholder="Contoh: Selesai membangun skema basis data dan flow transaksi atomik"
+                    placeholder="Contoh: Selesai merancang database relasional dan transaction flow atomic"
                     className="w-full text-xs p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100"
                   />
                 </div>
@@ -596,14 +835,14 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                       className="w-full text-xs p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-mono text-[11px]"
                     />
                     <span className="text-[10px] text-zinc-400 mt-0.5 block">
-                      Dieksekusi langsung oleh Zero-Trust Runner
+                      Dieksekusi langsung oleh Zero-Trust Independent Runner
                     </span>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-[11px] text-zinc-500 mb-1">
-                    Output Log Verifikasi / Test Report:
+                    Output Log Verifikasi / Test Output:
                   </label>
                   <textarea
                     rows={2}
@@ -622,7 +861,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                   {isSubmittingPhase ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Mengaudit 4 Lapis & Memverifikasi Artefak...</span>
+                      <span>Mengaudit 4 Lapis & Memverifikasi Integritas Harddisk...</span>
                     </>
                   ) : (
                     <>
@@ -634,51 +873,325 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
               </form>
             </div>
 
-            {/* Hacker Terminal Inspector (Live Verification Log) */}
-            <div className="p-4 rounded-2xl border border-zinc-800 bg-black text-zinc-200 font-mono text-xs shadow-md">
-              <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800/80">
+            {/* Feature 5: Zero-Trust Command Execution Inspector */}
+            <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-zinc-200 font-mono text-xs shadow-md">
+              <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800">
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-                  </div>
-                  <span className="text-[11px] text-zinc-400 font-bold ml-1">
-                    PIEW-SUPERVISOR-TERMINAL (LIVE AUDIT STREAM)
+                  <Terminal className="w-4 h-4 text-emerald-400" />
+                  <span className="font-bold text-zinc-300">
+                    Zero-Trust Command Execution Inspector
                   </span>
                 </div>
-                <span className="text-[10px] text-emerald-400 font-mono">ONLINE</span>
-              </div>
-
-              <div className="space-y-1.5 max-h-[220px] overflow-auto text-[11px] text-zinc-300">
-                <div className="text-zinc-500">
-                  [SYSTEM] Sesi: {activeSessionId} | Direktori: C:\Users\riska\.piew\sessions
-                </div>
-                <div className="text-zinc-500">
-                  [GOVERNANCE] Anti-Fake Data & Evidence Guard: ACTIVE
-                </div>
-
-                {sessionData.lastAudit ? (
-                  <div className="mt-2 space-y-1 border-t border-zinc-900 pt-2">
-                    <div className="text-amber-400">
-                      &gt; Verdict Terakhir: {sessionData.lastAudit.verdict || "VERIFIED"}
-                    </div>
-                    <div>&gt; Ringkasan: {sessionData.lastAudit.auditSummary || "Audit selesai"}</div>
-                    <div className="text-zinc-400">
-                      &gt; Evidence Check: {sessionData.lastAudit.evidenceCheckPassed ? "PASS" : "FAIL"} | Scope Creep Check: {sessionData.lastAudit.antiScopeCreepPassed ? "PASS" : "FAIL"}
-                    </div>
-                    {sessionData.lastAudit.correctivePrompt && (
-                      <div className="p-2 mt-2 rounded bg-red-950/40 border border-red-800/40 text-red-300">
-                        [SELF-HEALING PROMPT] {sessionData.lastAudit.correctivePrompt}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-zinc-500 italic mt-2">
-                    [WAITING] Menunggu pengiriman deliverable fase pertama dari agen...
+                {latestAuditResult?.independentExecutionResult?.executed && (
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <span
+                      className={`px-1.5 py-0.5 rounded font-bold ${
+                        latestAuditResult.independentExecutionResult.exitCode === 0
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                          : "bg-red-500/20 text-red-400 border border-red-500/40"
+                      }`}
+                    >
+                      EXIT {latestAuditResult.independentExecutionResult.exitCode}
+                    </span>
+                    <span className="text-zinc-500 font-mono">
+                      {latestAuditResult.independentExecutionResult.durationMs}ms
+                    </span>
                   </div>
                 )}
               </div>
+
+              {latestAuditResult?.independentExecutionResult?.executed ? (
+                <div className="space-y-2">
+                  <div className="text-[11px] text-zinc-400 flex items-center gap-2 bg-black/50 p-2 rounded-lg border border-zinc-800">
+                    <span className="text-amber-500 font-bold">$</span>
+                    <span className="text-zinc-200">
+                      {latestAuditResult.independentExecutionResult.command}
+                    </span>
+                  </div>
+
+                  {/* Tabs: Stdout / Stderr / Raw */}
+                  <div className="flex items-center gap-1 border-b border-zinc-800 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveLogTab("stdout")}
+                      className={`px-2.5 py-1 text-[11px] rounded-t-lg transition-colors cursor-pointer ${
+                        activeLogTab === "stdout"
+                          ? "bg-zinc-800 text-zinc-100 font-bold"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      STDOUT
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveLogTab("stderr")}
+                      className={`px-2.5 py-1 text-[11px] rounded-t-lg transition-colors cursor-pointer ${
+                        activeLogTab === "stderr"
+                          ? "bg-zinc-800 text-zinc-100 font-bold"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      STDERR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveLogTab("raw")}
+                      className={`px-2.5 py-1 text-[11px] rounded-t-lg transition-colors cursor-pointer ${
+                        activeLogTab === "raw"
+                          ? "bg-zinc-800 text-zinc-100 font-bold"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      RAW JSON
+                    </button>
+                  </div>
+
+                  <pre className="p-3 rounded-b-xl rounded-tr-xl bg-black text-zinc-300 text-[11px] max-h-[140px] overflow-auto whitespace-pre-wrap leading-relaxed border border-zinc-800 font-mono">
+                    {activeLogTab === "stdout" &&
+                      (latestAuditResult.independentExecutionResult.stdoutSnippet || "(Stdout kosong / bersih)")}
+                    {activeLogTab === "stderr" &&
+                      (latestAuditResult.independentExecutionResult.stderrSnippet || "(Stderr kosong / bebas error)")}
+                    {activeLogTab === "raw" &&
+                      JSON.stringify(latestAuditResult.independentExecutionResult, null, 2)}
+                  </pre>
+                </div>
+              ) : (
+                <div className="text-zinc-500 text-[11px] italic p-3 text-center">
+                  Belum ada eksekusi perintah independen yang dilaporkan. Sertakan verificationCommand saat submit.
+                </div>
+              )}
+            </div>
+
+            {/* Feature 4: Deep Artifact Inspector Table (SHA-256) */}
+            <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Hash className="w-4 h-4 text-purple-500" />
+                  <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                    Tabel Inspeksi Integritas Artefak Disk (SHA-256 Hash)
+                  </h4>
+                </div>
+                <span className="text-[10px] text-zinc-400 font-mono">
+                  FS Verifier: Harddisk Local
+                </span>
+              </div>
+
+              {latestAuditResult?.artifactIntegrity && latestAuditResult.artifactIntegrity.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] font-mono text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-400 text-[10px] uppercase">
+                        <th className="py-2 px-2.5">Berkas / Deliverable</th>
+                        <th className="py-2 px-2.5">Status Disk</th>
+                        <th className="py-2 px-2.5">Ukuran</th>
+                        <th className="py-2 px-2.5">Hash SHA-256</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                      {latestAuditResult.artifactIntegrity.map((art: any, aIdx: number) => (
+                        <tr key={aIdx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
+                          <td className="py-2 px-2.5 font-medium text-zinc-800 dark:text-zinc-200">
+                            {art.name}
+                          </td>
+                          <td className="py-2 px-2.5">
+                            {art.existsOnDisk ? (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                ADA DI DISK
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-500/10 text-red-500 border border-red-500/20">
+                                TIDAK DITEMUKAN
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-2.5 text-zinc-500">
+                            {art.sizeBytes !== undefined ? `${art.sizeBytes} B` : "-"}
+                          </td>
+                          <td className="py-2 px-2.5">
+                            {art.sha256 ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(art.sha256);
+                                  setCopiedHash(art.sha256);
+                                  setTimeout(() => setCopiedHash(null), 2000);
+                                }}
+                                title="Klik untuk menyalin SHA-256 hash lengkap"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px] hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer"
+                              >
+                                <span>{art.sha256.slice(0, 10)}...</span>
+                                {copiedHash === art.sha256 ? (
+                                  <Check className="w-2.5 h-2.5 text-emerald-500" />
+                                ) : (
+                                  <Copy className="w-2.5 h-2.5" />
+                                )}
+                              </button>
+                            ) : (
+                              <span className="text-zinc-500">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-zinc-500 text-[11px] italic p-3 text-center">
+                  Belum ada artefak yang diperiksa di disk pada fase ini.
+                </div>
+              )}
+            </div>
+
+            {/* Feature 6: Handover & Certification Download Center */}
+            <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Download className="w-4 h-4 text-emerald-500" />
+                  <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                    Pusat Unduhan Berkas Serah Terima (Handover Center)
+                  </h4>
+                </div>
+                <span className="text-[10px] font-mono text-zinc-400">
+                  {isCompleted ? "STATUS: PROYEK LULUS (COMPLETED)" : "STATUS: DAPAT DIEKSPOR KAPAN SAJA"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {/* Download 1: Blueprint Markdown */}
+                <button
+                  type="button"
+                  disabled={isExporting}
+                  onClick={() => handleExportAndDownload("blueprint")}
+                  className="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-amber-500/40 bg-zinc-50/50 dark:bg-zinc-950/40 text-left transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                    <span>1. Master Blueprint</span>
+                    <Download className="w-3.5 h-3.5 text-amber-500 group-hover:translate-y-0.5 transition-transform" />
+                  </div>
+                  <span className="text-[10px] text-zinc-500 font-mono block">
+                    MASTER-BLUEPRINT-{activeSessionId}.md
+                  </span>
+                </button>
+
+                {/* Download 2: Audit Certificate */}
+                <button
+                  type="button"
+                  disabled={isExporting}
+                  onClick={() => handleExportAndDownload("certificate")}
+                  className="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500/40 bg-zinc-50/50 dark:bg-zinc-950/40 text-left transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                    <span>2. Sertifikat Kelulusan</span>
+                    <Download className="w-3.5 h-3.5 text-emerald-500 group-hover:translate-y-0.5 transition-transform" />
+                  </div>
+                  <span className="text-[10px] text-zinc-500 font-mono block">
+                    PIEW-AUDIT-CERTIFICATE-{activeSessionId}.md
+                  </span>
+                </button>
+
+                {/* Download 3: Handover Bundle JSON */}
+                <button
+                  type="button"
+                  disabled={isExporting}
+                  onClick={() => handleExportAndDownload("bundle")}
+                  className="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-sky-500/40 bg-zinc-50/50 dark:bg-zinc-950/40 text-left transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                    <span>3. Bundel Serah Terima</span>
+                    <Download className="w-3.5 h-3.5 text-sky-500 group-hover:translate-y-0.5 transition-transform" />
+                  </div>
+                  <span className="text-[10px] text-zinc-500 font-mono block">
+                    piew-handover-bundle-{activeSessionId}.json
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feature 3: Modal Persistent Project Session History (~/.piew/sessions/) */}
+      {isHistoryDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-2xl max-h-[80vh] flex flex-col p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <FolderOpen className="w-5 h-5 text-sky-500" />
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  Riwayat Sesi Proyek Terdaftar (~/.piew/sessions/)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHistoryDrawerOpen(false)}
+                className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto py-3 space-y-2.5">
+              {sessions.length === 0 ? (
+                <div className="p-8 text-center text-xs text-zinc-500">
+                  Belum ada sesi proyek yang tersimpan di disk.
+                </div>
+              ) : (
+                sessions.map((s) => {
+                  const isCurrent = s.sessionId === activeSessionId;
+                  return (
+                    <div
+                      key={s.sessionId}
+                      className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        isCurrent
+                          ? "border-amber-500 bg-amber-500/5 shadow-xs"
+                          : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-950/40"
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                            {s.sessionId}
+                          </span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                              s.overallStatus === "COMPLETED"
+                                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                : s.overallStatus === "HALTED_MAX_RETRIES"
+                                ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                                : "bg-sky-500/10 text-sky-500 border border-sky-500/20"
+                            }`}
+                          >
+                            {s.overallStatus || "ACTIVE"}
+                          </span>
+                          {isCurrent && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500 text-black font-bold">
+                              AKTIF
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-1">
+                          {s.originalPrompt || s.goal || "Sesi rekayasa prompt mandiri"}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveSessionId(s.sessionId);
+                          setIsHistoryDrawerOpen(false);
+                        }}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                          isCurrent
+                            ? "bg-amber-500 text-black shadow-xs"
+                            : "bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-300 dark:hover:bg-zinc-700"
+                        }`}
+                      >
+                        {isCurrent ? "Sedang Dibuka" : "Buka Proyek Ini"}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -696,7 +1209,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
             <form onSubmit={handleStartSession} className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Target / Spesifikasi Proyek:
+                  Target / Sasaran Kebutuhan Proyek:
                 </label>
                 <textarea
                   rows={3}
@@ -709,7 +1222,7 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
 
               <div>
                 <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Batasan Larangan (1 per baris):
+                  Batasan Larangan / Anti-Scope-Creep (1 per baris):
                 </label>
                 <textarea
                   rows={2}
@@ -723,14 +1236,14 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                 <button
                   type="button"
                   onClick={() => setIsNewModalOpen(false)}
-                  className="px-3 py-1.5 text-xs rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="px-3 py-1.5 text-xs rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isCreatingSession}
-                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-black flex items-center gap-1.5"
+                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-black flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   {isCreatingSession && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Mulai Proyek</span>
@@ -741,31 +1254,29 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
         </div>
       )}
 
-      {/* Modal Human Override */}
+      {/* Modal Human Override (All 4 Modes) */}
       {isOverrideModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="w-full max-w-lg p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl space-y-4">
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
               <ShieldAlert className="w-4 h-4 text-amber-500" />
-              Human-in-Control Override Intervention
+              Human-in-Control Override Intervention (4 Mode)
             </h3>
 
-            <form onSubmit={handleApplyOverride} className="space-y-3">
+            <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Jenis Tindakan Intervensi:
+                  Pilih Mode Intervensi:
                 </label>
                 <select
                   value={overrideAction}
                   onChange={(e) => setOverrideAction(e.target.value)}
-                  className="w-full text-xs p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100"
+                  className="w-full text-xs p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 cursor-pointer"
                 >
-                  <option value="INJECT_NEGATIVE_CONSTRAINT">Suntik Batasan Larangan Baru (Negative Constraint)</option>
-                  <option value="FORCE_ADVANCE_PHASE">Paksa Maju ke Fase Berikutnya (Force Advance)</option>
-                  <option value="ROLLBACK_PHASE">Kembalikan ke Fase Sebelumnya (Rollback)</option>
-                  <option value="RESET_RETRY_COUNTER">Reset Counter Percobaan Fase</option>
-                  <option value="HALT_SESSION">Bekukan Sesi Proyek (Halt)</option>
-                  <option value="RESUME_SESSION">Lanjutkan Sesi Proyek (Resume)</option>
+                  <option value="INJECT_CONSTRAINT">1. INJECT_CONSTRAINT (Suntik Batasan Larangan Baru)</option>
+                  <option value="FORCE_VERIFY_PHASE">2. FORCE_VERIFY_PHASE (Paksa Loloskan Fase / False-Positive)</option>
+                  <option value="RESUME_PROJECT">3. RESUME_PROJECT (Lanjutkan Proyek yang Tertunda)</option>
+                  <option value="ABORT_PROJECT">4. ABORT_PROJECT (Hentikan Proyek Darurat / Halt)</option>
                 </select>
               </div>
 
@@ -783,10 +1294,10 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                 />
               </div>
 
-              {overrideAction === "INJECT_NEGATIVE_CONSTRAINT" && (
+              {overrideAction === "INJECT_CONSTRAINT" && (
                 <div>
                   <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Batasan yang Disuntikkan (1 per baris):
+                    Batasan Baru yang Disuntikkan (1 per baris):
                   </label>
                   <textarea
                     rows={2}
@@ -802,20 +1313,21 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
                 <button
                   type="button"
                   onClick={() => setIsOverrideModalOpen(false)}
-                  className="px-3 py-1.5 text-xs rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="px-3 py-1.5 text-xs rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
-                  type="submit"
+                  type="button"
                   disabled={isApplyingOverride}
-                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-black flex items-center gap-1.5"
+                  onClick={() => handleApplyOverrideAction(overrideAction)}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-black flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   {isApplyingOverride && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Terapkan Override</span>
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
