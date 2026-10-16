@@ -55,6 +55,11 @@ export * from "./supervisor.js";
 export * from "./dynamic-llm-synthesizer.js";
 export * from "./mcp-client.js";
 export * from "./mcp-bridge.js";
+export * from "./agent-policy.js";
+export * from "./agent-memory.js";
+export * from "./agent-skills.js";
+export * from "./agent-runtime.js";
+export * from "./agent-experiments.js";
 export {
   listMcpConnectors,
   getMcpConnector,

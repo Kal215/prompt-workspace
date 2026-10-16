@@ -15,6 +15,10 @@ import {
   initAutonomousProjectAsync,
   listMcpConnectors,
   testAndDiscoverMcpConnector,
+  BoundedAgentRuntime,
+  AgentMemoryStore,
+  AgentSkillRegistry,
+  ScientificExperimentRunner,
 } from "@prompt-workspace/prompt-engine";
 import {
   SynthesisStylePreset,
@@ -47,6 +51,10 @@ Opsi:
   --test-provider=<id> Uji koneksi diagnostik ke provider atau custom endpoint
   --connectors        Tampilkan status Universal MCP Connectors & Tools Hub
   --test-connector=<id> Uji koneksi & discover tools dari MCP Server eksternal
+  --agent-run         Jalankan Bounded Autonomous Agent Loop
+  --memory            Tampilkan atau kelola memory record agen
+  --skills            Tampilkan daftar declarative skill registry
+  --experiment        Jalankan Scientific Paired Experiment (B0..B4)
   --no-mcp-context    Nonaktifkan pengayaan konteks eksternal otomatis dari MCP
   --json              Cetak output utuh dalam format JSON
   -h, --help          Tampilkan panduan bantuan ini
@@ -82,6 +90,10 @@ async function main() {
   let listConnectorsMode = false;
   let testConnectorTarget: string | undefined;
   let enableMcpContext = true;
+  let agentRunMode = false;
+  let memoryMode = false;
+  let skillsMode = false;
+  let experimentMode = false;
 
   for (const arg of args) {
     if (arg === "--providers" || arg === "--list-providers") {
@@ -94,6 +106,14 @@ async function main() {
       testConnectorTarget = arg.slice("--test-connector=".length).trim();
     } else if (arg === "--no-mcp-context") {
       enableMcpContext = false;
+    } else if (arg === "--agent-run") {
+      agentRunMode = true;
+    } else if (arg === "--memory") {
+      memoryMode = true;
+    } else if (arg === "--skills") {
+      skillsMode = true;
+    } else if (arg === "--experiment") {
+      experimentMode = true;
     } else if (arg === "--supervise") {
       superviseMode = true;
     } else if (arg.startsWith("--style=")) {
@@ -248,6 +268,100 @@ async function main() {
       console.log(`   Deskripsi  : ${c.description}`);
       console.log(`   Mode Izin  : ${c.permissionMode}`);
       console.log("");
+    }
+    process.exit(0);
+  }
+
+  if (skillsMode) {
+    const registry = new AgentSkillRegistry();
+    const skills = registry.getActiveSkills();
+    if (jsonOutput) {
+      console.log(JSON.stringify(skills, null, 2));
+      process.exit(0);
+    }
+    console.log(`\n🧩 DECLARATIVE SKILL REGISTRY (${skills.length}):`);
+    for (const s of skills) {
+      console.log(` • [${s.name}@${s.version}] (Risk: ${s.riskClass.toUpperCase()}) — Active`);
+      console.log(`   Summary : ${s.summary}`);
+    }
+    process.exit(0);
+  }
+
+  if (memoryMode) {
+    const memStore = new AgentMemoryStore();
+    const memories = memStore.queryMemories({ ownerId: "user-default" });
+    if (jsonOutput) {
+      console.log(JSON.stringify(memories, null, 2));
+      process.exit(0);
+    }
+    console.log(`\n🧠 HYBRID MEMORY STORE (${memories.length}):`);
+    for (const m of memories) {
+      console.log(` • [${m.id}] (${m.type}) [${m.status}] Conf: ${m.confidence}`);
+      console.log(`   Content: ${m.content}`);
+    }
+    process.exit(0);
+  }
+
+  if (agentRunMode) {
+    if (!prompt) {
+      console.error("❌ Error: Prompt utama wajib diberikan untuk --agent-run.");
+      process.exit(1);
+    }
+    console.log(`\n🤖 MENJALANKAN BOUNDED AUTONOMOUS AGENT RUN...`);
+    const runtime = new BoundedAgentRuntime();
+    const record = await runtime.executeBoundedAgentRun({
+      ownerId: "user-cli",
+      prompt,
+    });
+    if (jsonOutput) {
+      console.log(JSON.stringify(record, null, 2));
+      process.exit(0);
+    }
+    console.log(`✅ Status Selesai: ${record.status.toUpperCase()}`);
+    console.log(`🎯 Run ID: ${record.runId}`);
+    console.log(`📈 Final Score: ${record.finalScore}`);
+    console.log(`📝 Total Langkah: ${record.steps.length}`);
+    console.log(`\nPROMPT HASIL AGENT RUN:\n${record.currentPrompt}`);
+    process.exit(0);
+  }
+
+  if (experimentMode) {
+    console.log(`\n🧪 MENJALANKAN SCIENTIFIC PAIRED EXPERIMENT (B0..B4)...`);
+    const runner = new ScientificExperimentRunner({
+      fastDeterministicMode: true,
+    });
+    const sampleDataset: any = {
+      datasetId: "ds-benchmark-v1",
+      version: "1.0.0",
+      createdAt: new Date().toISOString(),
+      sha256Hash: "hash-benchmark-test-01",
+      testCases: [
+        {
+          id: "tc-01",
+          domain: "software_engineering",
+          prompt: prompt || "Buat sistem website e-commerce dengan stok barang dan audit log.",
+          hardConstraints: ["Jangan buat POS"],
+          split: "holdout",
+        },
+      ],
+    };
+    const report = await runner.runPairedPromptExperiment({
+      dataset: sampleDataset,
+      split: "holdout",
+      ownerId: "user-cli",
+      fastDeterministicMode: true,
+    });
+    if (jsonOutput) {
+      console.log(JSON.stringify(report, null, 2));
+      process.exit(0);
+    }
+    console.log(`🏆 Winner Baseline: ${report.winnerBaseline}`);
+    console.log(`🔒 Immutable Artifact SHA-256: ${report.immutableArtifactSha256}`);
+    for (const b of report.baselinesEvaluated) {
+      const m = report.aggregateMetrics[b];
+      if (m) {
+        console.log(` • ${b}: Avg Score ${m.averageScore} | Passed ${m.passedCases}/${m.totalCases} | Gate Failed ${m.gateFailedCases}`);
+      }
     }
     process.exit(0);
   }
