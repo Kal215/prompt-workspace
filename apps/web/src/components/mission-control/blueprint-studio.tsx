@@ -3,21 +3,14 @@
 import React, { useState } from "react";
 import {
   Sparkles,
-  Layers,
   ShieldCheck,
   CheckCircle2,
   Copy,
   Check,
   Users,
-  Code2,
-  ChevronDown,
-  ChevronRight,
   Send,
   Loader2,
-  ExternalLink,
   Workflow,
-  Target,
-  FileSpreadsheet,
 } from "lucide-react";
 import { MermaidViewer } from "./mermaid-viewer";
 
@@ -43,11 +36,6 @@ export function BlueprintStudio({ onStartSupervision }: BlueprintStudioProps) {
   const [result, setResult] = useState<any | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"diagrams" | "phases" | "experts" | "prompt">("diagrams");
-  const [openAccordion, setOpenAccordion] = useState<Record<string, boolean>>({
-    phases: true,
-    diagrams: true,
-    experts: true,
-  });
 
   const handleSynthesize = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -94,10 +82,6 @@ export function BlueprintStudio({ onStartSupervision }: BlueprintStudioProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {}
-  };
-
-  const toggleAccordion = (key: string) => {
-    setOpenAccordion((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (

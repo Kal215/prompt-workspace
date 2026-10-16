@@ -196,7 +196,7 @@ export function PromptDiffViewer({
                     {originalPrompt.length} karakter
                   </Badge>
                 </div>
-                <div className="rounded-lg bg-muted/30 border border-border/60 p-3.5 font-mono text-xs leading-relaxed min-h-[280px] whitespace-pre-wrap select-text">
+                <div className="rounded-lg bg-zinc-950/20 dark:bg-zinc-950/70 border border-border/60 p-3.5 font-mono text-xs leading-relaxed min-h-[280px] whitespace-pre-wrap select-text">
                   {originalPrompt}
                 </div>
               </div>
@@ -215,7 +215,7 @@ export function PromptDiffViewer({
                     {optimizedPrompt.length} karakter
                   </Badge>
                 </div>
-                <div className="rounded-lg bg-primary/[0.02] border border-primary/20 p-3.5 font-mono text-xs leading-relaxed min-h-[280px] whitespace-pre-wrap select-text text-foreground">
+                <div className="rounded-lg bg-zinc-950/30 dark:bg-zinc-950 border border-border/80 p-3.5 font-mono text-xs leading-relaxed min-h-[280px] whitespace-pre-wrap select-text text-foreground">
                   {optimizedPrompt}
                 </div>
               </div>
@@ -236,26 +236,26 @@ export function PromptDiffViewer({
               </span>
             </div>
 
-            <div className="rounded-lg bg-muted/20 border border-border/60 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap select-text min-h-[260px]">
+            <div className="rounded-lg bg-zinc-950/20 dark:bg-zinc-950/60 border border-border/60 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap select-text min-h-[260px]">
               {diffParts.map((part, index) => {
                 if (part.added) {
                   return (
-                    <mark
+                    <span
                       key={index}
-                      className="bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 rounded px-1 py-0.5 font-semibold no-underline"
+                      className="bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-semibold px-0.5 rounded"
                     >
                       {part.value}
-                    </mark>
+                    </span>
                   );
                 }
                 if (part.removed) {
                   return (
-                    <del
+                    <span
                       key={index}
-                      className="bg-red-500/20 text-red-800 dark:text-red-300 line-through rounded px-1 py-0.5 opacity-70"
+                      className="bg-red-500/20 text-red-800 dark:text-red-400 line-through px-0.5 rounded opacity-75"
                     >
                       {part.value}
-                    </del>
+                    </span>
                   );
                 }
                 return <span key={index}>{part.value}</span>;
@@ -273,7 +273,7 @@ export function PromptDiffViewer({
                 variant="ghost"
                 size="sm"
                 onClick={handleCopy}
-                className="h-7 text-xs gap-1"
+                className="h-7 text-xs gap-1 cursor-pointer"
               >
                 {copied ? (
                   <>
@@ -288,7 +288,7 @@ export function PromptDiffViewer({
                 )}
               </Button>
             </div>
-            <div className="rounded-lg bg-muted/40 border border-border/60 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap select-text text-foreground">
+            <div className="rounded-lg bg-zinc-950/30 dark:bg-zinc-950 border border-border/80 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap select-text text-foreground">
               {optimizedPrompt}
             </div>
           </TabsContent>

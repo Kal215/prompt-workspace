@@ -360,7 +360,7 @@ export function PlaygroundCard({
                 <FileCode2 className="h-3.5 w-3.5 text-primary" />
                 <span>Respons Nyata Model Tujuan:</span>
               </div>
-              <div className="p-4 rounded-md bg-muted/40 border border-border/80 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
+              <div className="p-4 rounded-md bg-zinc-950/30 dark:bg-zinc-950 border border-border/80 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
                 {executionResult.output}
               </div>
             </div>

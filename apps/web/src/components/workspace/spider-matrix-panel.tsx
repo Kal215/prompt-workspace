@@ -76,9 +76,9 @@ function getCaseStatusBadge(status: SpiderCaseStatus) {
       return (
         <Badge
           variant="outline"
-          className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 text-[10px] font-mono gap-1"
+          className="border-emerald-500/20 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px] font-mono gap-1 font-semibold"
         >
-          <CheckCircle2 className="h-3 w-3" />
+          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
           PASS
         </Badge>
       );
@@ -86,9 +86,9 @@ function getCaseStatusBadge(status: SpiderCaseStatus) {
       return (
         <Badge
           variant="outline"
-          className="border-destructive/40 text-destructive bg-destructive/5 text-[10px] font-mono gap-1"
+          className="border-destructive/20 text-destructive bg-destructive/10 text-[10px] font-mono gap-1 font-semibold"
         >
-          <XCircle className="h-3 w-3" />
+          <XCircle className="h-3 w-3 text-destructive" />
           FAIL
         </Badge>
       );
@@ -96,9 +96,9 @@ function getCaseStatusBadge(status: SpiderCaseStatus) {
       return (
         <Badge
           variant="outline"
-          className="border-red-500/40 text-red-500 bg-red-500/5 text-[10px] font-mono gap-1"
+          className="border-red-500/20 text-red-500 bg-red-500/10 text-[10px] font-mono gap-1 font-semibold"
         >
-          <AlertTriangle className="h-3 w-3" />
+          <AlertTriangle className="h-3 w-3 text-red-500" />
           ERROR
         </Badge>
       );
@@ -106,9 +106,9 @@ function getCaseStatusBadge(status: SpiderCaseStatus) {
       return (
         <Badge
           variant="outline"
-          className="border-amber-500/40 text-amber-500 bg-amber-500/5 text-[10px] font-mono gap-1"
+          className="border-amber-500/20 text-amber-500 bg-amber-500/10 text-[10px] font-mono gap-1 font-semibold"
         >
-          <HelpCircle className="h-3 w-3" />
+          <HelpCircle className="h-3 w-3 text-amber-500" />
           INDETERMINATE
         </Badge>
       );
