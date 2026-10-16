@@ -3,6 +3,7 @@ import { z } from "zod";
 export * from "./task-spec.js";
 export * from "./supervision.js";
 export * from "./provider-registry.js";
+export * from "./dynamic-blueprint.js";
 import {
   TokenBudgetModeEnum,
   SynthesisStylePresetEnum,

@@ -12,6 +12,7 @@ import {
   runAutoPilotMasterPipeline,
   loadPiewConfig,
   initAutonomousProject,
+  initAutonomousProjectAsync,
 } from "@prompt-workspace/prompt-engine";
 import {
   SynthesisStylePreset,
@@ -201,7 +202,7 @@ async function main() {
 
   if (superviseMode) {
     try {
-      const initResult = initAutonomousProject({
+      const initResult = await initAutonomousProjectAsync({
         prompt,
         context,
         audienceLevel,
@@ -254,10 +255,15 @@ async function main() {
       console.log("═".repeat(68) + "\n");
       console.log(result.universalBlueprint.renderedMasterPrompt);
       console.log("\n" + "─".repeat(68));
+      const meta = (result.universalBlueprint as any).metadata;
+      const modeStr = meta?.synthesisMode === "live_llm_dynamic"
+        ? `🔥 Mode: LIVE LLM DYNAMIC (${meta.providerId} / ${meta.model})`
+        : `⚡ Mode: DETERMINISTIC FALLBACK`;
       console.log(
         `📊 Domain: ${result.universalBlueprint.domain.toUpperCase()} | ` +
         `Audiens: ${result.audienceLevel} | Diagram: ${result.universalBlueprint.diagrams.length} Mermaid | ` +
-        `Fase: ${result.universalBlueprint.executionPhases.length} | Latency: ${result.processingTimeMs ?? 0}ms`
+        `Fase: ${result.universalBlueprint.executionPhases.length} | Latency: ${result.processingTimeMs ?? 0}ms\n` +
+        `   ${modeStr}`
       );
       console.log("─".repeat(68) + "\n");
       process.exit(0);

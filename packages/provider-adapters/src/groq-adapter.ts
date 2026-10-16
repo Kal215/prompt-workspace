@@ -148,6 +148,7 @@ export class GroqAdapter implements LLMProviderAdapter {
             })),
             temperature: options?.temperature ?? 0.2,
             max_tokens: options?.maxTokens ?? 2048,
+            ...(options?.responseFormat === "json" ? { response_format: { type: "json_object" } } : {}),
           },
           { signal: controller.signal }
         ).finally(() => {

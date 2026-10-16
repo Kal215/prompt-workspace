@@ -24,6 +24,7 @@ import {
   runAutoPilotMasterPipeline,
   loadPiewConfig,
   initAutonomousProject,
+  initAutonomousProjectAsync,
   auditAndAdvancePhase,
   applyHumanOverride,
   getProjectStatus,
@@ -203,6 +204,10 @@ const TOOLS = [
         maxAttemptsPerPhase: {
           type: "number",
           description: "Maximum repair retry attempts per phase before halting (default: 5)",
+        },
+        forceOfflineFallback: {
+          type: "boolean",
+          description: "Bypass live LLM calls and force fast deterministic synthesis",
         },
       },
       required: ["prompt"],
@@ -556,14 +561,24 @@ async function handleToolCall(name: string, args: Record<string, any>) {
     }
 
     case "piew_start_project": {
-      const initRes = initAutonomousProject({
-        prompt: args.prompt,
-        context: args.context,
-        domainId: args.domainId,
-        subtopicId: args.subtopicId,
-        audienceLevel: args.audienceLevel,
-        maxAttemptsPerPhase: args.maxAttemptsPerPhase,
-      });
+      const forceOffline = args.forceOfflineFallback || process.env.PIEW_FORCE_OFFLINE === "true";
+      const initRes = forceOffline
+        ? initAutonomousProject({
+            prompt: args.prompt,
+            context: args.context,
+            domainId: args.domainId,
+            subtopicId: args.subtopicId,
+            audienceLevel: args.audienceLevel,
+            maxAttemptsPerPhase: args.maxAttemptsPerPhase,
+          })
+        : await initAutonomousProjectAsync({
+            prompt: args.prompt,
+            context: args.context,
+            domainId: args.domainId,
+            subtopicId: args.subtopicId,
+            audienceLevel: args.audienceLevel,
+            maxAttemptsPerPhase: args.maxAttemptsPerPhase,
+          });
 
       return {
         content: [

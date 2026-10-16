@@ -22,7 +22,10 @@ import {
   DeterministicContentCache,
 } from "./cache.js";
 import { loadPiewConfig } from "./config.js";
-import { synthesizeUniversalBlueprint } from "./universal-synthesizer.js";
+import {
+  synthesizeUniversalBlueprint,
+  synthesizeUniversalBlueprintAsync,
+} from "./universal-synthesizer.js";
 import { runPromptCrawler } from "@prompt-workspace/prompt-crawler";
 import { runPromptSpider } from "@prompt-workspace/prompt-spider";
 import { LLMProviderAdapter } from "@prompt-workspace/provider-adapters";
@@ -205,7 +208,7 @@ export async function runAutoPilotMasterPipeline(
 
   // 6b. Sintesis Universal Meta-Blueprint & Diagram Polimorfik
   const audienceLevel = validatedInput.audienceLevel || "specialist";
-  const universalResult = synthesizeUniversalBlueprint({
+  const universalResult = await synthesizeUniversalBlueprintAsync({
     prompt: validatedInput.prompt,
     context: validatedInput.context,
     audienceLevel,
