@@ -19,12 +19,16 @@ interface AppHeaderProps {
   historyCount?: number;
   onOpenHistory?: () => void;
   onOpenSettings?: (initialTab?: "providers" | "connectors") => void;
+  activeWorkspaceMode?: "classic" | "mission-control";
+  onWorkspaceModeChange?: (mode: "classic" | "mission-control") => void;
 }
 
 export function AppHeader({
   historyCount = 0,
   onOpenHistory,
   onOpenSettings,
+  activeWorkspaceMode = "classic",
+  onWorkspaceModeChange,
 }: AppHeaderProps) {
   const pathname = usePathname();
 
@@ -32,16 +36,19 @@ export function AppHeader({
     {
       href: "/",
       label: "Classic",
-      fullLabel: "⚡ Classic Studio",
+      fullLabel: "Classic Studio",
       icon: Zap,
-      active: pathname === "/",
+      active: pathname === "/" && activeWorkspaceMode === "classic",
       badge: "v2.0",
       testId: "tab-classic-studio",
+      onClick: () => {
+        if (onWorkspaceModeChange) onWorkspaceModeChange("classic");
+      },
     },
     {
       href: "/pro",
       label: "Pro",
-      fullLabel: "🏛 Pro Architect",
+      fullLabel: "Pro Architect",
       icon: Cpu,
       active: pathname === "/pro",
       badge: "PRO",
@@ -50,16 +57,21 @@ export function AppHeader({
     {
       href: "/agent",
       label: "Agent",
-      fullLabel: "🤖 Agent Console",
+      fullLabel: "Agent Console",
       icon: Bot,
-      active: pathname === "/agent",
+      active: pathname === "/agent" || activeWorkspaceMode === "mission-control",
       badge: "v3.1",
       testId: "tab-agent-supervision",
+      onClick: () => {
+        if (pathname === "/" && onWorkspaceModeChange) {
+          onWorkspaceModeChange("mission-control");
+        }
+      },
     },
     {
       href: "/docs",
       label: "Docs",
-      fullLabel: "📖 Docs & Specs",
+      fullLabel: "Docs & Specs",
       icon: BookOpen,
       active: pathname === "/docs",
       badge: null,
@@ -72,15 +84,15 @@ export function AppHeader({
       {/* Left: Brand Identity & Tier Navigation */}
       <div className="flex items-center gap-2 sm:gap-6 shrink-0">
         <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group">
-          <div className="h-8 w-8 rounded-lg bg-[#FF4D00] text-white flex items-center justify-center font-bold shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+          <div className="h-8 w-8 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold shadow-xs shrink-0 group-hover:scale-105 transition-transform">
             <TerminalSquare className="h-4 w-4" />
           </div>
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-xs sm:text-base tracking-tight text-foreground whitespace-nowrap">
               Prompt Intelligence Workspace
             </span>
-            <span className="text-[10px] text-neutral-500 font-mono border border-border px-1.5 py-0.5 rounded bg-muted/60 hidden sm:inline-block">
-              v3.1
+            <span className="text-[10px] text-sky-600 dark:text-sky-400 font-mono border border-sky-500/20 px-1.5 py-0.5 rounded bg-sky-500/10 hidden sm:inline-block font-semibold">
+              PIEW v3.1
             </span>
           </div>
         </Link>
@@ -96,6 +108,7 @@ export function AppHeader({
                 key={item.href}
                 href={item.href}
                 data-testid={item.testId}
+                onClick={item.onClick}
                 className={`flex items-center gap-1 sm:gap-1.5 py-1 px-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-medium transition-all ${
                   item.active
                     ? "bg-card text-foreground shadow-2xs font-semibold"
@@ -103,16 +116,16 @@ export function AppHeader({
                 }`}
               >
                 {item.active && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#FF4D00]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
                 )}
-                <Icon className={`w-3.5 h-3.5 ${item.active ? "text-[#FF4D00]" : "text-muted-foreground"}`} />
+                <Icon className={`w-3.5 h-3.5 ${item.active ? "text-sky-500" : "text-muted-foreground"}`} />
                 <span className="hidden md:inline">{item.fullLabel}</span>
                 <span className="md:hidden">{item.label}</span>
                 {item.badge && (
                   <span className={`text-[9px] font-mono px-1 py-0.2 rounded border hidden lg:inline-block ${
                     item.badge === "PRO" 
                       ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                      : "bg-muted text-muted-foreground border-border"
+                      : "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
                   }`}>
                     {item.badge}
                   </span>
@@ -121,13 +134,46 @@ export function AppHeader({
             );
           })}
         </nav>
+
+        {/* Backwards Compatibility Mission Control Tab Pill */}
+        <button
+          type="button"
+          data-testid="tab-mission-control"
+          onClick={() => {
+            if (onWorkspaceModeChange) {
+              onWorkspaceModeChange("mission-control");
+            }
+          }}
+          className="sr-only"
+          aria-label="Mission Control Studio Mode"
+        >
+          Mission Control
+        </button>
+
+        {/* Section Jump Links for Landing Page */}
+        {pathname === "/" && (
+          <nav className="hidden 2xl:flex items-center gap-3 text-xs font-mono text-muted-foreground">
+            <a href="#overview" className="hover:text-foreground hover:underline transition-colors">
+              Overview
+            </a>
+            <a href="#architecture" className="hover:text-foreground hover:underline transition-colors">
+              Architecture
+            </a>
+            <a href="#spider-security" className="hover:text-foreground hover:underline transition-colors">
+              Spider Security
+            </a>
+            <a href="#guides" className="hover:text-foreground hover:underline transition-colors">
+              Guides
+            </a>
+          </nav>
+        )}
       </div>
 
       {/* Right Side Controls: Telemetry, Settings (Providers + MCP), History, Theme */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-2">
         {/* Engine Status Dot */}
         <div className="hidden xl:flex items-center gap-2 font-mono text-[11px] text-muted-foreground px-2.5 py-1 rounded-md bg-muted/40 border border-border">
-          <span className="inline-block h-2 w-2 rounded-full bg-[#FF4D00] animate-pulse" />
+          <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>Groq LPUs Aktif</span>
         </div>
 
@@ -140,7 +186,7 @@ export function AppHeader({
           className="h-8 text-xs gap-1.5 cursor-pointer border-border hover:bg-muted/80 px-2.5 sm:px-3 font-mono rounded-lg"
           title="Pengaturan Workspace: AI Providers, API Keys & MCP Connectors Hub"
         >
-          <Sliders className="h-3.5 w-3.5 text-[#FF4D00]" />
+          <Sliders className="h-3.5 w-3.5 text-sky-500" />
           <span>Settings</span>
         </Button>
 

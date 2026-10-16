@@ -49,72 +49,74 @@
 }
 
 :root {
-  --background: #FAFAFA;
-  --foreground: #141414;
+  /* Crisp Architectural Light Theme: Cool Alabaster, Pure White & Electric Sky Blue */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
   --card: #FFFFFF;
-  --card-foreground: #141414;
+  --card-foreground: #0F172A;
   --popover: #FFFFFF;
-  --popover-foreground: #141414;
-  --primary: #FF4D00;
+  --popover-foreground: #0F172A;
+  --primary: #0EA5E9;
   --primary-foreground: #FFFFFF;
-  --secondary: #F4F4F5;
-  --secondary-foreground: #141414;
-  --muted: #F4F4F6;
-  --muted-foreground: #666666;
-  --accent: #FFF4EE;
-  --accent-foreground: #FF4D00;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #475569;
+  --accent: #F0F9FF;
+  --accent-foreground: #0284C7;
   --destructive: #DC2626;
-  --border: #E8E8E8;
-  --input: #E8E8E8;
-  --ring: rgba(255, 77, 0, 0.35);
-  --chart-1: #FF4D00;
-  --chart-2: #141414;
-  --chart-3: #666666;
-  --chart-4: #D4D4D8;
-  --chart-5: #E8E8E8;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: rgba(14, 165, 233, 0.35);
+  --chart-1: #0EA5E9;
+  --chart-2: #0284C7;
+  --chart-3: #0F172A;
+  --chart-4: #94A3B8;
+  --chart-5: #E2E8F0;
   --radius: 0.625rem;
   --sidebar: #FFFFFF;
-  --sidebar-foreground: #141414;
-  --sidebar-primary: #FF4D00;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #0EA5E9;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #FFF4EE;
-  --sidebar-accent-foreground: #FF4D00;
-  --sidebar-border: #E8E8E8;
-  --sidebar-ring: rgba(255, 77, 0, 0.35);
+  --sidebar-accent: #F0F9FF;
+  --sidebar-accent-foreground: #0284C7;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: rgba(14, 165, 233, 0.35);
 }
 
 .dark {
-  --background: #0D0D0E;
-  --foreground: #F5F5F7;
-  --card: #151518;
-  --card-foreground: #F5F5F7;
-  --popover: #151518;
-  --popover-foreground: #F5F5F7;
-  --primary: #FF4D00;
-  --primary-foreground: #FFFFFF;
-  --secondary: #1F1F24;
-  --secondary-foreground: #F5F5F7;
-  --muted: #1A1A1E;
-  --muted-foreground: #8E8E93;
-  --accent: #2A170F;
-  --accent-foreground: #FF6622;
+  /* Deep Midnight Slate & Neon Sky Blue */
+  --background: #060911;
+  --foreground: #F8FAFC;
+  --card: #0B111E;
+  --card-foreground: #F8FAFC;
+  --popover: #0B111E;
+  --popover-foreground: #F8FAFC;
+  --primary: #38BDF8;
+  --primary-foreground: #060911;
+  --secondary: #111827;
+  --secondary-foreground: #F8FAFC;
+  --muted: #0F172A;
+  --muted-foreground: #94A3B8;
+  --accent: #0C253C;
+  --accent-foreground: #38BDF8;
   --destructive: #EF4444;
-  --border: rgba(255, 255, 255, 0.09);
-  --input: rgba(255, 255, 255, 0.09);
-  --ring: rgba(255, 77, 0, 0.45);
-  --chart-1: #FF4D00;
-  --chart-2: #F5F5F7;
-  --chart-3: #8E8E93;
-  --chart-4: #3F3F46;
-  --chart-5: #27272A;
-  --sidebar: #151518;
-  --sidebar-foreground: #F5F5F7;
-  --sidebar-primary: #FF4D00;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #2A170F;
-  --sidebar-accent-foreground: #FF6622;
-  --sidebar-border: rgba(255, 255, 255, 0.09);
-  --sidebar-ring: rgba(255, 77, 0, 0.45);
+  --border: rgba(56, 189, 248, 0.12);
+  --input: rgba(56, 189, 248, 0.12);
+  --ring: rgba(56, 189, 248, 0.45);
+  --chart-1: #38BDF8;
+  --chart-2: #F8FAFC;
+  --chart-3: #94A3B8;
+  --chart-4: #334155;
+  --chart-5: #1E293B;
+  --sidebar: #0B111E;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #38BDF8;
+  --sidebar-primary-foreground: #060911;
+  --sidebar-accent: #0C253C;
+  --sidebar-accent-foreground: #38BDF8;
+  --sidebar-border: rgba(56, 189, 248, 0.12);
+  --sidebar-ring: rgba(56, 189, 248, 0.45);
 }
 
 @layer base {
@@ -122,46 +124,53 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground selection:bg-[#FF4D00]/20 selection:text-foreground;
+    @apply bg-background text-foreground selection:bg-sky-500/20 selection:text-foreground;
   }
   html {
     @apply font-sans scroll-smooth;
   }
 }
 
-/* Firecrawl Architectural Grid Background Pattern */
-.firecrawl-grid-bg {
+/* PIEW Architectural Grid Background Pattern */
+.firecrawl-grid-bg,
+.piew-grid-bg {
   background-size: 48px 48px;
   background-image: 
-    linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
 }
-.dark .firecrawl-grid-bg {
+.dark .firecrawl-grid-bg,
+.dark .piew-grid-bg {
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
 }
 
 /* Dot matrix texture overlay */
-.firecrawl-dots-bg {
-  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+.firecrawl-dots-bg,
+.piew-dots-bg {
+  background-image: radial-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
 }
-.dark .firecrawl-dots-bg {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+.dark .firecrawl-dots-bg,
+.dark .piew-dots-bg {
+  background-image: radial-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px);
 }
 
-/* Flame Orange Primary Button Glow */
+/* Sky Blue Primary Button Glow */
+.btn-piew-primary,
 .btn-firecrawl-primary {
-  background-color: #FF4D00;
+  background-color: #0EA5E9;
   color: #FFFFFF;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.btn-piew-primary:hover,
 .btn-firecrawl-primary:hover {
-  background-color: #E64500;
-  box-shadow: 0 4px 24px rgba(255, 77, 0, 0.32);
+  background-color: #0284C7;
+  box-shadow: 0 4px 24px rgba(14, 165, 233, 0.35);
   filter: brightness(1.04);
 }
+.btn-piew-primary:active,
 .btn-firecrawl-primary:active {
   transform: scale(0.98);
 }
@@ -177,7 +186,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #FF4D00;
+  color: #0EA5E9;
   user-select: none;
 }
 
@@ -214,12 +223,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(161, 161, 170, 0.25);
+  background: rgba(148, 163, 184, 0.3);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 77, 0, 0.4);
+  background: rgba(14, 165, 233, 0.5);
 }
 
 /* Mobile Safe Area Inset */
