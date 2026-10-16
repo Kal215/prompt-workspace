@@ -3,6 +3,8 @@ import { PromptOptimizationRequestSchema } from "@prompt-workspace/prompt-contra
 import {
   runOptimizationPipeline,
   synthesizeUniversalBlueprintAsync,
+  gatherMcpExternalContext,
+  formatMcpContextForPrompt,
 } from "@prompt-workspace/prompt-engine";
 import {
   ProviderAdapterError,
@@ -87,6 +89,28 @@ export async function POST(request: Request) {
 
     const validatedData = validationResult.data;
 
+    // Pengayaan Konteks Eksternal dari MCP Connectors (PR #59)
+    let appliedMcpConnectors: Array<{ connectorId: string; source: string; factsCount: number }> = [];
+    try {
+      const combinedPrompt = validatedData.context
+        ? `${validatedData.prompt}\n\n${validatedData.context}`
+        : validatedData.prompt;
+      const mcpContexts = await gatherMcpExternalContext(combinedPrompt);
+      if (mcpContexts && mcpContexts.length > 0) {
+        appliedMcpConnectors = mcpContexts.map((c) => ({
+          connectorId: c.connectorId,
+          source: c.sourceIdentifier || c.sourceType,
+          factsCount: Array.isArray(c.entities) ? c.entities.length : 1,
+        }));
+        const mcpFormatted = formatMcpContextForPrompt(mcpContexts);
+        validatedData.context = validatedData.context
+          ? `${validatedData.context}\n\n${mcpFormatted}`
+          : mcpFormatted;
+      }
+    } catch (mcpErr) {
+      console.warn("[OPTIMIZE_MCP_CONTEXT_WARN]", (mcpErr as Error).message);
+    }
+
     // Resolusi provider aktif atau custom endpoint dari registry
     let customAdapter: LLMProviderAdapter | undefined;
     const requestedProvider = body.providerId || loadRawProvidersData().activeEndpointId;
@@ -129,6 +153,7 @@ export async function POST(request: Request) {
         universalBlueprint,
         mermaidDiagrams,
         synthesisMode,
+        appliedMcpConnectors,
       },
       { status: 200 }
     );

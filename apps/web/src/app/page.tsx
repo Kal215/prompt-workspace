@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { BlueprintStudio } from "@/components/mission-control/blueprint-studio";
 import { SupervisionConsole } from "@/components/mission-control/supervision-console";
 import { ProvidersSettingsModal } from "@/components/workspace/providers-settings-panel";
+import { McpConnectorsModal } from "@/components/workspace/mcp-connectors-panel";
 import {
   TerminalSquare,
   Loader2,
@@ -51,6 +52,7 @@ import {
   Globe,
   PenTool,
   ChevronDown,
+  Plug,
 } from "lucide-react";
 
 // Fallback daftar statis aman provider saat inisialisasi / loading
@@ -126,6 +128,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PromptOptimizationResult | null>(null);
   const [isProvidersSettingsOpen, setIsProvidersSettingsOpen] = useState(false);
+  const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
 
   // Mode Navigasi Tab Teratas: Mission Control (v3.1) vs Classic Studio (v2.0)
   const [activeMainTab, setActiveMainTab] = useState<"mission-control" | "classic">("classic");
@@ -552,6 +555,19 @@ export default function Home() {
           >
             <Sliders className="h-3 w-3 text-amber-500" />
             <span className="hidden sm:inline">Providers</span>
+          </Button>
+
+          {/* MCP Connectors Hub Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="mcp-connectors-tab"
+            onClick={() => setIsMcpModalOpen(true)}
+            className="h-7 text-xs gap-1.5 cursor-pointer border-border/80 hover:bg-muted/60 px-2.5 font-mono"
+            title="Model Context Protocol (MCP) Connectors Hub"
+          >
+            <Plug className="h-3 w-3 text-emerald-500" />
+            <span className="hidden sm:inline">Connectors</span>
           </Button>
 
           {/* History Toggle Button */}
@@ -1004,6 +1020,12 @@ export default function Home() {
           loadProviders();
         }}
         onSelectProvider={handleSelectCustomProvider}
+      />
+
+      {/* Settings > MCP Connectors Hub Modal */}
+      <McpConnectorsModal
+        isOpen={isMcpModalOpen}
+        onClose={() => setIsMcpModalOpen(false)}
       />
     </div>
   );

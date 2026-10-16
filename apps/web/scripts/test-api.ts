@@ -8,6 +8,7 @@
 import { GET, POST, DELETE } from "../src/app/api/history/route";
 import { GET as GET_PROVIDERS } from "../src/app/api/providers/route";
 import { POST as POST_PROVIDERS_TEST } from "../src/app/api/providers/test/route";
+import { GET as GET_MCP, POST as POST_MCP, DELETE as DELETE_MCP } from "../src/app/api/mcp-connectors/route";
 import { POST as POST_EXECUTE } from "../src/app/api/execute/route";
 import { POST as POST_CRAWL, GET as GET_CRAWL } from "../src/app/api/crawl/route";
 import { POST as POST_SPIDER, GET as GET_SPIDER } from "../src/app/api/spider/route";
@@ -878,6 +879,139 @@ async function runApiRegressionSuite() {
     assert(Array.isArray(jsonTest.discoveredModels), "Response memuat field array 'discoveredModels'");
   } catch (err: unknown) {
     assert(false, "POST /api/providers/test test", String(err));
+  }
+
+  // 26. Test /api/mcp-connectors (Universal MCP Connector Hub, Handshake & Safety Gate)
+  console.log("\n▶ [Test 26] /api/mcp-connectors (Catalog, Zero-Secret Masking, Upsert, Handshake & Safety Gate)");
+  try {
+    // 26.1 GET /api/mcp-connectors: Katalog & Zero Secret Leakage
+    const resMcpGet = await GET_MCP();
+    assert(resMcpGet.status === 200, "GET /api/mcp-connectors mengembalikan HTTP 200 OK");
+    const jsonMcpGet = await resMcpGet.json();
+    assert(jsonMcpGet.success === true, "Response GET /api/mcp-connectors success: true");
+    assert(Array.isArray(jsonMcpGet.connectors), "Response connectors berupa array");
+    assert(jsonMcpGet.connectors.length >= 10, "Katalog memuat minimal 10 konektor MCP bawaan");
+
+    const connectorIds = jsonMcpGet.connectors.map((c: { connectorId: string }) => c.connectorId);
+    assert(
+      connectorIds.includes("figma-mcp") && connectorIds.includes("postgres-mcp") && connectorIds.includes("github-mcp"),
+      "Katalog memuat konektor utama (figma-mcp, postgres-mcp, github-mcp)"
+    );
+
+    // Verifikasi Zero Secret Leakage pada GET
+    const rawMcpJson = JSON.stringify(jsonMcpGet);
+    const hasRawSecret = /figd_[a-zA-Z0-9_-]{10,}/.test(rawMcpJson) || /ghp_[a-zA-Z0-9_-]{10,}/.test(rawMcpJson);
+    assert(!hasRawSecret, "Katalog MCP 100% bebas dari kebocoran token rahasia");
+
+    // 26.2 CSRF Fail-Closed Check pada POST
+    const reqMcpNoOrigin = new Request("http://localhost:3000/api/mcp-connectors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "test_and_discover", connectorId: "figma-mcp" }),
+    });
+    const resMcpNoOrigin = await POST_MCP(reqMcpNoOrigin);
+    assert(resMcpNoOrigin.status === 403, "CSRF: Request POST /api/mcp-connectors tanpa Origin ditolak HTTP 403");
+
+    // 26.3 Upsert Custom MCP Connector
+    const reqMcpUpsert = new Request("http://localhost:3000/api/mcp-connectors", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({
+        action: "upsert",
+        connector: {
+          connectorId: "test-custom-sqlite-mcp",
+          name: "Test Custom SQLite MCP",
+          category: "database",
+          badgeType: "MCP · Custom",
+          description: "Konektor uji SQLite lokal untuk testing suite",
+          transportType: "stdio",
+          stdioConfig: {
+            command: "node",
+            args: ["-e", "console.log('mcp ready')"],
+          },
+          permissionMode: "write_with_approval",
+          enabled: true,
+        },
+      }),
+    });
+    const resMcpUpsert = await POST_MCP(reqMcpUpsert);
+    assert(resMcpUpsert.status === 200, "POST /api/mcp-connectors (upsert) mengembalikan HTTP 200 OK");
+    const jsonMcpUpsert = await resMcpUpsert.json();
+    assert(jsonMcpUpsert.success === true, "Upsert custom connector berhasil disimpan");
+    assert(jsonMcpUpsert.connector.connectorId === "test-custom-sqlite-mcp", "connectorId tersimpan sesuai payload");
+
+    // 26.4 Toggle On / Off
+    const reqMcpToggle = new Request("http://localhost:3000/api/mcp-connectors", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({
+        action: "toggle",
+        connectorId: "test-custom-sqlite-mcp",
+        enabled: false,
+      }),
+    });
+    const resMcpToggle = await POST_MCP(reqMcpToggle);
+    assert(resMcpToggle.status === 200, "POST /api/mcp-connectors (toggle) mengembalikan HTTP 200 OK");
+    const jsonMcpToggle = await resMcpToggle.json();
+    assert(jsonMcpToggle.connector.enabled === false, "Status konektor berhasil diubah menjadi disabled (false)");
+
+    // 26.5 Test Handshake & Tool Discovery
+    const reqMcpDiscover = new Request("http://localhost:3000/api/mcp-connectors", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({
+        action: "test_and_discover",
+        connectorId: "test-custom-sqlite-mcp",
+      }),
+    });
+    const resMcpDiscover = await POST_MCP(reqMcpDiscover);
+    assert(resMcpDiscover.status === 200, "POST /api/mcp-connectors (test_and_discover) mengembalikan HTTP 200 OK");
+    const jsonMcpDiscover = await resMcpDiscover.json();
+    assert(typeof jsonMcpDiscover.latencyMs === "number", "Handshake mengukur latencyMs koneksi");
+
+    // 26.6 Eksekusi Tool dengan Human-in-the-Loop Safety Gate (userApproved: false -> PENDING_HUMAN_APPROVAL)
+    const reqMcpExecuteGate = new Request("http://localhost:3000/api/mcp-connectors", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({
+        action: "execute_tool",
+        connectorId: "figma-mcp",
+        toolName: "post_comment",
+        args: { file_key: "abc12345", message: "Needs review on token spacing" },
+        userApproved: false,
+      }),
+    });
+    const resMcpExecuteGate = await POST_MCP(reqMcpExecuteGate);
+    assert(resMcpExecuteGate.status === 200, "POST /api/mcp-connectors (execute_tool gate) mengembalikan HTTP 200 OK");
+    const jsonMcpExecuteGate = await resMcpExecuteGate.json();
+    assert(
+      jsonMcpExecuteGate.executionStatus === "PENDING_HUMAN_APPROVAL" || jsonMcpExecuteGate.safetyApprovalRequired === true,
+      "Safety Gate menahan aksi mutatif tanpa persetujuan manusia (PENDING_HUMAN_APPROVAL)"
+    );
+
+    // 26.7 Cleanup: DELETE Custom Connector
+    const reqMcpDelete = new Request("http://localhost:3000/api/mcp-connectors?id=test-custom-sqlite-mcp", {
+      method: "DELETE",
+      headers: {
+        Origin: "http://localhost:3000",
+      },
+    });
+    const resMcpDelete = await DELETE_MCP(reqMcpDelete);
+    assert(resMcpDelete.status === 200, "DELETE /api/mcp-connectors menghapus custom test connector dengan HTTP 200 OK");
+  } catch (err: unknown) {
+    assert(false, "/api/mcp-connectors regression test", String(err));
   }
 
   // Ringkasan

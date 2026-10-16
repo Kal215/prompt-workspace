@@ -46,6 +46,7 @@ import {
   Play,
   Loader2,
   Network,
+  Plug,
 } from "lucide-react";
 import { MermaidViewer } from "../mission-control/mermaid-viewer";
 
@@ -364,6 +365,16 @@ export function ResultDashboard({
             {result.synthesisMode && (
               <span className="inline-block mt-0.5 text-[9px] font-mono text-amber-500 bg-amber-500/10 px-1 py-0.2 rounded">
                 {result.synthesisMode === "live_llm_dynamic" ? "⚡ AI Dinamis" : "✓ Fallback"}
+              </span>
+            )}
+            {result.appliedMcpConnectors && result.appliedMcpConnectors.length > 0 && (
+              <span
+                data-testid="mcp-grounded-badge"
+                className="inline-flex items-center gap-1 mt-0.5 text-[9px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20"
+                title={result.appliedMcpConnectors.map((c) => `${c.connectorId} (${c.factsCount} fakta)`).join(", ")}
+              >
+                <Plug className="h-2.5 w-2.5" />
+                <span>MCP Grounded ({result.appliedMcpConnectors.length})</span>
               </span>
             )}
           </div>
