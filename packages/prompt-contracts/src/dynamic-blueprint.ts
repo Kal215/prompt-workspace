@@ -234,6 +234,8 @@ export const DynamicSynthesisMetadataSchema = z.object({
     .optional(),
   generatedAt: z.string(),
   activeNegativeConstraints: z.array(z.string()),
+  mcpEnriched: z.boolean().optional(),
+  mcpConnectors: z.array(z.string()).optional(),
 });
 export type DynamicSynthesisMetadata = z.infer<
   typeof DynamicSynthesisMetadataSchema

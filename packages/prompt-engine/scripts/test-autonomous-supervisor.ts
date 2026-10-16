@@ -255,7 +255,8 @@ async function testMcpServerRoundtrip(): Promise<void> {
     "scripts/piew-mcp-server.ts"
   );
 
-  const child = spawn("npx", ["tsx", mcpServerPath], {
+  const tsxCliPath = path.resolve(process.cwd(), "node_modules/tsx/dist/cli.mjs");
+  const child = spawn("node", [tsxCliPath, mcpServerPath], {
     stdio: ["pipe", "pipe", "pipe"],
     shell: process.platform === "win32",
   });

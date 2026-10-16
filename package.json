@@ -33,6 +33,7 @@
     "test:supervisor": "npx tsx packages/prompt-engine/scripts/test-autonomous-supervisor.ts",
     "test:providers": "npx tsx packages/provider-adapters/scripts/test-provider-registry.ts",
     "test:dynamic-ai": "npx tsx packages/prompt-engine/scripts/test-dynamic-ai-synthesis.ts",
+    "test:mcp-hub": "npx tsx packages/prompt-engine/scripts/test-mcp-connector-hub.ts",
     "pretest:v2-engines": "node scripts/patch-db-dist.mjs",
     "test:v2-engines": "npm run test:contracts && npm run test:crawler && npm run test:spider && npm run test:closed-loop",
     "test:multiplatform": "node scripts/verify-multiplatform.mjs",

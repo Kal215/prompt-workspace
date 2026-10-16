@@ -53,6 +53,19 @@ export * from "./consistency-guard.js";
 export * from "./universal-synthesizer.js";
 export * from "./supervisor.js";
 export * from "./dynamic-llm-synthesizer.js";
+export * from "./mcp-client.js";
+export * from "./mcp-bridge.js";
+export {
+  listMcpConnectors,
+  getMcpConnector,
+  saveMcpConnector,
+  saveMcpConnector as saveCustomMcpConnector,
+  deleteMcpConnector,
+  deleteMcpConnector as deleteCustomMcpConnector,
+  toggleMcpConnector,
+  resolveMcpConnectorsConfigPath,
+  BUILTIN_MCP_CONNECTORS_CATALOG,
+} from "@prompt-workspace/provider-adapters";
 
 /**
  * Orchestrator Pipeline: Menjalankan pipeline lengkap analisis dan optimasi prompt.

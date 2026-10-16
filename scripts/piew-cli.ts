@@ -13,6 +13,8 @@ import {
   loadPiewConfig,
   initAutonomousProject,
   initAutonomousProjectAsync,
+  listMcpConnectors,
+  testAndDiscoverMcpConnector,
 } from "@prompt-workspace/prompt-engine";
 import {
   SynthesisStylePreset,
@@ -43,6 +45,9 @@ Opsi:
   --supervise         Inisialisasi sesi supervisi otonom (Closed-Loop MCP Supervisor)
   --providers         Tampilkan daftar penyedia built-in dan custom endpoints
   --test-provider=<id> Uji koneksi diagnostik ke provider atau custom endpoint
+  --connectors        Tampilkan status Universal MCP Connectors & Tools Hub
+  --test-connector=<id> Uji koneksi & discover tools dari MCP Server eksternal
+  --no-mcp-context    Nonaktifkan pengayaan konteks eksternal otomatis dari MCP
   --json              Cetak output utuh dalam format JSON
   -h, --help          Tampilkan panduan bantuan ini
 
@@ -74,12 +79,21 @@ async function main() {
   let superviseMode = false;
   let listProvidersMode = false;
   let testProviderTarget: string | undefined;
+  let listConnectorsMode = false;
+  let testConnectorTarget: string | undefined;
+  let enableMcpContext = true;
 
   for (const arg of args) {
     if (arg === "--providers" || arg === "--list-providers") {
       listProvidersMode = true;
     } else if (arg.startsWith("--test-provider=")) {
       testProviderTarget = arg.slice("--test-provider=".length).trim();
+    } else if (arg === "--connectors" || arg === "--list-connectors") {
+      listConnectorsMode = true;
+    } else if (arg.startsWith("--test-connector=")) {
+      testConnectorTarget = arg.slice("--test-connector=".length).trim();
+    } else if (arg === "--no-mcp-context") {
+      enableMcpContext = false;
     } else if (arg === "--supervise") {
       superviseMode = true;
     } else if (arg.startsWith("--style=")) {
@@ -194,6 +208,80 @@ async function main() {
     process.exit(1);
   }
 
+  if (listConnectorsMode) {
+    const connectors = await listMcpConnectors();
+
+    if (jsonOutput) {
+      console.log(JSON.stringify(connectors, null, 2));
+      process.exit(0);
+    }
+
+    console.log("\n=======================================================");
+    console.log("🔌 PIEW UNIVERSAL MCP CONNECTOR HUB & TOOL BRIDGE");
+    console.log("=======================================================\n");
+
+    const onDevice = connectors.filter((c: any) => c.installedOnDevice || c.badgeType === "MCP · Custom");
+    const availableCatalog = connectors.filter((c: any) => !c.installedOnDevice && c.badgeType !== "MCP · Custom");
+
+    console.log(`📱 TERPASANG DI PERANGKAT INI (${onDevice.length}):`);
+    for (const c of onDevice) {
+      const statusIcon = c.connectionStatus === "connected" ? "🟢 CONNECTED" : (c.enabled ? "⚪ ON (Unused)" : "🔴 DISABLED");
+      const latencyStr = c.latencyMs ? ` (${c.latencyMs}ms)` : "";
+      console.log(` • [${c.connectorId}] ${c.name} [${c.badgeType}] — ${statusIcon}${latencyStr}`);
+      console.log(`   Kategori   : ${c.category} | Mode Izin: ${c.permissionMode}`);
+      const transportSummary = c.transportType === "stdio"
+        ? `stdio: ${c.stdioConfig?.command} ${c.stdioConfig?.args.join(" ")}`
+        : `http/sse: ${c.httpConfig?.endpointUrl}`;
+      console.log(`   Transport  : ${transportSummary}`);
+      console.log(`   Deskripsi  : ${c.description}`);
+      if (c.discoveredTools.length > 0) {
+        const toolNames = c.discoveredTools.map((t: any) => `${t.name}${t.isMutating ? " (✍️ mutating)" : ""}`).join(", ");
+        console.log(`   Tools (${c.discoveredTools.length}) : ${toolNames}`);
+      }
+      console.log("");
+    }
+
+    console.log(`\n📦 KATALOG TERSEDIA (${availableCatalog.length}):`);
+    for (const c of availableCatalog) {
+      const statusIcon = c.enabled ? "Ready to Connect" : "Disabled";
+      console.log(` • [${c.connectorId}] ${c.name} (${c.category}) — ${statusIcon}`);
+      console.log(`   Deskripsi  : ${c.description}`);
+      console.log(`   Mode Izin  : ${c.permissionMode}`);
+      console.log("");
+    }
+    process.exit(0);
+  }
+
+  if (testConnectorTarget) {
+    console.log(`\n⚡ Menguji koneksi & discover tools untuk connector: "${testConnectorTarget}"...`);
+    const result = await testAndDiscoverMcpConnector(testConnectorTarget);
+
+    if (jsonOutput) {
+      console.log(JSON.stringify(result, null, 2));
+      process.exit(result.ok ? 0 : 1);
+    }
+
+    const icon = result.ok ? "✅" : "❌";
+    console.log(`${icon} Hasil Pengujian & Discovery:`);
+    console.log(`   Status     : ${result.connectionStatus.toUpperCase()}`);
+    console.log(`   Latensi    : ${result.latencyMs}ms`);
+    console.log(`   Pesan      : ${result.message}`);
+    if (result.discoveredTools.length > 0) {
+      console.log(`   Tools Ditemukan (${result.discoveredTools.length}):`);
+      for (const t of result.discoveredTools) {
+        const mutBadge = t.isMutating ? "[MUTATING - Wajib Approval]" : "[READ-ONLY - Auto Pass]";
+        console.log(`     • ${t.name}: ${t.description || "(Tanpa deskripsi)"} ${mutBadge}`);
+      }
+    }
+    if (result.discoveredResources.length > 0) {
+      console.log(`   Resources Ditemukan (${result.discoveredResources.length}):`);
+      for (const r of result.discoveredResources) {
+        console.log(`     • ${r.name} (${r.uri})`);
+      }
+    }
+    process.exit(result.ok ? 0 : 1);
+  }
+
   if (!prompt) {
     console.error("❌ Error: Prompt utama wajib diberikan.");
     printUsage();
@@ -259,11 +347,14 @@ async function main() {
       const modeStr = meta?.synthesisMode === "live_llm_dynamic"
         ? `🔥 Mode: LIVE LLM DYNAMIC (${meta.providerId} / ${meta.model})`
         : `⚡ Mode: DETERMINISTIC FALLBACK`;
+      const mcpStr = meta?.mcpEnriched
+        ? `\n   🔌 Grounding Eksternal MCP: ${meta.mcpConnectors?.join(", ")} (Tersinkronisasi)`
+        : "";
       console.log(
         `📊 Domain: ${result.universalBlueprint.domain.toUpperCase()} | ` +
         `Audiens: ${result.audienceLevel} | Diagram: ${result.universalBlueprint.diagrams.length} Mermaid | ` +
         `Fase: ${result.universalBlueprint.executionPhases.length} | Latency: ${result.processingTimeMs ?? 0}ms\n` +
-        `   ${modeStr}`
+        `   ${modeStr}${mcpStr}`
       );
       console.log("─".repeat(68) + "\n");
       process.exit(0);

@@ -4,6 +4,7 @@ export * from "./task-spec.js";
 export * from "./supervision.js";
 export * from "./provider-registry.js";
 export * from "./dynamic-blueprint.js";
+export * from "./mcp-connectors.js";
 import {
   TokenBudgetModeEnum,
   SynthesisStylePresetEnum,
