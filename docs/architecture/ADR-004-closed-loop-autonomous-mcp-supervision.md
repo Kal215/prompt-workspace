@@ -99,15 +99,32 @@ Setiap pengajuan hasil kerja fase (`PhaseSubmissionInput`) wajib melewati 4 lapi
 
 ---
 
-## 5. Keputusan Penyimpanan Sesi (Zero-Pollution dev.db)
+## 5. Keputusan Penyimpanan Sesi (Durable & Zero-Pollution dev.db)
 
-* Sesi supervisi bersifat transien dan dinamis selama siklus rekayasa.
-* Penyimpanan dilakukan secara **in-memory** diperkuat persistensi berkas JSON di `/tmp/piew-sessions/` (dapat dikonfigurasi via `PIEW_SESSION_DIR`).
+* Sesi supervisi disimpan secara **in-memory** diperkuat persistensi berkas JSON pada direktori persisten pengguna:
+  * Primer: `~/.piew/sessions/` (tahan restart mesin/VPS).
+  * Fallback terisolasi: `/tmp/piew-sessions/` jika izin akses terbatas.
+  * Overridable via variabel lingkungan `PIEW_SESSION_DIR`.
 * Hal ini menjamin **keutuhan 100% basis data SQLite `packages/database/prisma/dev.db`** tanpa penambahan tabel transien yang tidak perlu.
 
 ---
 
-## 6. Dampak & Backward Compatibility
+## 6. Pengerasan Mesin Menuju Tingkat Sempurna (Core Hardening v2.4.1)
+
+Untuk mengeliminasi celah manipulasi teks oleh agent halusinasi, Tahap B2 menambahkan 3 kapabilitas pengerasan:
+
+1. **Zero-Trust Active Execution Gate (`verificationCommand`)**:
+   * Alih-alih pasif membaca teks `verificationOutput`, PIEW dapat mengeksekusi langsung perintah pengujian terminal (misal `npm test`, `cargo test`) di subprocess terisolasi dengan batas waktu (*timeout* 45 detik).
+   * Exit code dan output terminal ditangkap langsung oleh kernel PIEW secara independen. Klaim palsu dari agent langsung digugurkan jika exit code $\neq 0$.
+2. **Deep Artifact Inspector (On-Disk Existence & SHA-256 Check)**:
+   * Memeriksa keberadaan file fisik di disk pada `workingDirectory`.
+   * Menghitung ukuran berkas dan hash integritas SHA-256 untuk memastikan artefak bukan file kosong (0 bytes) atau stub dummy.
+3. **Portable Handover Certificate & Bundle Exporter (`piew_export_handover_bundle`)**:
+   * Menerbitkan `PIEW-AUDIT-CERTIFICATE-<sessionId>.md` dan `piew-handover-bundle-<sessionId>.json` secara portabel untuk audit compliance klien maupun arsip pipeline CI/CD.
+
+---
+
+## 7. Dampak & Backward Compatibility
 
 * 100% kompatibel dengan kontrak v1 dan v2.
 * Ekstensi bersifat aditif pada `packages/prompt-contracts/src/supervision.ts`.

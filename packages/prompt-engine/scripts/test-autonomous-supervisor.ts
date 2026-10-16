@@ -1,11 +1,16 @@
 import assert from "node:assert";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import fs from "node:fs";
 import {
   initAutonomousProject,
   auditAndAdvancePhase,
   getProjectStatus,
   applyHumanOverride,
+  exportHandoverBundle,
+  executeVerificationCommandSync,
+  verifyArtifactsOnDisk,
+  getSessionStorageDirectory,
 } from "../src/supervisor.js";
 
 console.log("═══════════════════════════════════════════════════════════════════");
@@ -146,6 +151,101 @@ async function runTests() {
   console.log("\n[Simulasi 4] Uji Roundtrip Protokol MCP Stdio JSON-RPC 2.0...");
   await testMcpServerRoundtrip();
 
+  // ──────────────────────────────────────────────
+  // Simulasi 5: Zero-Trust Active Verification Runner
+  // ──────────────────────────────────────────────
+  console.log("\n[Simulasi 5] Zero-Trust Active Verification Runner (Direct Command Execution)...");
+  const initRes5 = initAutonomousProject({
+    prompt: "Aplikasi keuangan mikro dengan audit trail ketat. DILARANG menghapus catatan transaksi.",
+  });
+  const session5 = initRes5.session;
+  const reqDeliv5 = session5.phases[0].requiredDeliverables;
+
+  // 5a. Kirim klaim sukses tapi verificationCommand sengaja dibuat exit 1
+  const activeFailSubmission = {
+    sessionId: session5.sessionId,
+    phaseIndex: 0,
+    summaryOfWork: "Menyelesaikan seluruh deliverable dan mengklaim tes sukses 100%.",
+    deliveredArtifacts: reqDeliv5.map((d) => ({
+      name: d,
+      type: "artifact",
+      summary: `Artefak ${d}`,
+    })),
+    verificationOutput: "PASS - All 10 tests passed (Exit Code 0 palsu dari agent)",
+    verificationCommand: "node -e 'process.exit(1)'", // PIEW mengeksekusi sendiri perintah ini!
+  };
+
+  const auditActiveFail = auditAndAdvancePhase(activeFailSubmission);
+  assert.strictEqual(auditActiveFail.verdict, "REJECTED_NEEDS_REPAIR");
+  assert.strictEqual(auditActiveFail.evidenceCheckPassed, false);
+  assert(auditActiveFail.independentExecutionResult?.executed === true);
+  assert.strictEqual(auditActiveFail.independentExecutionResult?.exitCode, 1);
+  console.log("   ✅ Zero-Trust Gate berhasil menangkap klaim palsu lewat eksekusi perintah independen (Exit 1).");
+
+  // 5b. Kirim perintah nyata dengan Exit Code 0
+  const activePassSubmission = {
+    sessionId: session5.sessionId,
+    phaseIndex: 0,
+    summaryOfWork: "Menyelesaikan seluruh deliverable dengan pengujian aktif yang benar-benar lulus.",
+    deliveredArtifacts: reqDeliv5.map((d) => ({
+      name: d,
+      type: "artifact",
+      summary: `Artefak ${d}`,
+      contentSnippet: `# ${d}\nSpesifikasi lengkap dengan audit trail transaksi aman.`,
+    })),
+    verificationOutput: "Eksekusi mandiri diverifikasi",
+    verificationCommand: "node -e 'console.log(\"PIEW ZERO TRUST ACTIVE PASS\"); process.exit(0)'",
+  };
+
+  const auditActivePass = auditAndAdvancePhase(activePassSubmission);
+  assert.strictEqual(auditActivePass.verdict, "VERIFIED_PROCEED");
+  assert.strictEqual(auditActivePass.evidenceCheckPassed, true);
+  assert.strictEqual(auditActivePass.independentExecutionResult?.exitCode, 0);
+  console.log("   ✅ Zero-Trust Gate mengonfirmasi eksekusi aktif sukses (Exit 0).");
+
+  // ──────────────────────────────────────────────
+  // Simulasi 6: Artifact Integrity & File On-Disk Verification
+  // ──────────────────────────────────────────────
+  console.log("\n[Simulasi 6] Deep Artifact Inspector (On-Disk Existence & SHA-256 Check)...");
+  const workspaceRoot = process.cwd();
+  const diskDetails = verifyArtifactsOnDisk(
+    [
+      { name: "package.json" },
+      { name: "tsconfig.json" },
+      { name: "non_existent_dummy_file.ts" },
+    ],
+    workspaceRoot
+  );
+
+  const pkgJsonDetail = diskDetails.find((d) => d.name === "package.json");
+  assert(pkgJsonDetail?.existsOnDisk === true, "package.json wajib terdeteksi ada di disk");
+  assert(typeof pkgJsonDetail?.sha256 === "string" && pkgJsonDetail.sha256.length === 64, "SHA-256 wajib terhitung");
+  assert((pkgJsonDetail?.sizeBytes || 0) > 0, "Ukuran file wajib > 0 bytes");
+
+  const nonExistentDetail = diskDetails.find((d) => d.name === "non_existent_dummy_file.ts");
+  assert.strictEqual(nonExistentDetail?.existsOnDisk, false, "File fiktif wajib terdeteksi false");
+  console.log(`   ✅ Integritas artefak on-disk tervalidasi: package.json (SHA-256: ${pkgJsonDetail?.sha256.slice(0, 16)}..., Size: ${pkgJsonDetail?.sizeBytes} B)`);
+
+  // ──────────────────────────────────────────────
+  // Simulasi 7: Durable Session Persistence & Handover Bundle Export
+  // ──────────────────────────────────────────────
+  console.log("\n[Simulasi 7] Durable Session Persistence & Handover Bundle Export...");
+  const storageDir = getSessionStorageDirectory();
+  assert(typeof storageDir === "string" && storageDir.length > 0);
+  console.log(`   ✅ Direktori sesi persisten: ${storageDir}`);
+
+  const exportResult = exportHandoverBundle(session.sessionId, "/tmp/piew-handover-export-test");
+  assert.strictEqual(exportResult.success, true);
+  assert(fs.existsSync(exportResult.markdownPath), "Berkas sertifikat Markdown wajib ada di disk");
+  assert(fs.existsSync(exportResult.jsonPath), "Berkas bundel JSON wajib ada di disk");
+
+  const exportedJson = JSON.parse(fs.readFileSync(exportResult.jsonPath, "utf-8"));
+  assert.strictEqual(exportedJson.sessionId, session.sessionId);
+  assert.strictEqual(exportedJson.overallStatus, "COMPLETED");
+  console.log(`   ✅ Bundel serah terima berhasil diekspor ke disk:`);
+  console.log(`      - Markdown: ${exportResult.markdownPath}`);
+  console.log(`      - JSON: ${exportResult.jsonPath}`);
+
   console.log("\n🎉 ALL AUTONOMOUS SUPERVISOR & MCP TESTS PASSED (EXIT CODE 0)");
 }
 
@@ -283,6 +383,23 @@ async function testMcpServerRoundtrip(): Promise<void> {
     assert.strictEqual(overrideRes.result.isError, false);
     assert(overrideRes.result.content[0].text.includes("BERHASIL"));
     console.log(`   ✅ MCP piew_human_override sukses (Constraint Disuntikkan Secara Otonom)`);
+
+    // 5. MCP Export Handover Bundle
+    const exportBundleRes = await sendRpc({
+      jsonrpc: "2.0",
+      id: 105,
+      method: "tools/call",
+      params: {
+        name: "piew_export_handover_bundle",
+        arguments: {
+          sessionId: mcpSessionId,
+          targetDirectory: "/tmp/piew-mcp-bundle-test",
+        },
+      },
+    });
+    assert.strictEqual(exportBundleRes.result.isError, false);
+    assert(exportBundleRes.result._meta.markdownPath.includes("PIEW-AUDIT-CERTIFICATE-"));
+    console.log(`   ✅ MCP piew_export_handover_bundle sukses diekspor`);
 
   } finally {
     child.kill();

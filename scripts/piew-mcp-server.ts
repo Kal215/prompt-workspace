@@ -27,6 +27,7 @@ import {
   auditAndAdvancePhase,
   applyHumanOverride,
   getProjectStatus,
+  exportHandoverBundle,
 } from "@prompt-workspace/prompt-engine";
 import {
   SynthesisStylePreset,
@@ -243,6 +244,16 @@ const TOOLS = [
           description:
             "REAL execution proof from terminal commands (test logs, build output, exit codes). Evidence over claims is strictly enforced.",
         },
+        verificationCommand: {
+          type: "string",
+          description:
+            "Optional independent test/build command (e.g. 'npm test', 'npm run typecheck') executed directly by PIEW for Zero-Trust verification.",
+        },
+        workingDirectory: {
+          type: "string",
+          description:
+            "Optional working directory path for executing verificationCommand and inspecting physical delivered artifacts on disk.",
+        },
         knownIssues: {
           type: "array",
           items: { type: "string" },
@@ -310,6 +321,25 @@ const TOOLS = [
         },
       },
       required: ["sessionId", "action"],
+    },
+  },
+  {
+    name: "piew_export_handover_bundle",
+    description:
+      "Export the official PIEW Audit Certificate and Handover Bundle (Markdown and JSON formats) to disk for client delivery or CI/CD compliance archives.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: {
+          type: "string",
+          description: "The autonomous project session ID to export",
+        },
+        targetDirectory: {
+          type: "string",
+          description: "Optional custom directory path to save the certificate and JSON bundle",
+        },
+      },
+      required: ["sessionId"],
     },
   },
 ];
@@ -502,6 +532,8 @@ async function handleToolCall(name: string, args: Record<string, any>) {
         summaryOfWork: args.summaryOfWork,
         deliveredArtifacts: args.deliveredArtifacts,
         verificationOutput: args.verificationOutput,
+        verificationCommand: args.verificationCommand,
+        workingDirectory: args.workingDirectory,
         knownIssues: args.knownIssues,
       });
 
@@ -520,6 +552,8 @@ async function handleToolCall(name: string, args: Record<string, any>) {
           missingDeliverables: auditRes.missingDeliverables,
           consistencyViolations: auditRes.consistencyViolations,
           scopeCreepOrForbiddenViolations: auditRes.scopeCreepOrForbiddenViolations,
+          independentExecutionResult: auditRes.independentExecutionResult,
+          artifactIntegrity: auditRes.artifactIntegrity,
         },
       };
     }
@@ -567,6 +601,38 @@ async function handleToolCall(name: string, args: Record<string, any>) {
           overallStatus: overrideRes.session.overallStatus,
           currentPhaseIndex: overrideRes.session.currentPhaseIndex,
           summary: overrideRes.summary,
+        },
+      };
+    }
+
+    case "piew_export_handover_bundle": {
+      const exportRes = exportHandoverBundle(
+        args.sessionId,
+        args.targetDirectory
+      );
+      if (!exportRes.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `⚠️ Gagal mengekspor bundel serah terima: ${exportRes.error}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: `✅ Bundel serah terima dan sertifikat audit otonom berhasil diekspor!\n- Markdown: ${exportRes.markdownPath}\n- JSON: ${exportRes.jsonPath}`,
+          },
+        ],
+        isError: false,
+        _meta: {
+          sessionId: args.sessionId,
+          markdownPath: exportRes.markdownPath,
+          jsonPath: exportRes.jsonPath,
         },
       };
     }
