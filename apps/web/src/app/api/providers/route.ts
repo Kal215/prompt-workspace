@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { listProviderCapabilities } from "@prompt-workspace/provider-adapters";
+import {
+  listProviderCapabilities,
+  listCatalogProviders,
+} from "@prompt-workspace/provider-adapters";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
@@ -32,15 +35,19 @@ if (!process.env.GROQ_API_KEY_1) {
 export async function GET() {
   try {
     const capabilities = listProviderCapabilities();
+    const catalogProviders = listCatalogProviders(process.env);
     const config = getSanitizedProvidersConfig();
+    const localModels = ["llama3.2", "qwen2.5-coder", "mistral", "minicpm-v", "deepseek-r1:14b"];
 
     return NextResponse.json(
       {
         success: true,
         providers: capabilities,
+        catalogProviders,
         customEndpoints: config.customEndpoints,
         cloudKeys: config.cloudKeys,
         activeEndpointId: config.activeEndpointId,
+        localModels,
       },
       { status: 200 }
     );

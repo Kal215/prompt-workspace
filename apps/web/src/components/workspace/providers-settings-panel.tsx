@@ -207,6 +207,7 @@ export function ProvidersSettingsModal({
           apiKey: formApiKey.trim() || undefined,
           endpointId: selectedEndpointId || undefined,
           apiMode: formApiMode,
+          discoverModels: formDiscoverModels,
         }),
       });
       const data = await res.json();
@@ -443,6 +444,7 @@ export function ProvidersSettingsModal({
                   {/* Item 1: Accounts */}
                   <button
                     type="button"
+                    data-testid="tab-providers-accounts"
                     onClick={() => setActiveTab("accounts")}
                     className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                       activeTab === "accounts"
@@ -457,6 +459,7 @@ export function ProvidersSettingsModal({
                   {/* Item 2: API keys */}
                   <button
                     type="button"
+                    data-testid="tab-providers-api-keys"
                     onClick={() => setActiveTab("api-keys")}
                     className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                       activeTab === "api-keys"
@@ -476,6 +479,7 @@ export function ProvidersSettingsModal({
                   {/* Item 3: Custom Endpoints */}
                   <button
                     type="button"
+                    data-testid="tab-providers-custom-endpoints"
                     onClick={() => setActiveTab("custom-endpoints")}
                     className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                       activeTab === "custom-endpoints"
@@ -497,6 +501,7 @@ export function ProvidersSettingsModal({
                   {/* Item 4: Local Models */}
                   <button
                     type="button"
+                    data-testid="tab-providers-local-models"
                     onClick={() => setActiveTab("local-models")}
                     className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                       activeTab === "local-models"
@@ -798,6 +803,7 @@ export function ProvidersSettingsModal({
                           <div className="flex items-center gap-2 self-end sm:self-center">
                             <button
                               type="button"
+                              data-testid="use-endpoint-btn"
                               onClick={() => handleUseEndpoint(ep)}
                               className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
                                 isActive
@@ -1047,6 +1053,7 @@ export function ProvidersSettingsModal({
                         {/* ⚡ Test */}
                         <button
                           type="button"
+                          data-testid="test-endpoint-btn"
                           disabled={isTesting || !formEndpointUrl}
                           onClick={handleTestEndpoint}
                           className="px-3.5 py-1.5 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -1062,6 +1069,7 @@ export function ProvidersSettingsModal({
                         {/* 💾 Save */}
                         <button
                           type="submit"
+                          data-testid="save-endpoint-btn"
                           disabled={isSavingEndpoint || !formName || !formEndpointUrl}
                           className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-black flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                         >

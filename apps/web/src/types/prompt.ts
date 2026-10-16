@@ -56,6 +56,9 @@ export interface PromptOptimizationResult {
   appliedDomainRule?: AppliedDomainRuleInfo;
   providerId?: string;
   model?: string;
+  universalBlueprint?: any;
+  mermaidDiagrams?: Array<{ type: string; title: string; content: string }>;
+  synthesisMode?: string;
   metrics?: {
     clarityScore?: number;
     constraintCoverage?: number;

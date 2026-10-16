@@ -7,6 +7,7 @@
 
 import { GET, POST, DELETE } from "../src/app/api/history/route";
 import { GET as GET_PROVIDERS } from "../src/app/api/providers/route";
+import { POST as POST_PROVIDERS_TEST } from "../src/app/api/providers/test/route";
 import { POST as POST_EXECUTE } from "../src/app/api/execute/route";
 import { POST as POST_CRAWL, GET as GET_CRAWL } from "../src/app/api/crawl/route";
 import { POST as POST_SPIDER, GET as GET_SPIDER } from "../src/app/api/spider/route";
@@ -559,6 +560,11 @@ async function runApiRegressionSuite() {
       "Provider IDs sesuai: gemini, groq, ollama, openrouter"
     );
 
+    // Verifikasi Catalog Providers (11 Built-in Providers dari PR #54) & Local Models
+    assert(Array.isArray(jsonProviders.catalogProviders), "Response catalogProviders berupa array");
+    assert(jsonProviders.catalogProviders.length >= 11, "Catalog providers memuat 11 built-in providers");
+    assert(Array.isArray(jsonProviders.localModels), "Response localModels berupa array");
+
     // Verifikasi Zero Secret Leakage pada JSON response
     const rawJsonStr = JSON.stringify(jsonProviders);
     const hasGskLeak = /gsk_[a-zA-Z0-9_-]{10,}/.test(rawJsonStr);
@@ -824,6 +830,54 @@ async function runApiRegressionSuite() {
     assert(resGetSpiderUserA.status === 200, "User A berhasil membaca hasil SpiderRun miliknya sendiri (HTTP 200)");
   } catch (err: unknown) {
     assert(false, "/api/spider suite test", String(err));
+  }
+
+  // 25. Test POST /api/providers/test (Universal Connection Tester & Model Auto-Discovery)
+  console.log("\n▶ [Test 25] POST /api/providers/test (Universal Connection Tester & Model Auto-Discovery)");
+  try {
+    // 25.1 CSRF Fail-Closed: Request tanpa Origin / Referer ditolak HTTP 403
+    const reqNoCsrf = new Request("http://localhost:3000/api/providers/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpointUrl: "http://127.0.0.1:11434/v1" }),
+    });
+    const resNoCsrf = await POST_PROVIDERS_TEST(reqNoCsrf);
+    assert(resNoCsrf.status === 403, "CSRF: Request /api/providers/test tanpa Origin/Referer ditolak HTTP 403");
+
+    // 25.2 Request dengan URL kosong -> ditolak HTTP 400
+    const reqNoUrl = new Request("http://localhost:3000/api/providers/test", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({ endpointUrl: "" }),
+    });
+    const resNoUrl = await POST_PROVIDERS_TEST(reqNoUrl);
+    assert(resNoUrl.status === 400, "Validasi: Request /api/providers/test tanpa URL endpoint ditolak HTTP 400");
+
+    // 25.3 Request valid -> mengembalikan format respons terpadu
+    const reqValid = new Request("http://localhost:3000/api/providers/test", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({
+        endpointUrl: "http://127.0.0.1:11434/v1",
+        apiMode: "Chat Completions",
+        discoverModels: true,
+      }),
+    });
+    const resValid = await POST_PROVIDERS_TEST(reqValid);
+    assert(resValid.status === 200, "POST /api/providers/test mengembalikan HTTP 200 OK");
+    const jsonTest = await resValid.json();
+    assert(typeof jsonTest.ok === "boolean", "Response memuat field boolean 'ok'");
+    assert(typeof jsonTest.latencyMs === "number", "Response memuat field number 'latencyMs'");
+    assert(typeof jsonTest.detectedApiMode === "string", "Response memuat field string 'detectedApiMode'");
+    assert(Array.isArray(jsonTest.discoveredModels), "Response memuat field array 'discoveredModels'");
+  } catch (err: unknown) {
+    assert(false, "POST /api/providers/test test", String(err));
   }
 
   // Ringkasan

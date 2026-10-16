@@ -425,6 +425,32 @@ async function runE2ESuite() {
     });
     await new Promise((r) => setTimeout(r, 400));
 
+    // 5B. Interaksi: Buka Modal Settings > Providers (Task #57)
+    console.log("\n▶ [Step 5B] Menguji interaksi buka modal Settings > Providers...");
+    await page.evaluate(() => {
+      const btn = (document.querySelector('[data-testid="open-providers-settings-button"]') ||
+                  document.querySelector('[data-testid="open-providers-settings-btn"]')) as HTMLElement | null;
+      if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 600));
+    const isProvidersModalVisible = await page.evaluate(() => {
+      return document.body.textContent?.includes("Settings > Providers") ||
+             document.body.textContent?.includes("Custom Endpoints") ||
+             document.body.textContent?.includes("API keys") ||
+             false;
+    });
+    assert(isProvidersModalVisible, "Providers Settings Modal berhasil terbuka saat tombol Providers diklik");
+
+    // Tutup modal providers
+    await page.evaluate(() => {
+      const closeButtons = Array.from(document.querySelectorAll("button"));
+      const closeBtn = closeButtons.find(
+        (b) => b.querySelector("svg.lucide-x")
+      );
+      if (closeBtn) closeBtn.click();
+    });
+    await new Promise((r) => setTimeout(r, 400));
+
     // 6. Alur Pengujian Deterministik /api/optimize
     console.log("\n▶ [Step 6] Menguji alur form optimasi deterministik (Form Input -> Optimize)...");
 

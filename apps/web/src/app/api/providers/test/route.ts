@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { checkCsrf, csrfForbiddenResponse } from "../../../../lib/csrf";
 import { loadRawProvidersData } from "../../../../lib/providers-store";
+import {
+  testProviderConnection,
+  discoverEndpointModels,
+} from "@prompt-workspace/provider-adapters";
 
 /**
  * POST /api/providers/test
- * Menguji koneksi ke endpoint URL OpenAI-compatible / LLM server
- * serta melakukan auto-discovery daftar model yang tersedia (/v1/models).
+ * Memanggil testProviderConnection dan discoverEndpointModels dari @prompt-workspace/provider-adapters
+ * untuk menguji koneksi secara real-time dan mengambil daftar model otomatis dari /v1/models.
+ *
+ * Mengembalikan: { ok, latencyMs, detectedApiMode, discoveredModels, message }
+ * serta fallback kompatibilitas { success, status, models }.
  */
 export async function POST(request: Request) {
   try {
@@ -17,7 +24,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return NextResponse.json(
-        { success: false, error: "Payload JSON tidak valid." },
+        { ok: false, success: false, error: "Payload JSON tidak valid." },
         { status: 400 }
       );
     }
@@ -25,7 +32,7 @@ export async function POST(request: Request) {
     const endpointUrl = typeof body.endpointUrl === "string" ? body.endpointUrl.trim() : "";
     if (!endpointUrl) {
       return NextResponse.json(
-        { success: false, error: "URL endpoint wajib diisi." },
+        { ok: false, success: false, error: "URL endpoint wajib diisi." },
         { status: 400 }
       );
     }
@@ -40,99 +47,64 @@ export async function POST(request: Request) {
       }
     }
 
-    // Normalisasi URL endpoint target
-    const cleanBaseUrl = endpointUrl.replace(/\/+$/, "");
-    const candidateUrls: string[] = [];
+    const apiModeParam = body.apiMode;
+    const modelParam = typeof body.model === "string" ? body.model : undefined;
+    const providerIdParam = typeof body.providerId === "string" ? body.providerId : undefined;
 
-    if (cleanBaseUrl.endsWith("/v1")) {
-      candidateUrls.push(`${cleanBaseUrl}/models`);
-    } else {
-      candidateUrls.push(`${cleanBaseUrl}/v1/models`);
-      candidateUrls.push(`${cleanBaseUrl}/models`);
-    }
-    candidateUrls.push(cleanBaseUrl);
-
-    const headers: Record<string, string> = {
-      Accept: "application/json",
-    };
-    if (effectiveApiKey) {
-      headers["Authorization"] = `Bearer ${effectiveApiKey}`;
+    // Normalisasi API mode ke enum ProviderApiMode
+    let apiModeNormalized: any = "auto_detect";
+    if (apiModeParam === "Chat Completions" || apiModeParam === "chat_completions") {
+      apiModeNormalized = "chat_completions";
+    } else if (apiModeParam === "Responses API" || apiModeParam === "responses_api") {
+      apiModeNormalized = "responses_api";
+    } else if (apiModeParam === "Anthropic Messages" || apiModeParam === "anthropic_messages") {
+      apiModeNormalized = "anthropic_messages";
     }
 
-    const startTime = Date.now();
-    let discoveredModels: string[] = [];
-    let isConnected = false;
-    let lastError = "Gagal terhubung ke endpoint.";
-    let responseStatus = 0;
+    const testRes = await testProviderConnection({
+      endpointUrl,
+      apiKey: effectiveApiKey,
+      apiMode: apiModeNormalized,
+      model: modelParam,
+      providerId: providerIdParam,
+    });
 
-    for (const testUrl of candidateUrls) {
+    let models = testRes.discoveredModels || [];
+    // Jika discoverModels diminta eksplisit dan daftar kosong, coba panggil discoverEndpointModels
+    if (body.discoverModels && models.length === 0) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-        const res = await fetch(testUrl, {
-          method: "GET",
-          headers,
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        responseStatus = res.status;
-
-        if (res.ok) {
-          isConnected = true;
-          const json = await res.json().catch(() => null);
-          if (json && typeof json === "object") {
-            if (Array.isArray(json.data)) {
-              discoveredModels = json.data
-                .map((m: { id?: string; name?: string }) => m.id || m.name || "")
-                .filter((id: string) => id.length > 0);
-            } else if (Array.isArray(json.models)) {
-              discoveredModels = json.models
-                .map((m: { id?: string; name?: string }) => m.name || m.id || "")
-                .filter((id: string) => id.length > 0);
-            }
-          }
-          break;
-        } else if (res.status === 401 || res.status === 403) {
-          lastError = "Autentikasi ditolak (HTTP 401/403). Periksa API Key Anda.";
-          break;
-        }
-      } catch (err: unknown) {
-        lastError = (err as Error).name === "AbortError"
-          ? "Waktu tunggu habis (Timeout > 6 detik)."
-          : (err as Error).message;
-      }
-    }
-
-    const latencyMs = Date.now() - startTime;
-
-    if (isConnected) {
-      return NextResponse.json({
-        success: true,
-        status: "connected",
-        latencyMs,
-        models: discoveredModels,
-        message: `Koneksi berhasil (${latencyMs}ms)${
-          discoveredModels.length > 0 ? ` • Ditemukan ${discoveredModels.length} model` : ""
-        }`,
-      });
+        models = await discoverEndpointModels(endpointUrl, effectiveApiKey);
+      } catch {}
     }
 
     return NextResponse.json(
       {
-        success: false,
-        status: "failed",
-        latencyMs,
-        responseStatus,
-        models: [],
-        error: lastError,
+        ok: testRes.ok,
+        success: testRes.ok,
+        status: testRes.ok ? "connected" : "failed",
+        latencyMs: testRes.latencyMs,
+        detectedApiMode: testRes.detectedApiMode,
+        discoveredModels: models,
+        models,
+        message: testRes.message,
       },
-      { status: 200 } // Kembalikan 200 agar UI dapat menampilkan badge status gagal secara elegan
+      { status: 200 }
     );
   } catch (err: unknown) {
+    const errorMsg = (err as Error).message || "Terjadi kesalahan internal saat menguji provider.";
     return NextResponse.json(
-      { success: false, error: (err as Error).message },
-      { status: 500 }
+      {
+        ok: false,
+        success: false,
+        status: "failed",
+        latencyMs: 0,
+        detectedApiMode: "chat_completions",
+        discoveredModels: [],
+        models: [],
+        error: errorMsg,
+        message: errorMsg,
+      },
+      { status: 200 }
     );
   }
 }

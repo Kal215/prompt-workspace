@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { PromptOptimizationResult } from "@/types/prompt";
 import { IntentGuardCard } from "./intent-guard-card";
 import { FindingsPanel } from "./findings-panel";
@@ -45,7 +45,9 @@ import {
   Bug,
   Play,
   Loader2,
+  Network,
 } from "lucide-react";
+import { MermaidViewer } from "../mission-control/mermaid-viewer";
 
 interface ResultDashboardProps {
   result: PromptOptimizationResult;
@@ -62,7 +64,7 @@ interface ResultDashboardProps {
   onRequestRefinement?: (findings: SpiderSecurityFinding[]) => void;
 }
 
-export type DashboardTabKey = "all" | "diff" | "evaluation" | "spider" | "playground";
+export type DashboardTabKey = "all" | "diff" | "evaluation" | "diagrams" | "spider" | "playground";
 
 export function ResultDashboard({
   result,
@@ -79,12 +81,23 @@ export function ResultDashboard({
   onRequestRefinement,
 }: ResultDashboardProps) {
   const [activeTab, setActiveTab] = useState<DashboardTabKey>("all");
+  const [activeDiagramIdx, setActiveDiagramIdx] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [utilityFeedback, setUtilityFeedback] = useState<"helpful" | "issue" | null>(null);
 
   const scoreRef = useRef<HTMLSpanElement>(null);
+
+  const diagrams = useMemo(() => {
+    if (Array.isArray(result.mermaidDiagrams) && result.mermaidDiagrams.length > 0) {
+      return result.mermaidDiagrams;
+    }
+    if (Array.isArray(result.universalBlueprint?.diagrams) && result.universalBlueprint.diagrams.length > 0) {
+      return result.universalBlueprint.diagrams;
+    }
+    return [];
+  }, [result.mermaidDiagrams, result.universalBlueprint]);
 
   // Defensive fallbacks to gracefully handle both raw Engine results and enhanced mocks
   const score =
@@ -254,9 +267,10 @@ export function ResultDashboard({
   };
 
   const tabsConfig = [
-    { key: "all", label: "Semua Panel", icon: LayoutGrid },
-    { key: "diff", label: "Hasil & Perbandingan", icon: GitCompare },
-    { key: "evaluation", label: "Evaluasi & Perubahan", icon: ShieldCheck },
+    { key: "all", label: "Ringkasan Eksekutif", icon: LayoutGrid },
+    { key: "diff", label: "Inspeksi Diff Prompt", icon: GitCompare },
+    { key: "evaluation", label: "Rubrik & Bukti", icon: ShieldCheck },
+    { key: "diagrams", label: "Diagram Mermaid", icon: Network },
     { key: "spider", label: "Matriks Pengujian", icon: Bug },
     { key: "playground", label: "Uji Coba Model", icon: Play },
   ] as const;
@@ -347,6 +361,11 @@ export function ResultDashboard({
             <span className="text-[10px] text-muted-foreground truncate block max-w-[130px]" title={modelTarget}>
               {modelTarget}
             </span>
+            {result.synthesisMode && (
+              <span className="inline-block mt-0.5 text-[9px] font-mono text-amber-500 bg-amber-500/10 px-1 py-0.2 rounded">
+                {result.synthesisMode === "live_llm_dynamic" ? "⚡ AI Dinamis" : "✓ Fallback"}
+              </span>
+            )}
           </div>
           <div className="h-10 w-10 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
             <Clock className="h-5 w-5" />
@@ -505,6 +524,51 @@ export function ResultDashboard({
                     ))}
                   </ul>
                 </div>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Panel Dynamic Mermaid & Meta-Blueprint Diagrams (PR #56) */}
+        <div className={activeTab === "all" || activeTab === "diagrams" ? "block space-y-4" : "hidden"}>
+          {diagrams.length > 0 && (
+            <Card className="border-border/70 bg-card/60 shadow-2xs overflow-hidden">
+              <div className="p-3.5 border-b border-border/50 bg-muted/20 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Network className="h-4 w-4 text-amber-500" />
+                  <span className="text-xs font-semibold text-foreground">
+                    Diagram Arsitektur Mermaid (Anti-Crash Layout)
+                  </span>
+                  <Badge variant="outline" className="text-[10px] font-mono border-amber-500/30 text-amber-500 bg-amber-500/10">
+                    {result.synthesisMode === "live_llm_dynamic" ? "⚡ Live LLM Dynamic" : "✓ Anti-Crash Syntax"}
+                  </Badge>
+                </div>
+
+                {/* Tab selector for diagrams */}
+                <div className="flex items-center gap-1">
+                  {diagrams.map((d: any, idx: number) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveDiagramIdx(idx)}
+                      className={`px-2.5 py-1 text-[11px] rounded font-mono transition-colors cursor-pointer ${
+                        activeDiagramIdx === idx
+                          ? "bg-amber-500/20 text-amber-500 dark:text-amber-400 font-semibold border border-amber-500/40"
+                          : "text-muted-foreground hover:text-foreground bg-muted/30"
+                      }`}
+                    >
+                      {d.title || d.type || `Diagram ${idx + 1}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-4 space-y-3">
+                <MermaidViewer
+                  chart={diagrams[activeDiagramIdx]?.content || ""}
+                  title={diagrams[activeDiagramIdx]?.title}
+                  description={diagrams[activeDiagramIdx]?.type}
+                />
               </div>
             </Card>
           )}
