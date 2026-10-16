@@ -7,30 +7,23 @@ import {
   ShieldAlert,
   ShieldCheck,
   CheckCircle2,
-  Clock,
   Play,
   Pause,
-  RotateCcw,
-  FastForward,
   AlertOctagon,
   Download,
   Plus,
   RefreshCw,
-  ExternalLink,
   Cpu,
   Layers,
   FileCheck,
   Hash,
   Send,
   Loader2,
-  Lock,
   Copy,
   Check,
   FolderOpen,
   X,
-  FileText,
   AlertTriangle,
-  ChevronRight,
 } from "lucide-react";
 
 interface SupervisionConsoleProps {
@@ -42,7 +35,6 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
   const [activeSessionId, setActiveSessionId] = useState<string>(initialSessionId || "");
   const [statusReport, setStatusReport] = useState<any | null>(null);
   const [sessionObj, setSessionObj] = useState<any | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,7 +94,6 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
   // Fetch specific session status and raw object
   const fetchSessionStatus = async (sessionId: string) => {
     if (!sessionId) return;
-    setIsLoading(true);
     setError(null);
     try {
       const resp = await fetch("/api/supervision", {
@@ -118,13 +109,12 @@ export function SupervisionConsole({ initialSessionId }: SupervisionConsoleProps
       setSessionObj(data.session || null);
     } catch (err: unknown) {
       setError((err as Error)?.message || "Terjadi kesalahan saat memuat status sesi.");
-    } finally {
-      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchSessionList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
