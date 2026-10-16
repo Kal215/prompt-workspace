@@ -70,6 +70,7 @@ export async function POST(request: Request) {
         domain,
         audienceLevel,
         context: typeof body.context === "string" ? body.context : null,
+        negativeConstraints: constraints,
       });
     } catch {
       result = synthesizeUniversalBlueprint({
@@ -91,6 +92,12 @@ export async function POST(request: Request) {
         consistencyScore: result.consistencyScore,
         consistencyValid: result.consistencyValid,
         warnings: result.warnings,
+        synthesisMode: result.metadata?.synthesisMode,
+        providerId: result.metadata?.providerId,
+        model: result.metadata?.model,
+        latencyMs: result.metadata?.latencyMs,
+        mcpEnriched: result.metadata?.mcpEnriched,
+        mcpConnectors: result.metadata?.mcpConnectors,
       },
       phases: result.blueprint.executionPhases || [],
     });
