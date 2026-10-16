@@ -172,7 +172,7 @@ async function runTests() {
       summary: `Artefak ${d}`,
     })),
     verificationOutput: "PASS - All 10 tests passed (Exit Code 0 palsu dari agent)",
-    verificationCommand: "node -e 'process.exit(1)'", // PIEW mengeksekusi sendiri perintah ini!
+    verificationCommand: 'node -e "process.exit(1)"', // PIEW mengeksekusi sendiri perintah ini!
   };
 
   const auditActiveFail = auditAndAdvancePhase(activeFailSubmission);
@@ -194,7 +194,7 @@ async function runTests() {
       contentSnippet: `# ${d}\nSpesifikasi lengkap dengan audit trail transaksi aman.`,
     })),
     verificationOutput: "Eksekusi mandiri diverifikasi",
-    verificationCommand: "node -e 'console.log(\"PIEW ZERO TRUST ACTIVE PASS\"); process.exit(0)'",
+    verificationCommand: 'node -e "process.exit(0)"',
   };
 
   const auditActivePass = auditAndAdvancePhase(activePassSubmission);
@@ -257,6 +257,7 @@ async function testMcpServerRoundtrip(): Promise<void> {
 
   const child = spawn("npx", ["tsx", mcpServerPath], {
     stdio: ["pipe", "pipe", "pipe"],
+    shell: process.platform === "win32",
   });
 
   let stdoutBuffer = "";
