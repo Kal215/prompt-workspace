@@ -21,42 +21,42 @@ export function UserGuideSection() {
 
   return (
     <div data-testid="user-guide-section" className="w-full">
-      <Card className="border-border/80 shadow-xs overflow-hidden">
+      <Card className="border-border bg-card shadow-2xs overflow-hidden rounded-xl">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full p-4 flex items-center justify-between text-left hover:bg-muted/30 transition-colors cursor-pointer"
+          className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-muted/30 transition-colors cursor-pointer"
         >
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <BookOpen className="h-4 w-4" />
+          <div className="flex items-center gap-3.5">
+            <div className="h-9 w-9 rounded-lg bg-[#FF4D00]/10 text-[#FF4D00] flex items-center justify-center shrink-0">
+              <BookOpen className="h-4.5 w-4.5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-foreground">
                   Panduan Cepat &amp; Dokumentasi Pengguna Workspace
                 </span>
-                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
+                <Badge variant="outline" className="text-[10px] font-mono border-[#FF4D00]/30 text-[#FF4D00]">
                   v1.1.0
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Cara kerja optimasi prompt, interpretasi taksonomi temuan, keamanan data, dan pengujian model.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs font-mono">
             <span>{isOpen ? "Tutup Panduan" : "Buka Panduan"}</span>
             {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </div>
         </button>
 
         {isOpen && (
-          <CardContent className="p-6 pt-2 border-t border-border/60 space-y-6 text-xs">
+          <CardContent className="p-6 pt-3 border-t border-border space-y-6 text-xs">
             {/* 1. Alur Kerja Langkah Demi Langkah */}
             <div className="space-y-3">
-              <h4 className="font-semibold text-foreground flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
-                <Workflow className="h-3.5 w-3.5 text-primary" />
+              <h4 className="font-semibold text-foreground flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground font-mono">
+                <Workflow className="h-3.5 w-3.5 text-[#FF4D00]" />
                 <span>Alur Kerja 4 Langkah Penggunaan Workspace</span>
               </h4>
 
@@ -64,7 +64,7 @@ export function UserGuideSection() {
                 {/* Langkah 1 */}
                 <div className="p-3.5 rounded-lg border border-border/80 bg-muted/20 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] flex items-center justify-center shrink-0">
+                    <span className="h-5 w-5 rounded-full bg-[#FF4D00] text-white font-bold text-[10px] flex items-center justify-center shrink-0 font-mono">
                       1
                     </span>
                     <span className="font-semibold text-foreground text-xs">Pilih Domain &amp; Provider</span>
@@ -77,7 +77,7 @@ export function UserGuideSection() {
                 {/* Langkah 2 */}
                 <div className="p-3.5 rounded-lg border border-border/80 bg-muted/20 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] flex items-center justify-center shrink-0">
+                    <span className="h-5 w-5 rounded-full bg-[#FF4D00] text-white font-bold text-[10px] flex items-center justify-center shrink-0 font-mono">
                       2
                     </span>
                     <span className="font-semibold text-foreground text-xs">Analisis &amp; Optimasi</span>
@@ -90,7 +90,7 @@ export function UserGuideSection() {
                 {/* Langkah 3 */}
                 <div className="p-3.5 rounded-lg border border-border/80 bg-muted/20 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] flex items-center justify-center shrink-0">
+                    <span className="h-5 w-5 rounded-full bg-[#FF4D00] text-white font-bold text-[10px] flex items-center justify-center shrink-0 font-mono">
                       3
                     </span>
                     <span className="font-semibold text-foreground text-xs">Tinjau Temuan &amp; Diff</span>
@@ -103,7 +103,7 @@ export function UserGuideSection() {
                 {/* Langkah 4 */}
                 <div className="p-3.5 rounded-lg border border-border/80 bg-muted/20 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] flex items-center justify-center shrink-0">
+                    <span className="h-5 w-5 rounded-full bg-[#FF4D00] text-white font-bold text-[10px] flex items-center justify-center shrink-0 font-mono">
                       4
                     </span>
                     <span className="font-semibold text-foreground text-xs">Uji &amp; Simpan Riwayat</span>
@@ -117,7 +117,7 @@ export function UserGuideSection() {
 
             {/* 2. Keamanan Data & Privasi */}
             <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-foreground space-y-2">
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold font-mono">
                 <ShieldAlert className="h-4 w-4 shrink-0" />
                 <span>Pedoman Keamanan &amp; Perlindungan Data Pribadi (Privasi Zero-Leakage)</span>
               </div>
@@ -137,8 +137,8 @@ export function UserGuideSection() {
             {/* 3. Bantuan, FAQ & Pelaporan Masalah */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
               <div className="p-3.5 rounded-lg border border-border/80 bg-muted/20 space-y-2">
-                <div className="flex items-center gap-2 font-semibold text-foreground">
-                  <HelpCircle className="h-4 w-4 text-primary" />
+                <div className="flex items-center gap-2 font-semibold text-foreground font-mono">
+                  <HelpCircle className="h-4 w-4 text-[#FF4D00]" />
                   <span>FAQ &amp; Memahami Skor Prompt</span>
                 </div>
                 <div className="space-y-1 text-muted-foreground leading-relaxed">
@@ -152,7 +152,7 @@ export function UserGuideSection() {
               </div>
 
               <div className="p-3.5 rounded-lg border border-border/80 bg-muted/20 space-y-2">
-                <div className="flex items-center gap-2 font-semibold text-foreground">
+                <div className="flex items-center gap-2 font-semibold text-foreground font-mono">
                   <Bug className="h-4 w-4 text-rose-500" />
                   <span>Pelaporan Masalah &amp; Bug Tracking</span>
                 </div>
@@ -164,7 +164,7 @@ export function UserGuideSection() {
                     href="https://github.com/Kal215/prompt-workspace/issues"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-primary underline underline-offset-4 font-mono font-medium hover:text-primary/80"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#FF4D00] underline underline-offset-4 font-mono font-medium hover:text-[#FF4D00]/80"
                   >
                     <span>github.com/Kal215/prompt-workspace/issues</span>
                     &rarr;

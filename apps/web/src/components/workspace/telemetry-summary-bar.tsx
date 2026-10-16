@@ -30,7 +30,7 @@ export function TelemetrySummaryBar({ metrics }: TelemetrySummaryBarProps) {
   return (
     <div
       data-testid="stage7-telemetry-bar"
-      className="w-full border-b border-border/80 bg-muted/20 px-4 h-8 flex items-center justify-between text-[11px] font-mono text-muted-foreground overflow-x-auto select-none"
+      className="w-full border-b border-border/80 bg-muted/20 px-3 sm:px-4 h-8 flex items-center justify-between text-[11px] font-mono text-muted-foreground overflow-x-auto no-scrollbar select-none"
     >
       {/* Sisi Kiri: Status Live Sesi & Metrik Segmen */}
       <div className="flex items-center gap-0 shrink-0">
