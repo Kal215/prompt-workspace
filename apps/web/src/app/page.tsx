@@ -26,9 +26,11 @@ import {
 } from "@/components/workspace/telemetry-summary-bar";
 import { CrawlerImportModal } from "@/components/workspace/crawler-import-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { formatGroundingFactsForContext } from "@/lib/v2-workspace-helpers";
+import {
+  formatGroundingFactsForContext,
+  buildClosedLoopOptimizationContext,
+} from "@/lib/v2-workspace-helpers";
 import { isCrawlerFeatureEnabled } from "@/lib/feature-flags";
-import { buildClosedLoopOptimizationContext } from "@prompt-workspace/prompt-engine";
 import {
   CrawlerResultItem,
   CrawlerExtractionMode,
@@ -39,6 +41,8 @@ import {
 import { listDomainPacks, DomainRulePack } from "@prompt-workspace/domain-rules";
 import { ProviderCapability } from "@prompt-workspace/prompt-contracts";
 import { toast } from "sonner";
+import { BlueprintStudio } from "@/components/mission-control/blueprint-studio";
+import { SupervisionConsole } from "@/components/mission-control/supervision-console";
 import {
   TerminalSquare,
   Loader2,
@@ -52,6 +56,8 @@ import {
   Layers,
   Globe,
   PenTool,
+  Sparkles,
+  Workflow,
 } from "lucide-react";
 
 // Fallback daftar statis aman provider saat inisialisasi / loading
@@ -126,6 +132,17 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PromptOptimizationResult | null>(null);
+
+  // Mode Navigasi Tab Teratas: Mission Control (v3.0) vs Classic Studio (v2.0)
+  const [activeMainTab, setActiveMainTab] = useState<"mission-control" | "classic">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "classic" || window.location.port === "3124") {
+        return "classic";
+      }
+    }
+    return "mission-control";
+  });
 
   // Ambil kapabilitas provider dari /api/providers saat mount
   useEffect(() => {
@@ -469,10 +486,10 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-xs sm:text-sm tracking-tight text-foreground">
-                Prompt Intelligence Workspace
+                Prompt Intelligence Workspace — PIEW Mission Control v3.0
               </span>
               <span className="text-[10px] text-muted-foreground hidden sm:inline-block border border-border/70 px-1.5 py-0.2 rounded font-mono bg-muted/40">
-                v2.1
+                v3.0
               </span>
             </div>
           </div>
@@ -524,8 +541,51 @@ export default function Home() {
         {/* Stage 7 North-Star Telemetry Bar (LangSmith Trace Style) */}
         <TelemetrySummaryBar metrics={telemetry} />
 
-        {/* Workspace Layout: Bento Kiri (5 Kolom) & Bento Kanan (7 Kolom) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Top Level Navigation Tabs: Mission Control v3.0 vs Classic Studio v2.0 */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/80">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/60 border border-border/70 max-w-fit">
+            <button
+              type="button"
+              data-testid="tab-mission-control"
+              onClick={() => setActiveMainTab("mission-control")}
+              className={`flex items-center gap-2 py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeMainTab === "mission-control"
+                  ? "bg-background text-foreground shadow-xs border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5 text-amber-500" />
+              <span>🏛 Autonomous Mission Control (v3.0)</span>
+            </button>
+            <button
+              type="button"
+              data-testid="tab-classic-studio"
+              onClick={() => setActiveMainTab("classic")}
+              className={`flex items-center gap-2 py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeMainTab === "classic"
+                  ? "bg-background text-foreground shadow-xs border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <PenTool className="w-3.5 h-3.5 text-sky-500" />
+              <span>⚡️ Classic Studio & Optimizer (v2.0)</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Status: Mission Control Operasional</span>
+          </div>
+        </div>
+
+        {activeMainTab === "mission-control" ? (
+          <div className="space-y-6">
+            <BlueprintStudio />
+            <SupervisionConsole />
+          </div>
+        ) : (
+          /* Workspace Layout: Bento Kiri (5 Kolom) & Bento Kanan (7 Kolom) */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Bento Kiri: Form Input & Parameter */}
           <section
             className={`space-y-4 transition-all duration-200 ${
@@ -856,9 +916,13 @@ export default function Home() {
             )}
           </section>
         </div>
+        )}
 
-        {/* User Guide & Help Documentation Section (Tahap 6 - Bagian 12) */}
-        <UserGuideSection />
+        {/* Footer: Privacy Disclosure & User Guide Documentation */}
+        <footer className="pt-6 border-t border-border/60 space-y-4">
+          <PrivacyDisclosure />
+          <UserGuideSection />
+        </footer>
       </main>
 
       {/* Mobile / APK Bottom Navigation Bar (< md) */}

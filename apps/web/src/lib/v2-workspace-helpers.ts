@@ -265,3 +265,49 @@ export function evaluateSpiderGateBanner(
     metrics,
   };
 }
+
+export interface ClosedLoopContextOptions {
+  userContext?: string | null;
+  groundingFacts?: string[];
+  spiderFindings?: Array<{
+    category: string;
+    remediationHint: string;
+    sanitizedEvidence?: string;
+  }>;
+}
+
+/**
+ * Membangun konteks teks optimasi closed-loop yang menyuntikkan fakta Crawler
+ * dan remediasi temuan Spider ke dalam pipeline optimasi.
+ */
+export function buildClosedLoopOptimizationContext(
+  options: ClosedLoopContextOptions
+): string {
+  const sections: string[] = [];
+
+  if (options.userContext && options.userContext.trim().length > 0) {
+    sections.push(`### Konteks Pengguna Asli:\n${options.userContext.trim()}`);
+  }
+
+  if (options.groundingFacts && options.groundingFacts.length > 0) {
+    const factsList = options.groundingFacts
+      .map((fact, idx) => `${idx + 1}. ${fact.trim()}`)
+      .join("\n");
+    sections.push(`### Fakta Teknis Terverifikasi (Crawler Grounding):\n${factsList}`);
+  }
+
+  if (options.spiderFindings && options.spiderFindings.length > 0) {
+    const findingsList = options.spiderFindings
+      .map((finding, idx) => {
+        let entry = `${idx + 1}. [Kategori: ${finding.category}] Remediasi: ${finding.remediationHint}`;
+        if (finding.sanitizedEvidence) {
+          entry += ` (Bukti Pelanggaran: ${finding.sanitizedEvidence.slice(0, 150)})`;
+        }
+        return entry;
+      })
+      .join("\n");
+    sections.push(`### Temuan Ketahanan & Keamanan (Spider Audit):\n${findingsList}`);
+  }
+
+  return sections.join("\n\n");
+}
