@@ -4,6 +4,7 @@ import fs from "fs";
 import dotenv from "dotenv";
 import {
   initAutonomousProject,
+  initAutonomousProjectAsync,
   getProjectStatus,
   getProjectSession,
   auditAndAdvancePhase,
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
           promptText += `\nBatasan mutlak:\n${constraints.map((c: string) => `- ${c}`).join("\n")}`;
         }
 
-        const result = initAutonomousProject({
+        const result = await initAutonomousProjectAsync({
           prompt: promptText,
           domainId: body.domainId,
           subtopicId: body.subtopicId,

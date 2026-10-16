@@ -277,6 +277,34 @@ export function BlueprintStudio({ onStartSupervision }: BlueprintStudioProps) {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
+              {/* Live Engine Indicator Badge */}
+              {result.metadata && (
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 text-xs">
+                  <div className="flex items-center gap-2">
+                    {result.metadata.synthesisMode === "live_llm_dynamic" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-semibold border border-emerald-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        🔥 LIVE LLM DYNAMIC ({result.metadata.providerId || "groq"})
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 font-mono text-[11px] font-medium border border-zinc-500/20">
+                        ⚡ DETERMINISTIC FALLBACK
+                      </span>
+                    )}
+                    {result.metadata.mcpEnriched && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 font-mono text-[11px] font-medium border border-sky-500/20">
+                        🔌 MCP Grounded
+                      </span>
+                    )}
+                  </div>
+                  {result.metadata.latencyMs && (
+                    <span className="text-[11px] text-zinc-400 font-mono">
+                      ⏱ {result.metadata.latencyMs}ms
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Header Tab Selector */}
               <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800">
                 <button
