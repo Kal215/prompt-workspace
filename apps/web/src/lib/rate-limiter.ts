@@ -156,7 +156,12 @@ const crawlLimiter = new InMemorySlidingWindowLimiter(
 );
 
 const spiderLimiter = new InMemorySlidingWindowLimiter(
-  5, // 5 requests
+  15, // max 15 requests
+  60 // per 60 seconds
+);
+
+const mcpLimiter = new InMemorySlidingWindowLimiter(
+  60, // max 60 requests
   60 // per 60 seconds
 );
 
@@ -178,6 +183,10 @@ export function getCrawlRateLimiter(): InMemorySlidingWindowLimiter {
 
 export function getSpiderRateLimiter(): InMemorySlidingWindowLimiter {
   return spiderLimiter;
+}
+
+export function getMcpRateLimiter(): InMemorySlidingWindowLimiter {
+  return mcpLimiter;
 }
 
 /**

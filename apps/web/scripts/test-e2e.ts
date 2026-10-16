@@ -451,6 +451,41 @@ async function runE2ESuite() {
     });
     await new Promise((r) => setTimeout(r, 400));
 
+    // 5C. Interaksi: Buka Modal Connectors Hub (MCP) (Task #59)
+    console.log("\n▶ [Step 5C] Menguji interaksi buka modal Connectors Hub (MCP)...");
+    await page.evaluate(() => {
+      const btn = (document.querySelector('[data-testid="mcp-connectors-tab"]') ||
+                  document.querySelector('button[title*="Model Context Protocol"]')) as HTMLElement | null;
+      if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 600));
+
+    const isMcpModalVisible = await page.evaluate(() => {
+      const modal = document.querySelector('[data-testid="mcp-connectors-modal"]');
+      const text = document.body.textContent || "";
+      const hasCatalog = text.includes("Connectors") && (text.includes("Figma") || text.includes("PostgreSQL") || text.includes("Available Connectors"));
+      return modal !== null || hasCatalog;
+    });
+    assert(isMcpModalVisible, "MCP Connectors Modal berhasil terbuka saat tombol Connectors diklik");
+
+    // Verifikasi tombol 'Add your own' dan filter search input
+    const hasAddYourOwn = await page.evaluate(() => {
+      const addBtn = document.querySelector('[data-testid="mcp-add-custom-btn"]');
+      const searchInput = document.querySelector('[data-testid="mcp-search-input"]');
+      return addBtn !== null && searchInput !== null;
+    });
+    assert(hasAddYourOwn, "Elemen tombol 'Add your own' dan search input ditemukan di dalam Connectors Hub");
+
+    // Tutup modal connectors
+    await page.evaluate(() => {
+      const closeButtons = Array.from(document.querySelectorAll("button"));
+      const closeBtn = closeButtons.find(
+        (b) => b.querySelector("svg.lucide-x")
+      );
+      if (closeBtn) closeBtn.click();
+    });
+    await new Promise((r) => setTimeout(r, 400));
+
     // 6. Alur Pengujian Deterministik /api/optimize
     console.log("\n▶ [Step 6] Menguji alur form optimasi deterministik (Form Input -> Optimize)...");
 

@@ -59,6 +59,7 @@ export interface PromptOptimizationResult {
   universalBlueprint?: any;
   mermaidDiagrams?: Array<{ type: string; title: string; content: string }>;
   synthesisMode?: string;
+  appliedMcpConnectors?: Array<{ connectorId: string; source: string; factsCount: number }>;
   metrics?: {
     clarityScore?: number;
     constraintCoverage?: number;
