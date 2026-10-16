@@ -979,6 +979,15 @@ async function runApiRegressionSuite() {
     assert(typeof jsonMcpDiscover.latencyMs === "number", "Handshake mengukur latencyMs koneksi");
 
     // 26.6 Eksekusi Tool dengan Human-in-the-Loop Safety Gate (userApproved: false -> PENDING_HUMAN_APPROVAL)
+    // Pastikan figma-mcp aktif terlebih dahulu
+    await POST_MCP(
+      new Request("http://localhost:3000/api/mcp-connectors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "http://localhost:3000" },
+        body: JSON.stringify({ action: "toggle", connectorId: "figma-mcp", enabled: true }),
+      })
+    );
+
     const reqMcpExecuteGate = new Request("http://localhost:3000/api/mcp-connectors", {
       method: "POST",
       headers: {
