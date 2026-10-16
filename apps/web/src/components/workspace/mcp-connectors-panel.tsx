@@ -199,12 +199,33 @@ export function McpConnectorsModal({
       // Injeksi token / PAT jika diisi
       if (editToken.trim()) {
         if (editingConnector.transportType === "stdio") {
+          const currentEnv = editingConnector.stdioConfig?.envVars || {};
+          const envVars: Record<string, string> = {
+            ...currentEnv,
+            AUTH_TOKEN: editToken.trim(),
+          };
+
+          // Mapping khusus variabel env sesuai kebutuhan spesifik server MCP
+          if (editingConnector.connectorId === "figma-mcp") {
+            envVars.FIGMA_API_KEY = editToken.trim();
+            envVars.FIGMA_ACCESS_TOKEN = editToken.trim();
+          } else if (editingConnector.connectorId === "github-mcp") {
+            envVars.GITHUB_PERSONAL_ACCESS_TOKEN = editToken.trim();
+            envVars.GITHUB_TOKEN = editToken.trim();
+          } else if (editingConnector.connectorId === "brave-search-mcp") {
+            envVars.BRAVE_API_KEY = editToken.trim();
+          }
+
+          const currentArgs = editingConnector.stdioConfig?.args || [];
+          const normalizedArgs =
+            editingConnector.connectorId === "figma-mcp"
+              ? currentArgs.map((a) => (a === "@figma/mcp-server" ? "figma-mcp" : a))
+              : currentArgs;
+
           payload.connector.stdioConfig = {
             ...(editingConnector.stdioConfig || { command: "npx", args: [] }),
-            envVars: {
-              ...(editingConnector.stdioConfig?.envVars || {}),
-              AUTH_TOKEN: editToken.trim(),
-            },
+            args: normalizedArgs,
+            envVars,
           };
         } else {
           payload.connector.httpConfig = {
