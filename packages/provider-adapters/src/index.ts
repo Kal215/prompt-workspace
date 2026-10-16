@@ -6,3 +6,6 @@ export * from "./openrouter-adapter.js";
 export * from "./ollama-adapter.js";
 export * from "./openai-adapter.js";
 export * from "./registry.js";
+export * from "./catalog.js";
+export * from "./custom-endpoint-adapter.js";
+export * from "./registry-store.js";

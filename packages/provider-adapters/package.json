@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "npx tsx scripts/test-provider-adapters.ts"
+    "test": "npx tsx scripts/test-provider-registry.ts && npx tsx scripts/test-provider-adapters.ts",
+    "test:providers": "npx tsx scripts/test-provider-registry.ts"
   },
   "dependencies": {
     "@prompt-workspace/prompt-contracts": "*",
