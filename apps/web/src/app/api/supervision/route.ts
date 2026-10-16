@@ -28,7 +28,7 @@ import { checkCsrf, csrfForbiddenResponse } from "../../../lib/csrf";
  * GET /api/supervision
  * Mengambil daftar seluruh sesi proyek supervisi otonom aktif di disk/memory.
  */
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const sessions = listProjectSessions();
     return NextResponse.json({

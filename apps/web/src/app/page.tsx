@@ -43,6 +43,7 @@ import { ProviderCapability } from "@prompt-workspace/prompt-contracts";
 import { toast } from "sonner";
 import { BlueprintStudio } from "@/components/mission-control/blueprint-studio";
 import { SupervisionConsole } from "@/components/mission-control/supervision-console";
+import { ProvidersSettingsModal } from "@/components/workspace/providers-settings-panel";
 import {
   TerminalSquare,
   Loader2,
@@ -56,8 +57,6 @@ import {
   Layers,
   Globe,
   PenTool,
-  Sparkles,
-  Workflow,
 } from "lucide-react";
 
 // Fallback daftar statis aman provider saat inisialisasi / loading
@@ -126,12 +125,13 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [context, setContext] = useState("");
   const [selectedDomain, setSelectedDomain] = useState<string>("general");
-  const [providers, setProviders] = useState<ProviderCapability[]>(DEFAULT_PROVIDERS);
+  const [providers, setProviders] = useState<any[]>(DEFAULT_PROVIDERS);
   const [selectedProvider, setSelectedProvider] = useState<string>("groq");
   const [selectedModel, setSelectedModel] = useState<string>("llama-3.3-70b-versatile");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PromptOptimizationResult | null>(null);
+  const [isProvidersSettingsOpen, setIsProvidersSettingsOpen] = useState(false);
 
   // Mode Navigasi Tab Teratas: Mission Control (v3.1) vs Classic Studio (v2.0)
   const [activeMainTab, setActiveMainTab] = useState<"mission-control" | "classic">(() => {
@@ -150,11 +150,53 @@ export default function Home() {
       .then((res) => res.json())
       .then((json) => {
         if (json.success && Array.isArray(json.providers)) {
-          setProviders(json.providers);
+          const mergedProviders: any[] = [...json.providers];
+          if (Array.isArray(json.customEndpoints)) {
+            json.customEndpoints.forEach((ep: { id: string; name: string; defaultModel?: string }) => {
+              if (!mergedProviders.some((p) => p.providerId === ep.id)) {
+                mergedProviders.push({
+                  providerId: ep.id,
+                  displayName: `${ep.name} (Custom)`,
+                  defaultModel: ep.defaultModel || "default",
+                  availableModels: ep.defaultModel ? [ep.defaultModel] : ["default"],
+                  supportsJsonMode: true,
+                  isLocal: false,
+                  configured: true,
+                  description: "Custom OpenAI-compatible Endpoint",
+                });
+              }
+            });
+          }
+          setProviders(mergedProviders);
         }
       })
       .catch(() => {});
   }, []);
+
+  // Handler saat custom endpoint dipilih dari modal Providers Settings
+  const handleSelectCustomProvider = (providerId: string, model?: string) => {
+    setProviders((prev) => {
+      if (prev.some((p) => p.providerId === providerId)) return prev;
+      return [
+        ...prev,
+        {
+          providerId,
+          displayName: `${providerId} (Custom)`,
+          defaultModel: model || "default",
+          availableModels: model ? [model] : ["default"],
+          supportsJsonMode: true,
+          isLocal: false,
+          configured: true,
+          description: "Custom OpenAI-compatible Endpoint",
+        },
+      ];
+    });
+    setSelectedProvider(providerId);
+    if (model) {
+      setSelectedModel(model);
+    }
+    toast.success(`Penyedia aktif dialihkan ke "${providerId}"`);
+  };
 
   // Daftar Domain Rule Packs dari @prompt-workspace/domain-rules
   const domainPacks: DomainRulePack[] = listDomainPacks();
@@ -511,6 +553,19 @@ export default function Home() {
               <span>Skor: <strong className="text-foreground">{Math.round(telemetry.averageScore ?? 0)}</strong>/100</span>
             </div>
 
+            {/* Providers Settings Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="open-providers-settings-button"
+              onClick={() => setIsProvidersSettingsOpen(true)}
+              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80 hover:bg-muted/60"
+              title="Pengaturan Penyedia AI, API Keys & Custom Endpoints"
+            >
+              <Sliders className="h-3.5 w-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Providers</span>
+            </Button>
+
             {/* Dark / Light Theme Toggle Switch */}
             <ThemeToggle />
 
@@ -660,6 +715,15 @@ export default function Home() {
                             <Cpu className="h-3 w-3 text-primary" />
                             <span>Penyedia</span>
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsProvidersSettingsOpen(true)}
+                            className="text-[10px] text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
+                            title="Atur Kunci & Custom Endpoints"
+                          >
+                            <span>Atur</span>
+                            <Sliders className="h-2.5 w-2.5" />
+                          </button>
                         </Label>
                         <select
                           id="provider-select"
@@ -967,6 +1031,13 @@ export default function Home() {
         onSelectAsPrompt={handleSelectCrawlerPrompt}
         onInjectGroundingFacts={handleInjectGroundingFacts}
         onExtract={handleCrawlerExtract}
+      />
+
+      {/* Settings > Providers Modal */}
+      <ProvidersSettingsModal
+        isOpen={isProvidersSettingsOpen}
+        onClose={() => setIsProvidersSettingsOpen(false)}
+        onSelectProvider={handleSelectCustomProvider}
       />
     </div>
   );
