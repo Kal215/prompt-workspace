@@ -6,6 +6,8 @@ import {
   saveMcpConnector,
   toggleMcpConnector,
   deleteMcpConnector,
+  getMcpConnector,
+  BUILTIN_MCP_CONNECTORS_CATALOG,
 } from "@prompt-workspace/provider-adapters";
 import {
   testAndDiscoverMcpConnector,
@@ -20,10 +22,37 @@ import {
 export async function GET() {
   try {
     const connectors = await listMcpConnectors();
+    const existingIds = new Set(connectors.map((c) => c.connectorId));
+    const merged = [...connectors];
+    for (const builtin of BUILTIN_MCP_CONNECTORS_CATALOG) {
+      if (!existingIds.has(builtin.connectorId)) {
+        merged.push(builtin);
+      }
+    }
+
+    // Zero Secret Leakage guarantee: buang field internal savedEnvSecrets dan sembunyikan raw token
+    const sanitizedConnectors = merged.map((c) => {
+      const cloned = JSON.parse(JSON.stringify(c));
+      delete cloned.savedEnvSecrets;
+      if (cloned.stdioConfig?.envVars) {
+        for (const [k, v] of Object.entries(cloned.stdioConfig.envVars)) {
+          if (
+            typeof v === "string" &&
+            (v.startsWith("figd_") || v.startsWith("ghp_") || /token|key|secret|password|auth|pat/i.test(k))
+          ) {
+            if (!v.startsWith("${")) {
+              cloned.stdioConfig.envVars[k] = v.length > 8 ? `${v.slice(0, 4)}••••${v.slice(-4)}` : "••••••••";
+            }
+          }
+        }
+      }
+      return cloned;
+    });
+
     return NextResponse.json(
       {
         success: true,
-        connectors,
+        connectors: sanitizedConnectors,
       },
       { status: 200 }
     );
@@ -109,6 +138,38 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+
+      // Auto-heal figma-mcp args & env vars jika masih menunjuk ke package 404 (@figma/mcp-server)
+      if (connectorId === "figma-mcp") {
+        try {
+          const currentFigma = await getMcpConnector("figma-mcp", undefined, true);
+          if (currentFigma && currentFigma.stdioConfig) {
+            let changed = false;
+            const args = [...(currentFigma.stdioConfig.args || [])];
+            if (args.includes("@figma/mcp-server")) {
+              currentFigma.stdioConfig.args = args.map((a) => (a === "@figma/mcp-server" ? "figma-mcp" : a));
+              changed = true;
+            }
+            const token =
+              currentFigma.stdioConfig.envVars?.AUTH_TOKEN ||
+              currentFigma.stdioConfig.envVars?.FIGMA_ACCESS_TOKEN ||
+              process.env.FIGMA_ACCESS_TOKEN ||
+              process.env.FIGMA_API_KEY;
+            if (token && !currentFigma.stdioConfig.envVars?.FIGMA_API_KEY) {
+              currentFigma.stdioConfig.envVars = {
+                ...(currentFigma.stdioConfig.envVars || {}),
+                FIGMA_API_KEY: token,
+                FIGMA_ACCESS_TOKEN: token,
+              };
+              changed = true;
+            }
+            if (changed) {
+              await saveMcpConnector(currentFigma);
+            }
+          }
+        } catch {}
+      }
+
       const discoveryResult = await testAndDiscoverMcpConnector(connectorId);
       return NextResponse.json(
         {
@@ -165,6 +226,13 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, error: "Nama konektor (name) wajib diisi." },
         { status: 400 }
+      );
+    }
+
+    // Normalisasi argumen package figma-mcp jika menunjuk ke @figma/mcp-server (404 npm)
+    if (connectorInput.connectorId === "figma-mcp" && connectorInput.stdioConfig?.args) {
+      connectorInput.stdioConfig.args = connectorInput.stdioConfig.args.map((a: string) =>
+        a === "@figma/mcp-server" ? "figma-mcp" : a
       );
     }
 
