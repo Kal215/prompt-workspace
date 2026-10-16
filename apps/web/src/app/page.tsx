@@ -2,13 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +50,7 @@ import {
   Layers,
   Globe,
   PenTool,
+  ChevronDown,
 } from "lucide-react";
 
 // Fallback daftar statis aman provider saat inisialisasi / loading
@@ -198,13 +192,15 @@ export default function Home() {
     toast.success(`Penyedia aktif dialihkan ke "${providerId}"`);
   };
 
-  // Daftar Domain Rule Packs dari @prompt-workspace/domain-rules
-  const domainPacks: DomainRulePack[] = listDomainPacks();
-  const activeDomainPack =
-    domainPacks.find((p) => p.domainId === selectedDomain) || domainPacks[0];
+  // Muat domain packs secara deterministik
+  const domainPacks = listDomainPacks();
+  const activeDomainPack: DomainRulePack | undefined = domainPacks.find(
+    (p) => p.domainId === selectedDomain
+  );
 
   const activeProvider =
-    providers.find((p) => p.providerId === selectedProvider) || providers[0];
+    providers.find((p) => p.providerId === selectedProvider) ||
+    DEFAULT_PROVIDERS[0];
 
   const handleProviderChange = (newProviderId: string) => {
     setSelectedProvider(newProviderId);
@@ -212,15 +208,6 @@ export default function Home() {
     if (targetProvider) {
       setSelectedModel(targetProvider.defaultModel);
     }
-  };
-
-  // Mousemove handler untuk Spotlight Bento Cards
-  const handleMouseMoveSpotlight = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    e.currentTarget.style.setProperty("--mouse-x", `${x}px`);
-    e.currentTarget.style.setProperty("--mouse-y", `${y}px`);
   };
 
   // History Sidebar state (real-time SQLite database)
@@ -236,6 +223,25 @@ export default function Home() {
     historyCount: 0,
     averageScore: 88,
   });
+
+  // Sinkronisasi jumlah riwayat prompt dari database
+  useEffect(() => {
+    fetch("/api/history?limit=50")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          setHistoryCount(json.data.length);
+          setTelemetry((prev) => ({ ...prev, historyCount: json.data.length }));
+        }
+      })
+      .catch(() => {});
+  }, [historyRefreshKey]);
+
+  const handleAcceptPrompt = () => {
+    setHistoryCount((c) => c + 1);
+    setHistoryRefreshKey((prev) => prev + 1);
+    handleTelemetryAction("accept");
+  };
 
   // v2.0 Web Crawler & Prompt Spider State
   const [isCrawlerModalOpen, setIsCrawlerModalOpen] = useState(false);
@@ -285,45 +291,44 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          promptVersionId: activeVersionId,
           promptContent: result.optimizedPrompt,
-          targetProvider: selectedProvider,
-          targetModel: selectedModel,
+          domainId: selectedDomain,
+          testInput: "",
         }),
       });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        const report = json.data as SpiderReportSummary;
-        setSpiderReport(report);
-        setVersions((prev) =>
-          prev.map((v) =>
-            v.versionId === activeVersionId
-              ? {
-                  ...v,
-                  criticalGatePassed: report.criticalGatePassed,
-                  qualityScore: report.qualityMetrics.robustnessScore,
-                }
-              : v
-          )
-        );
-        toast.info("Uji Ketahanan Spider Selesai", {
-          description: report.criticalGatePassed
-            ? "Gerbang kritis lulus (5/5 kasus nominal & adversarial terpenuhi)."
-            : "Gerbang kritis belum lulus. Terdapat potensi kerentanan prompt.",
-        });
-      } else {
-        throw new Error(json.error || "Gagal menjalankan Spider.");
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Gagal menjalankan Spider test.");
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal memproses uji Spider.";
-      toast.error(msg);
+      setSpiderReport(data.data.summary);
+      toast.success("Pengujian Spider selesai dievaluasi!");
+    } catch (err) {
+      toast.error((err as Error).message || "Gagal menguji Spider matrix.");
     } finally {
       setIsSpiderLoading(false);
     }
   };
 
+  const handleSelectVersion = (versionId: string) => {
+    setActiveVersionId(versionId);
+    const target = versions.find((v) => v.versionId === versionId);
+    if (target && result) {
+      setResult({
+        ...result,
+        optimizedPrompt: target.promptText,
+        analysis: {
+          ...result.analysis,
+          score: target.qualityScore,
+        },
+      });
+      toast.info(`Beralih ke versi prompt ${target.versionNumber}`);
+    }
+  };
+
   const handleRequestSpiderRefinement = async (findings: SpiderSecurityFinding[]) => {
     if (!result) return;
-    const nextContext = buildClosedLoopOptimizationContext({
+    const closedLoopContext = buildClosedLoopOptimizationContext({
       userContext: context,
       spiderFindings: findings.map((f) => ({
         category: f.category,
@@ -331,94 +336,38 @@ export default function Home() {
         sanitizedEvidence: f.evidenceSnippet,
       })),
     });
-
-    setContext(nextContext);
-    toast.info("Memulai Closed-Loop Refinement...", {
-      description: "Rekomendasi remediasi diinjeksikan ke konteks untuk menghasilkan versi baru.",
-    });
-
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/optimize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: result.optimizedPrompt,
-          context: nextContext,
-          taskType: selectedDomain,
-          providerId: selectedProvider,
-          targetModel: selectedModel,
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        const nextOpt = data as PromptOptimizationResult;
-        setResult(nextOpt);
-        const nextVerNumber = versions.length + 1;
-        const newVersionId = `v${nextVerNumber}`;
-        const newVerRecord: PromptVersionRecord = {
-          versionId: newVersionId,
-          versionNumber: nextVerNumber,
-          promptText: nextOpt.optimizedPrompt,
-          contextText: nextContext,
-          source: "spider-refinement",
-          createdAt: new Date().toISOString(),
-          qualityScore: nextOpt.analysis?.score ?? 90,
-          changeSummary: "Dihasilkan otomatis melalui Closed-Loop Spider Refinement",
-        };
-        setVersions((prev) => [...prev, newVerRecord]);
-        setActiveVersionId(newVersionId);
-        setSpiderReport(null);
-        toast.success(`Versi baru (${newVersionId}) berhasil dibuat dari temuan Spider!`);
-      }
-    } catch {
-      toast.error("Gagal melakukan optimasi perbaikan tertutup.");
-    } finally {
-      setIsLoading(false);
-    }
+    await handleSubmit(closedLoopContext, "spider-refinement");
   };
-
-  const handleSelectVersion = (versionId: string) => {
-    setActiveVersionId(versionId);
-    const targetVer = versions.find((v) => v.versionId === versionId);
-    if (targetVer && result) {
-      setResult({
-        ...result,
-        optimizedPrompt: targetVer.promptText,
-      });
-    }
-  };
-
-  // Sync initial history count from SQLite database
-  useEffect(() => {
-    fetch("/api/history?limit=50")
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success && Array.isArray(json.data)) {
-          setHistoryCount(json.data.length);
-          setTelemetry((prev) => ({ ...prev, historyCount: json.data.length }));
-        }
-      })
-      .catch(() => {});
-  }, [historyRefreshKey]);
 
   const handleTelemetryAction = (
-    actionType: "export" | "feedback_helpful" | "feedback_issue"
+    action: "optimize" | "accept" | "export" | "playground_run" | "feedback_helpful" | "feedback_issue"
   ) => {
-    void actionType;
-    setTelemetry((prev) => ({
-      ...prev,
-      acceptedOrExportedCount: prev.acceptedOrExportedCount + 1,
-    }));
+    setTelemetry((prev) => {
+      switch (action) {
+        case "optimize":
+          return { ...prev, optimizationsCount: prev.optimizationsCount + 1 };
+        case "accept":
+        case "export":
+          return {
+            ...prev,
+            acceptedOrExportedCount: prev.acceptedOrExportedCount + 1,
+          };
+        case "playground_run":
+          return {
+            ...prev,
+            playgroundRunsCount: prev.playgroundRunsCount + 1,
+          };
+        default:
+          return prev;
+      }
+    });
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!prompt.trim()) {
-      setError("Prompt asli tidak boleh kosong.");
-      return;
-    }
+  const handleSubmit = async (
+    customContext?: string,
+    sourceRole: "initial" | "spider-refinement" = "initial"
+  ) => {
+    if (!prompt.trim()) return;
 
     setIsLoading(true);
     setError(null);
@@ -431,7 +380,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           prompt: prompt.trim(),
-          context: context.trim() || null,
+          context: (customContext !== undefined ? customContext : context).trim() || null,
           taskType: selectedDomain,
           providerId: selectedProvider,
           targetModel: selectedModel,
@@ -441,42 +390,42 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.error ||
-            "Engine sedang sibuk atau gagal menganalisis. Coba lagi atau sederhanakan prompt."
-        );
+        throw new Error(data.error || "Gagal mengoptimasi prompt.");
       }
 
-      const optResult = data as PromptOptimizationResult;
-      setResult(optResult);
+      setResult(data);
+      handleTelemetryAction("optimize");
 
-      // Inisialisasi atau rekam versi v1
-      const v1Record: PromptVersionRecord = {
-        versionId: "v1",
-        versionNumber: 1,
-        promptText: optResult.optimizedPrompt,
-        contextText: context,
-        source: "initial",
+      const newVersionNum = versions.length + 1;
+      const newVersionId = `v${newVersionNum}`;
+      const newRecord: PromptVersionRecord = {
+        versionId: newVersionId,
+        versionNumber: newVersionNum,
+        promptText: data.optimizedPrompt,
         createdAt: new Date().toISOString(),
-        qualityScore: optResult.analysis?.score ?? 85,
+        source: sourceRole,
+        changeSummary:
+          sourceRole === "spider-refinement"
+            ? "Perbaikan otomatis berdasarkan temuan uji ketahanan Spider"
+            : `Optimasi awal domain ${selectedDomain}`,
+        qualityScore: data.analysis?.score ?? 85,
+        criticalGatePassed: true,
       };
-      setVersions([v1Record]);
-      setActiveVersionId("v1");
-      setSpiderReport(null);
 
-      // Perbarui metrik sesi lokal
+      setVersions((prev) => [...prev, newRecord]);
+      setActiveVersionId(newVersionId);
+
       setTelemetry((prev) => {
-        const newCount = prev.optimizationsCount + 1;
-        const currentScore = optResult.analysis?.score ?? 85;
-        const prevAvg = prev.averageScore ?? 85;
-        const newAvg =
+        const currentAvg = prev.averageScore ?? 85;
+        const newScore = data.analysis?.score ?? 85;
+        const updatedAvg =
           prev.optimizationsCount === 0
-            ? currentScore
-            : (prevAvg * prev.optimizationsCount + currentScore) / newCount;
+            ? newScore
+            : (currentAvg * prev.optimizationsCount + newScore) /
+              (prev.optimizationsCount + 1);
         return {
           ...prev,
-          optimizationsCount: newCount,
-          averageScore: newAvg,
+          averageScore: updatedAvg,
         };
       });
     } catch (err) {
@@ -509,7 +458,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/10 pb-16 md:pb-6">
+    <div className="min-h-screen bg-background text-foreground selection:bg-foreground/15 selection:text-foreground flex flex-col pb-16 md:pb-6">
       {/* History Sidebar */}
       <HistorySidebar
         isOpen={isHistoryOpen}
@@ -519,279 +468,236 @@ export default function Home() {
         onCountChange={setHistoryCount}
       />
 
-      {/* Top Floating Glass Header Bar (Braintrust / Midday Style) */}
-      <header className="border-b border-border/80 bg-background/90 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-13 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-semibold shadow-2xs">
+      {/* 1.5 Baris Ramping: Unified Workstation Topbar */}
+      <header className="w-full border-b border-border/80 bg-background/95 backdrop-blur-md sticky top-0 z-30 h-12 flex items-center justify-between px-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded border border-border/80 bg-muted/40 flex items-center justify-center text-foreground font-semibold">
               <TerminalSquare className="h-3.5 w-3.5" />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-xs sm:text-sm tracking-tight text-foreground">
-                Prompt Intelligence Workspace — PIEW Mission Control v3.1
-              </span>
-              <span className="text-[10px] text-muted-foreground hidden sm:inline-block border border-border/70 px-1.5 py-0.2 rounded font-mono bg-muted/40">
-                v3.1
-              </span>
-            </div>
+            <span className="font-semibold text-xs sm:text-sm tracking-tight text-foreground flex items-center gap-1.5">
+              Prompt Intelligence Workspace
+            </span>
+            <span className="text-[10px] text-muted-foreground font-mono border border-border/70 px-1.5 py-0.2 rounded bg-muted/40 hidden sm:inline-block">
+              v3.1
+            </span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Live Engine Indicator */}
-            <div className="text-xs text-muted-foreground hidden md:flex items-center gap-1.5 pl-2 border-l border-border/60">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-mono text-[11px] text-foreground/80 flex items-center gap-1">
-                <Cpu className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                Groq LPUs Aktif
-              </span>
-            </div>
+          <span className="text-border/80 hidden sm:inline">/</span>
 
-            {/* LangSmith-style Mini Session Badge */}
-            <div className="hidden lg:flex items-center gap-2 font-mono text-[11px] text-muted-foreground bg-muted/30 px-2.5 py-1 rounded border border-border/60">
-              <span>Sesi: <strong className="text-foreground">{telemetry.optimizationsCount}</strong> run</span>
-              <span>&bull;</span>
-              <span>Skor: <strong className="text-foreground">{Math.round(telemetry.averageScore ?? 0)}</strong>/100</span>
-            </div>
-
-            {/* Providers Settings Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="open-providers-settings-button"
-              onClick={() => setIsProvidersSettingsOpen(true)}
-              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80 hover:bg-muted/60"
-              title="Pengaturan Penyedia AI, API Keys & Custom Endpoints"
-            >
-              <Sliders className="h-3.5 w-3.5 text-amber-500" />
-              <span className="hidden sm:inline">Providers</span>
-            </Button>
-
-            {/* Dark / Light Theme Toggle Switch */}
-            <ThemeToggle />
-
-            {/* History Toggle Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsHistoryOpen(true)}
-              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80 hover:bg-muted/60"
-            >
-              <History className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Riwayat</span>
-              {historyCount > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="ml-1 text-[10px] px-1.5 py-0 font-mono"
-                >
-                  {historyCount}
-                </Badge>
-              )}
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
-        {/* Stage 7 North-Star Telemetry Bar (LangSmith Trace Style) */}
-        <TelemetrySummaryBar metrics={telemetry} />
-
-        {/* Top Level Navigation Tabs: Mission Control v3.0 vs Classic Studio v2.0 */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/80">
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/60 border border-border/70 max-w-fit">
+          {/* Integrated Segmented Tab Switcher */}
+          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-muted/60 border border-border/60">
             <button
               type="button"
               data-testid="tab-mission-control"
               onClick={() => setActiveMainTab("mission-control")}
-              className={`flex items-center gap-2 py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-xs font-medium transition-all cursor-pointer ${
                 activeMainTab === "mission-control"
-                  ? "bg-background text-foreground shadow-xs border border-border/60"
+                  ? "bg-background text-foreground shadow-2xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Cpu className="w-3.5 h-3.5 text-amber-500" />
-              <span>🏛 Autonomous Mission Control (v3.1)</span>
+              <Cpu className="w-3 h-3 text-amber-500" />
+              <span className="hidden md:inline">🏛 Autonomous Mission Control (v3.1)</span>
+              <span className="md:hidden">Mission Control</span>
             </button>
             <button
               type="button"
               data-testid="tab-classic-studio"
               onClick={() => setActiveMainTab("classic")}
-              className={`flex items-center gap-2 py-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-xs font-medium transition-all cursor-pointer ${
                 activeMainTab === "classic"
-                  ? "bg-background text-foreground shadow-xs border border-border/60"
+                  ? "bg-background text-foreground shadow-2xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <PenTool className="w-3.5 h-3.5 text-sky-500" />
-              <span>⚡️ Classic Studio & Optimizer (v2.0)</span>
+              <PenTool className="w-3 h-3 text-sky-500" />
+              <span className="hidden md:inline">⚡ Classic Studio (v2.0)</span>
+              <span className="md:hidden">Studio</span>
             </button>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Status: Mission Control Operasional</span>
           </div>
         </div>
 
+        {/* Right Side Header Controls */}
+        <div className="flex items-center gap-2">
+          {/* Engine Status Dot */}
+          <div className="hidden lg:flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground pr-2 border-r border-border/60">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Groq LPUs Aktif</span>
+          </div>
+
+          {/* Providers Settings Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="open-providers-settings-button"
+            onClick={() => setIsProvidersSettingsOpen(true)}
+            className="h-7 text-xs gap-1.5 cursor-pointer border-border/80 hover:bg-muted/60 px-2.5 font-mono"
+            title="Pengaturan Penyedia AI, API Keys & Custom Endpoints"
+          >
+            <Sliders className="h-3 w-3 text-amber-500" />
+            <span className="hidden sm:inline">Providers</span>
+          </Button>
+
+          {/* History Toggle Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsHistoryOpen(true)}
+            className="h-7 text-xs gap-1.5 cursor-pointer border-border/80 hover:bg-muted/60 px-2.5 font-mono"
+          >
+            <History className="h-3 w-3 text-muted-foreground" />
+            <span>Riwayat</span>
+            {historyCount > 0 && (
+              <span className="font-mono text-[10px] bg-secondary text-secondary-foreground rounded px-1.5 py-0.2 ml-0.5">
+                {historyCount}
+              </span>
+            )}
+          </Button>
+
+          {/* Theme Toggle */}
+          <ThemeToggle />
+        </div>
+      </header>
+
+      {/* Sub-header Status Bar / Trace Ribbon */}
+      <TelemetrySummaryBar metrics={telemetry} />
+
+      {/* Main Container */}
+      <main className="w-full max-w-[1680px] mx-auto px-4 py-4 space-y-4 flex-1">
         {activeMainTab === "mission-control" ? (
           <div className="space-y-6">
             <BlueprintStudio />
             <SupervisionConsole />
           </div>
         ) : (
-          /* Workspace Layout: Bento Kiri (5 Kolom) & Bento Kanan (7 Kolom) */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Bento Kiri: Form Input & Parameter */}
-          <section
-            className={`space-y-4 transition-all duration-200 ${
-              result ? "lg:col-span-5" : "lg:col-span-5"
-            }`}
-          >
-            <Card
-              onMouseMove={handleMouseMoveSpotlight}
-              className="bento-spotlight border-border/80 shadow-xs sticky top-20 overflow-hidden"
-            >
-              <CardHeader className="pb-3 border-b border-border/60 bg-muted/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Sliders className="h-4 w-4 text-primary" />
-                    <div>
-                      <CardTitle className="text-sm sm:text-base font-semibold text-foreground">
-                        Studio Editor
-                      </CardTitle>
-                      <span className="sr-only">Input Prompt</span>
-                    </div>
-                  </div>
-                  {prompt && (
-                    <span className="text-[11px] text-muted-foreground font-mono bg-muted/40 px-2 py-0.5 rounded border border-border/50">
-                      {prompt.length} karakter
-                    </span>
-                  )}
-                </div>
-                <CardDescription className="text-xs">
-                  Area penulisan instruksi utama dengan konfigurasi model dan domain terintegrasi.
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent className="pt-3.5 space-y-3.5">
-                <form onSubmit={handleSubmit} className="space-y-3.5">
-                  {/* Vercel AI Playground-style Compact Parameter Toolbar (3 Kolom) */}
-                  <div className="p-2.5 rounded-lg border border-border/70 bg-muted/30 space-y-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {/* 1. Domain Pack Select */}
-                      <div className="space-y-1">
-                        <Label
-                          htmlFor="domain-pack-select"
-                          className="font-medium text-[11px] text-muted-foreground flex items-center justify-between"
-                        >
-                          <span className="flex items-center gap-1">
-                            <Layers className="h-3 w-3 text-primary" />
-                            <span>Bidang Tugas</span>
-                          </span>
-                        </Label>
-                        <select
-                          id="domain-pack-select"
-                          data-testid="domain-pack-select"
-                          value={selectedDomain}
-                          onChange={(e) => setSelectedDomain(e.target.value)}
-                          disabled={isLoading}
-                          className="w-full h-8 rounded border border-input bg-background px-2 text-xs shadow-2xs font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                        >
-                          {domainPacks.map((pack) => (
-                            <option key={pack.domainId} value={pack.domainId}>
-                              {pack.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* 2. Provider Select */}
-                      <div className="space-y-1">
-                        <Label
-                          htmlFor="provider-select"
-                          className="font-medium text-[11px] text-muted-foreground flex items-center justify-between"
-                        >
-                          <span className="flex items-center gap-1">
-                            <Cpu className="h-3 w-3 text-primary" />
-                            <span>Penyedia</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setIsProvidersSettingsOpen(true)}
-                            className="text-[10px] text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
-                            title="Atur Kunci & Custom Endpoints"
-                          >
-                            <span>Atur</span>
-                            <Sliders className="h-2.5 w-2.5" />
-                          </button>
-                        </Label>
-                        <select
-                          id="provider-select"
-                          data-testid="provider-select"
-                          value={selectedProvider}
-                          onChange={(e) => handleProviderChange(e.target.value)}
-                          disabled={isLoading}
-                          className="w-full h-8 rounded border border-input bg-background px-2 text-xs shadow-2xs font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                        >
-                          {providers.map((p: ProviderCapability) => (
-                            <option key={p.providerId} value={p.providerId}>
-                              {p.displayName}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* 3. Target Model Select */}
-                      <div className="space-y-1">
-                        <Label
-                          htmlFor="target-model-select"
-                          className="font-medium text-[11px] text-muted-foreground flex items-center justify-between"
-                        >
-                          <span className="flex items-center gap-1">
-                            <Sliders className="h-3 w-3 text-primary" />
-                            <span>Model Tujuan</span>
-                          </span>
-                        </Label>
-                        <select
-                          id="target-model-select"
-                          data-testid="target-model-select"
-                          value={selectedModel}
-                          onChange={(e) => setSelectedModel(e.target.value)}
-                          disabled={isLoading}
-                          className="w-full h-8 rounded border border-input bg-background px-2 text-xs shadow-2xs font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                        >
-                          {activeProvider.availableModels.map((m: string) => (
-                            <option key={m} value={m}>
-                              {m}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Active Domain Indicator */}
-                    {activeDomainPack && (
-                      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
-                        <span className="truncate max-w-[280px]">
-                          {activeDomainPack.description}
-                        </span>
-                        <span className="font-mono text-primary font-semibold shrink-0">
-                          v{activeDomainPack.ruleVersion || "1.0.0"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Prompt Input */}
-                  <div className="space-y-1.5">
+          /* Workstation Split-Pane Layout */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            {/* Panel Kiri: Form Input & Parameter (5 Kolom) */}
+            <section className="lg:col-span-5 space-y-3">
+              {/* Parameter Toolbar (Vercel AI Playground-style) */}
+              <div className="rounded-lg border border-border/80 bg-card/60 p-3 space-y-2.5 shadow-2xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {/* 1. Domain Pack Select */}
+                  <div className="space-y-1">
                     <Label
-                      htmlFor="original-prompt"
-                      className="font-medium text-xs flex items-center justify-between"
+                      htmlFor="domain-pack-select"
+                      className="font-medium text-[11px] text-muted-foreground flex items-center gap-1"
                     >
-                      <span className="flex items-center gap-1 font-semibold text-foreground">
-                        Instruksi Awal <span className="text-destructive">*</span>
-                        <span className="sr-only">Prompt Asli</span>
+                      <Layers className="h-3 w-3 text-primary" />
+                      <span>Bidang Tugas</span>
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="domain-pack-select"
+                        data-testid="domain-pack-select"
+                        value={selectedDomain}
+                        onChange={(e) => setSelectedDomain(e.target.value)}
+                        disabled={isLoading}
+                        className="w-full h-8 rounded-md border border-border/80 bg-background/80 px-2.5 pr-7 text-xs font-mono appearance-none focus:outline-hidden focus:ring-1 focus:ring-foreground/20 cursor-pointer"
+                      >
+                        {domainPacks.map((pack) => (
+                          <option key={pack.domainId} value={pack.domainId}>
+                            {pack.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  {/* 2. Provider Select */}
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="provider-select"
+                      className="font-medium text-[11px] text-muted-foreground flex items-center justify-between"
+                    >
+                      <span className="flex items-center gap-1">
+                        <Cpu className="h-3 w-3 text-primary" />
+                        <span>Penyedia</span>
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsProvidersSettingsOpen(true)}
+                        className="text-[10px] text-muted-foreground hover:text-foreground hover:underline flex items-center gap-0.5 cursor-pointer font-mono"
+                        title="Atur Kunci & Custom Endpoints"
+                      >
+                        <span>Atur</span>
+                        <Sliders className="h-2.5 w-2.5" />
+                      </button>
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="provider-select"
+                        data-testid="provider-select"
+                        value={selectedProvider}
+                        onChange={(e) => handleProviderChange(e.target.value)}
+                        disabled={isLoading}
+                        className="w-full h-8 rounded-md border border-border/80 bg-background/80 px-2.5 pr-7 text-xs font-mono appearance-none focus:outline-hidden focus:ring-1 focus:ring-foreground/20 cursor-pointer"
+                      >
+                        {providers.map((p: any) => (
+                          <option key={p.providerId} value={p.providerId}>
+                            {p.displayName}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  {/* 3. Target Model Select */}
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="target-model-select"
+                      className="font-medium text-[11px] text-muted-foreground flex items-center gap-1"
+                    >
+                      <Sliders className="h-3 w-3 text-primary" />
+                      <span>Model Tujuan</span>
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="target-model-select"
+                        data-testid="target-model-select"
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        disabled={isLoading}
+                        className="w-full h-8 rounded-md border border-border/80 bg-background/80 px-2.5 pr-7 text-xs font-mono appearance-none focus:outline-hidden focus:ring-1 focus:ring-foreground/20 cursor-pointer"
+                      >
+                        {activeProvider.availableModels.map((m: string) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                  </div>
+                </div>
+
+                {activeDomainPack && (
+                  <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px] text-muted-foreground font-mono">
+                    <span className="truncate max-w-[280px]">{activeDomainPack.description}</span>
+                    <span className="text-foreground font-semibold shrink-0">v{activeDomainPack.ruleVersion || "1.0.0"}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Code-Like Prompt Editor Workbench */}
+              <div className="rounded-lg border border-border/80 bg-card/60 p-3.5 space-y-3 shadow-2xs">
+                <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-3">
+                  {/* Header Bar above Original Prompt */}
+                  <div className="flex items-center justify-between pb-1 border-b border-border/40">
+                    <span className="font-mono text-[10px] tracking-wider uppercase text-muted-foreground font-semibold flex items-center gap-1.5">
+                      <TerminalSquare className="h-3.5 w-3.5 text-primary" />
+                      <span>INSTRUCTION PROMPT *</span>
+                      <span className="sr-only">Prompt Asli</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {prompt && (
+                        <span className="text-[10px] font-mono text-muted-foreground bg-muted/40 px-1.5 py-0.2 rounded border border-border/50">
+                          {prompt.length} chars ~{Math.ceil(prompt.length / 4)} tok
+                        </span>
+                      )}
                       {isCrawlerFeatureEnabled() && (
                         <Button
                           type="button"
@@ -799,68 +705,61 @@ export default function Home() {
                           size="sm"
                           data-testid="open-crawler-modal-button"
                           onClick={() => setIsCrawlerModalOpen(true)}
-                          className="h-6 px-2 text-[11px] text-primary hover:text-primary hover:bg-primary/10 gap-1 cursor-pointer font-normal"
+                          className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-1 cursor-pointer font-mono"
                         >
                           <Globe className="h-3 w-3" />
                           <span>Ambil Referensi Tautan</span>
                           <span className="sr-only">Impor Sumber &amp; Fakta (Crawler)</span>
                         </Button>
                       )}
-                    </Label>
-                    <Textarea
-                      id="original-prompt"
-                      rows={result ? 5 : 7}
-                      placeholder="Contoh: Buatkan saya kode Python untuk web scraping..."
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      disabled={isLoading}
-                      className="resize-y text-xs font-mono leading-relaxed focus-visible:ring-1"
-                      required
-                    />
+                    </div>
                   </div>
 
-                  {/* Context Input */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="context-prompt"
-                      className="font-medium text-xs flex items-center justify-between"
-                    >
-                      <span className="font-semibold text-foreground">
-                        Konteks Pendukung{" "}
-                        <span className="text-muted-foreground font-normal text-[11px]">
-                          (Opsional)
-                        </span>
-                        <span className="sr-only">Konteks Tambahan</span>
-                      </span>
-                    </Label>
-                    <Textarea
-                      id="context-prompt"
-                      rows={result ? 2 : 3}
-                      placeholder="Contoh: Target e-commerce data extraction, gunakan BeautifulSoup..."
-                      value={context}
-                      onChange={(e) => setContext(e.target.value)}
-                      disabled={isLoading}
-                      className="resize-y text-xs leading-relaxed"
-                    />
+                  <Textarea
+                    id="original-prompt"
+                    rows={result ? 5 : 7}
+                    placeholder="Contoh: Buatkan saya kode Python untuk web scraping..."
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    disabled={isLoading}
+                    className="resize-y text-xs font-mono leading-relaxed bg-zinc-950/40 dark:bg-zinc-950/80 border-border/80 focus-visible:ring-1 focus-visible:ring-foreground/20 rounded-md"
+                    required
+                  />
+
+                  {/* Header Bar above Context Prompt */}
+                  <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                    <span className="font-mono text-[10px] tracking-wider uppercase text-muted-foreground font-semibold flex items-center gap-1.5">
+                      <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>CONTEXT / GROUNDING (OPTIONAL)</span>
+                      <span className="sr-only">Konteks Tambahan</span>
+                    </span>
                   </div>
+
+                  <Textarea
+                    id="context-prompt"
+                    rows={result ? 2 : 3}
+                    placeholder="Contoh: Target e-commerce data extraction, gunakan BeautifulSoup..."
+                    value={context}
+                    onChange={(e) => setContext(e.target.value)}
+                    disabled={isLoading}
+                    className="resize-y text-xs font-mono leading-relaxed bg-zinc-950/30 dark:bg-zinc-950/60 border-border/80 focus-visible:ring-1 focus-visible:ring-foreground/20 rounded-md"
+                  />
 
                   {/* Error Notification Alert */}
                   {error && (
-                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3.5 text-xs text-destructive flex items-start gap-3 animate-in fade-in">
+                    <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2.5">
                       <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                      <div className="space-y-1.5 flex-1">
-                        <div className="font-semibold text-destructive">
-                          Terjadi Kendala Pemrosesan
-                        </div>
+                      <div className="space-y-1 flex-1">
+                        <div className="font-semibold text-destructive">Terjadi Kendala Pemrosesan</div>
                         <div className="leading-relaxed opacity-90">{error}</div>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => handleSubmit()}
-                          className="mt-1 h-7 text-[11px] border-destructive/30 hover:bg-destructive/20 text-destructive cursor-pointer"
+                          className="mt-1 h-6 text-[10px] border-destructive/30 hover:bg-destructive/20 text-destructive cursor-pointer font-mono"
                         >
-                          <RefreshCw className="mr-1.5 h-3 w-3" />
+                          <RefreshCw className="mr-1 h-2.5 w-2.5" />
                           Coba Lagi
                         </Button>
                       </div>
@@ -872,7 +771,7 @@ export default function Home() {
                     <Button
                       type="submit"
                       disabled={isLoading || !prompt.trim()}
-                      className="flex-1 h-9 text-xs font-medium cursor-pointer bg-foreground text-background hover:opacity-90 transition-opacity"
+                      className="flex-1 h-9 text-xs font-medium cursor-pointer bg-foreground text-background hover:bg-foreground/90 transition-opacity shadow-none rounded-md"
                     >
                       {isLoading ? (
                         <>
@@ -895,91 +794,129 @@ export default function Home() {
                         onClick={handleReset}
                         disabled={isLoading}
                         title="Reset Form"
-                        className="h-9 px-3 cursor-pointer"
+                        className="h-9 px-3 cursor-pointer border-border/80 hover:bg-muted/60 rounded-md"
                       >
                         <RotateCcw className="h-3.5 w-3.5" />
                       </Button>
                     )}
                   </div>
                 </form>
+              </div>
+            </section>
 
-                {/* Privacy, External Provider & Data Retention Disclosure */}
-                <PrivacyDisclosure />
-              </CardContent>
-            </Card>
-          </section>
-
-          {/* Result / Output Section (Bento Kanan 7 Kolom) */}
-          <section
-            className={`space-y-6 ${
-              result ? "lg:col-span-7" : "lg:col-span-7"
-            }`}
-          >
-            {!result && !isLoading && (
-              <Card
-                onMouseMove={handleMouseMoveSpotlight}
-                className="bento-spotlight border-dashed border-border/80 bg-muted/20 h-full min-h-[380px] flex items-center justify-center p-8 text-center"
-              >
-                <div className="max-w-sm space-y-3">
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-                    <PenTool className="h-5 w-5 text-primary" />
+            {/* Panel Kanan: Evaluasi, Diff, Matrix & Playground (7 Kolom) */}
+            <section className="lg:col-span-7 space-y-4">
+              {!result && !isLoading && (
+                <div className="rounded-lg border border-border/80 bg-card/40 p-6 space-y-5 shadow-2xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded bg-muted/60 border border-border/70 flex items-center justify-center text-primary">
+                        <PenTool className="h-3.5 w-3.5" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground text-xs uppercase tracking-wider font-mono">
+                          Pipeline Execution Workspace
+                          <span className="sr-only">Belum Ada Hasil Analisis</span>
+                        </h3>
+                        <p className="text-[11px] text-muted-foreground">
+                          Audit semantik, injeksi guardrail, dan evaluasi ketahanan model produksi.
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="font-mono text-[10px] text-muted-foreground border-border/80">
+                      IDLE READY
+                    </Badge>
                   </div>
-                  <h3 className="font-semibold text-foreground text-sm">
-                    Belum Ada Evaluasi Aktif
-                    <span className="sr-only">Belum Ada Hasil Analisis</span>
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Ketik instruksi di Studio Editor lalu klik tombol{" "}
-                    <span className="font-semibold text-foreground">
-                      Susun &amp; Evaluasi Instruksi
-                    </span>{" "}
-                    untuk menghasilkan Master Prompt terverifikasi dengan evaluasi semantik dan batasan eksekusi yang kokoh.
-                  </p>
-                </div>
-              </Card>
-            )}
 
-            {isLoading && (
-              <Card className="border-border/80 min-h-[420px] flex items-center justify-center p-8 text-center animate-pulse">
-                <div className="space-y-4 max-w-sm">
-                  <Loader2 className="h-9 w-9 animate-spin mx-auto text-primary" />
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-foreground text-sm">
-                      Sedang menganalisis kebutuhan dan menyusun instruksi...
-                      <span className="sr-only">Menjalankan Pipeline Engine via Groq LLM...</span>
-                    </h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Tahap 1: Evaluasi kelemahan semantik &amp; verifikasi batasan
-                      <br />
-                      Tahap 2: Rekonstruksi Master Prompt &amp; validasi keselarasan tujuan
-                    </p>
-                    <span className="inline-block text-[11px] text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded">
-                      Estimasi durasi: 3-8 detik
+                  {/* 3 Pipeline Stage Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 rounded-md border border-border/70 bg-muted/20 space-y-1.5">
+                      <span className="text-[10px] font-mono text-muted-foreground block font-semibold">STAGE 01</span>
+                      <span className="font-semibold text-foreground text-xs block">Semantic Audit</span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Deteksi ambiguitas, missing constraints, dan celah salah tafsir maksud.
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-md border border-border/70 bg-muted/20 space-y-1.5">
+                      <span className="text-[10px] font-mono text-muted-foreground block font-semibold">STAGE 02</span>
+                      <span className="font-semibold text-foreground text-xs block">Guardrail Injection</span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Penataan format terstruktur, pembatasan negatif, dan token placeholders.
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-md border border-border/70 bg-muted/20 space-y-1.5">
+                      <span className="text-[10px] font-mono text-muted-foreground block font-semibold">STAGE 03</span>
+                      <span className="font-semibold text-foreground text-xs block">Adversarial Spider</span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Pengujian ketahanan 5 kategori stres uji sebelum deployment model.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-md border border-border/50 bg-zinc-950/40 dark:bg-zinc-950/60 font-mono text-[11px] text-muted-foreground flex items-center justify-between">
+                    <span>Ketik instruksi di editor lalu klik &quot;Susun &amp; Evaluasi Instruksi&quot;</span>
+                    <span className="text-emerald-500 font-semibold flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Zero Leak Engine
                     </span>
                   </div>
                 </div>
-              </Card>
-            )}
+              )}
 
-            {result && !isLoading && (
-              <ResultDashboard
-                result={result}
-                onRegenerate={() => handleSubmit()}
-                onRefreshHistory={() =>
-                  setHistoryRefreshKey((prev) => prev + 1)
-                }
-                onTelemetryAction={handleTelemetryAction}
-                versions={versions}
-                activeVersionId={activeVersionId}
-                onSelectVersion={handleSelectVersion}
-                spiderReport={spiderReport}
-                isSpiderLoading={isSpiderLoading}
-                onRunSpider={handleRunSpider}
-                onRequestRefinement={handleRequestSpiderRefinement}
-              />
-            )}
-          </section>
-        </div>
+              {isLoading && (
+                <div className="rounded-lg border border-border/80 bg-card/40 p-6 space-y-5 animate-pulse shadow-2xs">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <div>
+                      <h3 className="font-semibold text-foreground text-xs uppercase tracking-wider font-mono">
+                        Sedang Menganalisis Kebutuhan &amp; Menyusun Instruksi...
+                        <span className="sr-only">Menjalankan Pipeline Engine via Groq LLM...</span>
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        Pipeline berantai multi-tahap sedang memproses token instruksi.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 font-mono text-xs text-muted-foreground">
+                    <div className="p-2.5 rounded border border-border/60 bg-muted/20 flex items-center justify-between">
+                      <span>[1/3] Evaluasi kelemahan semantik &amp; verifikasi batasan...</span>
+                      <span className="text-emerald-500 font-semibold">RUNNING</span>
+                    </div>
+                    <div className="p-2.5 rounded border border-border/60 bg-muted/20 flex items-center justify-between opacity-70">
+                      <span>[2/3] Rekonstruksi Master Prompt &amp; validasi intent...</span>
+                      <span className="text-muted-foreground">QUEUED</span>
+                    </div>
+                    <div className="p-2.5 rounded border border-border/60 bg-muted/20 flex items-center justify-between opacity-50">
+                      <span>[3/3] Penyiapan Spider robustness benchmark...</span>
+                      <span className="text-muted-foreground">PENDING</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {result && !isLoading && (
+                <ResultDashboard
+                  result={result}
+                  onRegenerate={() => handleSubmit()}
+                  onAccept={handleAcceptPrompt}
+                  onRefreshHistory={() =>
+                    setHistoryRefreshKey((prev) => prev + 1)
+                  }
+                  onTelemetryAction={handleTelemetryAction}
+                  versions={versions}
+                  activeVersionId={activeVersionId}
+                  onSelectVersion={handleSelectVersion}
+                  spiderReport={spiderReport}
+                  isSpiderLoading={isSpiderLoading}
+                  onRunSpider={handleRunSpider}
+                  onRequestRefinement={handleRequestSpiderRefinement}
+                />
+              )}
+            </section>
+          </div>
         )}
 
         {/* Footer: Privacy Disclosure & User Guide Documentation */}
