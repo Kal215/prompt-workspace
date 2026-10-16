@@ -150,12 +150,27 @@ export function maskApiKey(rawKey?: string | null): string | null {
 
 export function loadRawProvidersData(): StoredProvidersData {
   const filePath = getStorageFilePath();
+  const altFilePath = path.join(os.homedir(), ".piew", "providers.json");
+  let data: StoredProvidersData = {
+    cloudKeys: {},
+    customEndpoints: [DEFAULT_CUSTOM_ENDPOINT],
+    activeEndpointId: "lyra-pc",
+  };
+
   try {
     if (fs.existsSync(filePath)) {
       const raw = fs.readFileSync(filePath, "utf-8");
       const parsed = JSON.parse(raw);
-      return {
+      data = {
         cloudKeys: parsed.cloudKeys && typeof parsed.cloudKeys === "object" ? parsed.cloudKeys : {},
+        customEndpoints: Array.isArray(parsed.customEndpoints) ? parsed.customEndpoints : [DEFAULT_CUSTOM_ENDPOINT],
+        activeEndpointId: typeof parsed.activeEndpointId === "string" ? parsed.activeEndpointId : "lyra-pc",
+      };
+    } else if (fs.existsSync(altFilePath)) {
+      const raw = fs.readFileSync(altFilePath, "utf-8");
+      const parsed = JSON.parse(raw);
+      data = {
+        cloudKeys: {},
         customEndpoints: Array.isArray(parsed.customEndpoints) ? parsed.customEndpoints : [DEFAULT_CUSTOM_ENDPOINT],
         activeEndpointId: typeof parsed.activeEndpointId === "string" ? parsed.activeEndpointId : "lyra-pc",
       };
@@ -164,20 +179,36 @@ export function loadRawProvidersData(): StoredProvidersData {
     console.warn("[PROVIDERS_STORE_LOAD_WARN]", (err as Error).message);
   }
 
-  return {
-    cloudKeys: {},
-    customEndpoints: [DEFAULT_CUSTOM_ENDPOINT],
-    activeEndpointId: "lyra-pc",
-  };
+  return data;
 }
 
 export function saveRawProvidersData(data: StoredProvidersData): void {
   const filePath = getStorageFilePath();
+  const altFilePath = path.join(os.homedir(), ".piew", "providers.json");
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
   } catch (err) {
     console.error("[PROVIDERS_STORE_SAVE_ERROR]", (err as Error).message);
   }
+
+  try {
+    // Sinkronisasi juga ke ~/.piew/providers.json untuk @prompt-workspace/provider-adapters
+    const altDir = path.dirname(altFilePath);
+    if (!fs.existsSync(altDir)) fs.mkdirSync(altDir, { recursive: true });
+    fs.writeFileSync(
+      altFilePath,
+      JSON.stringify(
+        {
+          schemaVersion: "1.0",
+          customEndpoints: data.customEndpoints,
+          activeEndpointId: data.activeEndpointId,
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+  } catch {}
 }
 
 export function getSanitizedProvidersConfig() {

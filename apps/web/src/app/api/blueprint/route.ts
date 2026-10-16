@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
-import { synthesizeUniversalBlueprint } from "@prompt-workspace/prompt-engine";
+import { synthesizeUniversalBlueprint, synthesizeUniversalBlueprintAsync } from "@prompt-workspace/prompt-engine";
 import { checkCsrf, csrfForbiddenResponse } from "../../../lib/csrf";
 
 // Pastikan konfigurasi .env dimuat
@@ -63,12 +63,22 @@ export async function POST(request: Request) {
       promptText += `\nBatasan mutlak:\n${constraints.map((c: string) => `- ${c}`).join("\n")}`;
     }
 
-    const result = synthesizeUniversalBlueprint({
-      prompt: promptText,
-      domain,
-      audienceLevel,
-      context: typeof body.context === "string" ? body.context : null,
-    });
+    let result;
+    try {
+      result = await synthesizeUniversalBlueprintAsync({
+        prompt: promptText,
+        domain,
+        audienceLevel,
+        context: typeof body.context === "string" ? body.context : null,
+      });
+    } catch {
+      result = synthesizeUniversalBlueprint({
+        prompt: promptText,
+        domain,
+        audienceLevel,
+        context: typeof body.context === "string" ? body.context : null,
+      });
+    }
 
     return NextResponse.json({
       success: true,

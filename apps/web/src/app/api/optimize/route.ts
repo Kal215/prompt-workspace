@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { PromptOptimizationRequestSchema } from "@prompt-workspace/prompt-contracts";
-import { runOptimizationPipeline } from "@prompt-workspace/prompt-engine";
+import {
+  runOptimizationPipeline,
+  synthesizeUniversalBlueprintAsync,
+} from "@prompt-workspace/prompt-engine";
 import {
   ProviderAdapterError,
+  resolveProviderAdapter,
+  LLMProviderAdapter,
 } from "@prompt-workspace/provider-adapters";
 import crypto from "crypto";
 import path from "path";
@@ -13,6 +18,7 @@ import {
   getOptimizeRateLimiter,
   extractClientIP,
 } from "../../../lib/rate-limiter";
+import { loadRawProvidersData } from "../../../lib/providers-store";
 
 // Pastikan environment variables (GROQ_API_KEY_1..6, GEMINI_API_KEY, dll) ter-load di server Next.js
 if (!process.env.GROQ_API_KEY_1) {
@@ -81,10 +87,51 @@ export async function POST(request: Request) {
 
     const validatedData = validationResult.data;
 
-    // Jalankan pipeline nyata via provider yang dipilih pengguna (default: groq)
-    const engineResult = await runOptimizationPipeline(validatedData);
+    // Resolusi provider aktif atau custom endpoint dari registry
+    let customAdapter: LLMProviderAdapter | undefined;
+    const requestedProvider = body.providerId || loadRawProvidersData().activeEndpointId;
+    if (requestedProvider) {
+      try {
+        customAdapter = await resolveProviderAdapter(requestedProvider, {
+          targetModel: body.targetModel || undefined,
+        });
+      } catch {
+        // Fallback otomatis ke internal factory adapter jika provider berupa string builtin standar
+      }
+    }
 
-    return NextResponse.json(engineResult, { status: 200 });
+    // Jalankan pipeline nyata via provider yang dipilih pengguna (default: groq)
+    const engineResult = await runOptimizationPipeline(validatedData, customAdapter);
+
+    // Sintesis Dynamic Meta-Blueprint & Anti-Crash Mermaid Layout (PR #56)
+    let universalBlueprint: any = null;
+    let mermaidDiagrams: any[] = [];
+    let synthesisMode = "deterministic_fallback";
+
+    try {
+      const blueprintRes = await synthesizeUniversalBlueprintAsync({
+        prompt: validatedData.prompt,
+        context: validatedData.context,
+        domain: validatedData.taskType || undefined,
+      });
+      if (blueprintRes?.blueprint) {
+        universalBlueprint = blueprintRes.blueprint;
+        mermaidDiagrams = blueprintRes.blueprint.diagrams || [];
+        synthesisMode = blueprintRes.metadata?.synthesisMode || "live_llm_dynamic";
+      }
+    } catch (blueprintErr) {
+      console.warn("[OPTIMIZE_DYNAMIC_BLUEPRINT_WARN]", (blueprintErr as Error).message);
+    }
+
+    return NextResponse.json(
+      {
+        ...engineResult,
+        universalBlueprint,
+        mermaidDiagrams,
+        synthesisMode,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("[API /api/optimize] Kesalahan pada pipeline engine:", error);
 

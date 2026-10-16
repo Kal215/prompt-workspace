@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -139,8 +139,8 @@ export default function Home() {
     }
   }, []);
 
-  // Ambil kapabilitas provider dari /api/providers saat mount
-  useEffect(() => {
+  // Ambil kapabilitas provider dari /api/providers
+  const loadProviders = useCallback(() => {
     fetch("/api/providers")
       .then((res) => res.json())
       .then((json) => {
@@ -168,10 +168,24 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    loadProviders();
+  }, [loadProviders]);
+
   // Handler saat custom endpoint dipilih dari modal Providers Settings
   const handleSelectCustomProvider = (providerId: string, model?: string) => {
     setProviders((prev) => {
-      if (prev.some((p) => p.providerId === providerId)) return prev;
+      const existing = prev.find((p) => p.providerId === providerId);
+      if (existing) {
+        if (model && !existing.availableModels.includes(model)) {
+          return prev.map((p) =>
+            p.providerId === providerId
+              ? { ...p, availableModels: [...p.availableModels, model] }
+              : p
+          );
+        }
+        return prev;
+      }
       return [
         ...prev,
         {
@@ -650,10 +664,21 @@ export default function Home() {
                   <div className="space-y-1">
                     <Label
                       htmlFor="target-model-select"
-                      className="font-medium text-[11px] text-muted-foreground flex items-center gap-1"
+                      className="font-medium text-[11px] text-muted-foreground flex items-center justify-between"
                     >
-                      <Sliders className="h-3 w-3 text-primary" />
-                      <span>Model Tujuan</span>
+                      <span className="flex items-center gap-1">
+                        <Sliders className="h-3 w-3 text-primary" />
+                        <span>Model Tujuan</span>
+                      </span>
+                      <button
+                        type="button"
+                        data-testid="open-providers-settings-btn"
+                        onClick={() => setIsProvidersSettingsOpen(true)}
+                        className="text-[10px] text-amber-500 hover:text-amber-400 hover:underline flex items-center gap-0.5 cursor-pointer font-mono"
+                        title="Buka Pengaturan Providers"
+                      >
+                        <span>⚡ Providers</span>
+                      </button>
                     </Label>
                     <div className="relative">
                       <select
@@ -974,7 +999,10 @@ export default function Home() {
       {/* Settings > Providers Modal */}
       <ProvidersSettingsModal
         isOpen={isProvidersSettingsOpen}
-        onClose={() => setIsProvidersSettingsOpen(false)}
+        onClose={() => {
+          setIsProvidersSettingsOpen(false);
+          loadProviders();
+        }}
         onSelectProvider={handleSelectCustomProvider}
       />
     </div>
