@@ -228,6 +228,7 @@ async function testHttpSseTransport() {
     {
       cwd: process.cwd(),
       stdio: ["ignore", "pipe", "pipe"],
+      shell: process.platform === "win32",
     }
   );
 

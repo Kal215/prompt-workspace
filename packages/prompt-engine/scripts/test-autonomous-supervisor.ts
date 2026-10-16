@@ -257,6 +257,7 @@ async function testMcpServerRoundtrip(): Promise<void> {
 
   const child = spawn("npx", ["tsx", mcpServerPath], {
     stdio: ["pipe", "pipe", "pipe"],
+    shell: process.platform === "win32",
   });
 
   let stdoutBuffer = "";
