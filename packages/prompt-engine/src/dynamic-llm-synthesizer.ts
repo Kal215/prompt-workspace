@@ -14,6 +14,8 @@ import {
   OpenRouterAdapter,
   GeminiAdapter,
   OllamaAdapter,
+  CascadeFailoverAdapter,
+  CascadeCandidate,
 } from "@prompt-workspace/provider-adapters";
 
 export interface DynamicExtractionParams {
@@ -37,7 +39,11 @@ export interface ResolvedProviderInfo {
  * 2. GroqAdapter dengan rotasi multi-key (GROQ_API_KEY_1 s/d GROQ_API_KEY_6)
  * 3. OpenRouter / Gemini / Ollama
  */
-export async function resolveActiveLLMProvider(): Promise<ResolvedProviderInfo | null> {
+export async function resolveActiveLLMProvider(
+  options?: { enableCascade?: boolean }
+): Promise<ResolvedProviderInfo | null> {
+  const candidates: CascadeCandidate[] = [];
+
   // 1. Cek Custom Endpoint persisten yang aktif
   try {
     const customList = await listCustomEndpoints({ includeSecrets: true });
@@ -46,11 +52,12 @@ export async function resolveActiveLLMProvider(): Promise<ResolvedProviderInfo |
     );
     if (activeCustom) {
       const adapter = new CustomEndpointAdapter(activeCustom as any);
-      return {
-        adapter,
+      candidates.push({
         providerId: activeCustom.providerId,
+        adapter,
+        priority: 1,
         model: activeCustom.defaultModel || "hermes-agent",
-      };
+      });
     }
   } catch {
     // Abaikan jika direktori ~/.piew belum diinisialisasi
@@ -66,40 +73,42 @@ export async function resolveActiveLLMProvider(): Promise<ResolvedProviderInfo |
     try {
       const groq = new GroqAdapter();
       if (groq.getAvailableKeyCount() > 0) {
-        // Gunakan model openai/gpt-oss-120b atau qwen/qwen3.8-27b yang tersedia di Groq
         const model = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
-        return {
-          adapter: groq,
+        candidates.push({
           providerId: "groq",
+          adapter: groq,
+          priority: candidates.length + 1,
           model,
-        };
+        });
       }
     } catch (err) {
       console.warn("[DynamicLLM] Groq initialization skipped:", err);
     }
   }
 
-  // 3. Cek OpenRouter
-  if (process.env.OPENROUTER_API_KEY) {
-    try {
-      const openRouter = new OpenRouterAdapter();
-      return {
-        adapter: openRouter,
-        providerId: "openrouter",
-        model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct",
-      };
-    } catch {}
-  }
-
-  // 4. Cek Gemini
+  // 3. Cek Gemini
   if (process.env.GEMINI_API_KEY) {
     try {
       const gemini = new GeminiAdapter();
-      return {
-        adapter: gemini,
+      candidates.push({
         providerId: "gemini",
+        adapter: gemini,
+        priority: candidates.length + 1,
         model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-      };
+      });
+    } catch {}
+  }
+
+  // 4. Cek OpenRouter
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      const openRouter = new OpenRouterAdapter();
+      candidates.push({
+        providerId: "openrouter",
+        adapter: openRouter,
+        priority: candidates.length + 1,
+        model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct",
+      });
     } catch {}
   }
 
@@ -107,15 +116,40 @@ export async function resolveActiveLLMProvider(): Promise<ResolvedProviderInfo |
   if (process.env.OLLAMA_BASE_URL) {
     try {
       const ollama = new OllamaAdapter({ baseURL: process.env.OLLAMA_BASE_URL });
-      return {
-        adapter: ollama,
+      candidates.push({
         providerId: "ollama",
+        adapter: ollama,
+        priority: candidates.length + 1,
         model: process.env.OLLAMA_MODEL || "llama3.2",
-      };
+      });
     } catch {}
   }
 
-  return null;
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  // Jika cascade diaktifkan (default: true) dan ada lebih dari 1 kandidat:
+  const shouldCascade = options?.enableCascade !== false && candidates.length > 1;
+  if (shouldCascade) {
+    const cascadeAdapter = new CascadeFailoverAdapter({
+      primaryProviderId: candidates[0].providerId,
+      targetModel: candidates[0].model,
+      candidates,
+    });
+    return {
+      adapter: cascadeAdapter,
+      providerId: candidates[0].providerId,
+      model: candidates[0].model || "llama-3.3-70b-versatile",
+    };
+  }
+
+  // Single candidate fallback
+  return {
+    adapter: candidates[0].adapter,
+    providerId: candidates[0].providerId,
+    model: candidates[0].model || "llama-3.3-70b-versatile",
+  };
 }
 
 /**
@@ -382,6 +416,18 @@ function normalizeKnowledgeGraphJson(
     }
     if (!Array.isArray(result.diagramStructures.entities)) {
       result.diagramStructures.entities = [];
+    } else {
+      // Pastikan setiap entitas memiliki setidaknya 2 fields sesuai DynamicBlueprintKnowledgeGraphSchema
+      for (const ent of result.diagramStructures.entities) {
+        if (!ent || typeof ent !== "object") continue;
+        if (!Array.isArray(ent.fields)) {
+          ent.fields = ["id string", "nama string"];
+        } else if (ent.fields.length === 0) {
+          ent.fields.push("id string", "nama string");
+        } else if (ent.fields.length === 1) {
+          ent.fields.push("created_at timestamp");
+        }
+      }
     }
     if (!Array.isArray(result.diagramStructures.relationships)) {
       result.diagramStructures.relationships = [];

@@ -3,10 +3,10 @@
  * Sesuai Blueprint v1.0 Bagian 15.2 (Data Minimization) & Zero-Leakage Policy
  */
 
-const GROQ_KEY_REGEX = /gsk_[a-zA-Z0-9_-]{20,}/g;
-const OPENAI_KEY_REGEX = /sk-[a-zA-Z0-9_-]{20,}/g;
-const GEMINI_KEY_REGEX = /AIza[0-9A-Za-z_-]{25,}/g;
-const OPENROUTER_KEY_REGEX = /sk-or-[a-zA-Z0-9_-]{20,}/g;
+const GROQ_KEY_REGEX = /gsk_[a-zA-Z0-9_-]{15,}/g;
+const OPENAI_KEY_REGEX = /sk-[a-zA-Z0-9_-]{10,}/g;
+const GEMINI_KEY_REGEX = /AIza[0-9A-Za-z_-]{20,}/g;
+const OPENROUTER_KEY_REGEX = /sk-or-[a-zA-Z0-9_-]{15,}/g;
 const BEARER_REGEX = /Bearer\s+[a-zA-Z0-9._\-]+/gi;
 
 export function redactApiKey(text: string): string {
