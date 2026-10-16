@@ -10,6 +10,11 @@ import { GroqAdapter } from "./groq-adapter.js";
 import { GeminiAdapter } from "./gemini-adapter.js";
 import { OpenRouterAdapter } from "./openrouter-adapter.js";
 import { OllamaAdapter } from "./ollama-adapter.js";
+import {
+  CascadeCandidate,
+  CascadeFailoverAdapter,
+  FailoverEvent,
+} from "./cascade-failover-adapter.js";
 
 /**
  * Memeriksa apakah provider tertentu telah terkonfigurasi (tersedia API key/endpoint)
@@ -141,6 +146,94 @@ export interface CreateProviderAdapterOptions {
   targetModel?: string | null;
   env?: NodeJS.ProcessEnv;
   fetchFn?: typeof fetch;
+  enableCascade?: boolean;
+  onFailover?: (event: FailoverEvent) => void;
+}
+
+export interface CreateCascadeAdapterOptions {
+  primaryProviderId?: ProviderId | string | null;
+  targetModel?: string | null;
+  env?: NodeJS.ProcessEnv;
+  fetchFn?: typeof fetch;
+  includeLocalOllama?: boolean;
+  maxCascadeHops?: number;
+  onFailover?: (event: FailoverEvent) => void;
+}
+
+/**
+ * Factory untuk instansiasi CascadeFailoverAdapter secara otomatis.
+ * Memindai environment dan menyusun prioritas failover lintas-provider.
+ */
+export function createCascadeAdapter(
+  options: CreateCascadeAdapterOptions = {}
+): CascadeFailoverAdapter {
+  const env = options.env || process.env;
+  const primaryId = (options.primaryProviderId || "groq").trim().toLowerCase();
+  const targetModel = options.targetModel?.trim() || undefined;
+
+  const candidates: CascadeCandidate[] = [];
+  const supportedProviders: string[] = ["groq", "gemini", "openrouter", "ollama"];
+
+  // Urutan hierarki failover default yang cerdas:
+  // Mulai dari primary -> provider cloud lainnya -> local ollama
+  const providerSequence: string[] = [primaryId];
+  for (const pid of supportedProviders) {
+    if (pid !== primaryId) {
+      providerSequence.push(pid);
+    }
+  }
+
+  let currentPriority = 1;
+  for (const pid of providerSequence) {
+    if (isProviderConfigured(pid, env)) {
+      try {
+        const adapter = createProviderAdapter({
+          providerId: pid,
+          targetModel: pid === primaryId ? targetModel : undefined,
+          env,
+          fetchFn: options.fetchFn,
+          enableCascade: false, // Jangan rekursif di dalam child
+        });
+
+        candidates.push({
+          providerId: pid,
+          adapter,
+          priority: currentPriority++,
+          model: pid === primaryId ? targetModel : undefined,
+        });
+      } catch {
+        // Lewati provider jika gagal instansiasi
+      }
+    }
+  }
+
+  // Jika tidak ada provider yang terkonfigurasi selain primary (atau tidak ada sama sekali),
+  // pastikan setidaknya primary adapter terdaftar (agar melempar error konfigurasi asli saat dipanggil)
+  if (candidates.length === 0) {
+    const fallbackAdapter = createProviderAdapter({
+      providerId: primaryId,
+      targetModel,
+      env,
+      fetchFn: options.fetchFn,
+      enableCascade: false,
+    });
+    candidates.push({
+      providerId: primaryId,
+      adapter: fallbackAdapter,
+      priority: 1,
+      model: targetModel,
+    });
+  }
+
+  return new CascadeFailoverAdapter({
+    primaryProviderId: primaryId,
+    targetModel,
+    candidates,
+    maxCascadeHops: options.maxCascadeHops,
+    onFailover: options.onFailover,
+    env,
+    fetchFn: options.fetchFn,
+  });
 }
 
 /**
@@ -154,6 +247,17 @@ export function createProviderAdapter(
   const rawId = (options.providerId || "groq").trim().toLowerCase();
   const targetModel = options.targetModel?.trim() || undefined;
 
+  // Jika diminta mode cascade failover
+  if (rawId === "cascade" || options.enableCascade === true) {
+    return createCascadeAdapter({
+      primaryProviderId: rawId === "cascade" ? "groq" : rawId,
+      targetModel,
+      env,
+      fetchFn: options.fetchFn,
+      onFailover: options.onFailover,
+    });
+  }
+
   switch (rawId) {
     case "groq": {
       if (!isProviderConfigured("groq", env)) {
@@ -164,7 +268,15 @@ export function createProviderAdapter(
           "groq"
         );
       }
-      return new GroqAdapter();
+      const explicitKeys: string[] = [];
+      for (let i = 1; i <= 6; i++) {
+        if (env[`GROQ_API_KEY_${i}`]) explicitKeys.push(env[`GROQ_API_KEY_${i}`]!.trim());
+      }
+      if (env.GROQ_API_KEY) explicitKeys.push(env.GROQ_API_KEY.trim());
+      if (env.GROQ_API_KEYS) {
+        explicitKeys.push(...env.GROQ_API_KEYS.split(",").map((k) => k.trim()));
+      }
+      return new GroqAdapter(explicitKeys.length > 0 ? explicitKeys : undefined);
     }
     case "gemini": {
       if (!isProviderConfigured("gemini", env)) {
@@ -178,6 +290,7 @@ export function createProviderAdapter(
       return new GeminiAdapter({
         model: targetModel,
         fetchFn: options.fetchFn,
+        apiKey: env.GEMINI_API_KEY,
       });
     }
     case "openrouter": {
@@ -192,6 +305,7 @@ export function createProviderAdapter(
       return new OpenRouterAdapter({
         model: targetModel,
         fetchFn: options.fetchFn,
+        apiKey: env.OPENROUTER_API_KEY,
       });
     }
     case "ollama": {

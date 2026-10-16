@@ -11,3 +11,5 @@ export * from "./custom-endpoint-adapter.js";
 export * from "./registry-store.js";
 export * from "./mcp-catalog.js";
 export * from "./mcp-connector-store.js";
+export * from "./provider-health-tracker.js";
+export * from "./cascade-failover-adapter.js";

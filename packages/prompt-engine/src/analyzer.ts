@@ -194,22 +194,14 @@ export async function analyzePrompt(
       }
     );
   } catch (err: any) {
-    safeLogger.error("Gagal memanggil provider saat analisis prompt", err);
-
-    if (
-      err?.code === "RATE_LIMIT" ||
-      err?.code === "RATE_LIMITED" ||
-      err?.statusCode === 429
-    ) {
-      throw new ProviderRateLimitError(err.message, err);
-    }
-    if (err?.code === "TIMEOUT" || err?.statusCode === 504) {
-      throw new ProviderTimeoutError(err.message, err);
-    }
-    throw new ProviderUnavailableError(
-      err?.message || "Provider LLM tidak tersedia atau semua key exhausted",
-      err
+    safeLogger.warn(
+      "Panggilan provider LLM gagal saat analisis prompt, beralih ke analisis deterministik fallback",
+      {
+        errorMessage: err?.message,
+        errorCode: err?.code,
+      }
     );
+    return analyzePromptDeterministic(prompt, context, domainPackInput);
   }
 
   let validated: {
@@ -278,6 +270,49 @@ export async function analyzePrompt(
       latencyMs: response.latencyMs,
       usage: response.usage,
       keyUsed: response.keyUsed,
+    },
+  };
+}
+
+/**
+ * Analisis deterministik offline/fallback saat provider LLM down atau cooldown
+ */
+export function analyzePromptDeterministic(
+  prompt: string,
+  context?: string | null,
+  domainPackInput?: DomainRulePack | string | null
+): AnalyzePromptResult {
+  const domainPack: DomainRulePack =
+    typeof domainPackInput === "string"
+      ? getDomainPack(domainPackInput)
+      : domainPackInput || getDomainPack("general");
+
+  const explicitTaskType =
+    typeof domainPackInput === "string" ? domainPackInput : undefined;
+  const route = detectTaskArchetypeAndDomain(prompt, context, explicitTaskType);
+  const taskSpec = extractTaskSpecification(prompt, context, route);
+
+  const findings: Finding[] = [
+    {
+      category: "Konteks",
+      severity: "major",
+      evidence: prompt.slice(0, 100),
+      recommendation: "Perjelas konteks kebutuhan, sasaran pengguna, dan batasan teknis.",
+      type: "konteks",
+      message: "Perjelas konteks kebutuhan, sasaran pengguna, dan batasan teknis.",
+    },
+  ];
+
+  return {
+    detectedIntent: `Menjalankan tugas: ${prompt.substring(0, 100)}`,
+    findings,
+    score: 35,
+    status: "analyzed",
+    domainId: domainPack.domainId,
+    taskSpec,
+    telemetry: {
+      model: "deterministic_rulebook",
+      latencyMs: 1,
     },
   };
 }
