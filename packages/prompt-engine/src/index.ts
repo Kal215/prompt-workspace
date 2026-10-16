@@ -256,6 +256,18 @@ export async function runOptimizationPipeline(
     name: domainPack.name,
   };
 
+  // 6.b Hitung kalkulasi metrik matematika nyata (Zero Hardcoded)
+  const origTokensEst = Math.max(1, Math.ceil(validatedRequest.prompt.length / 4));
+  const optTokensEst = Math.max(1, Math.ceil(optimizationResult.optimizedPrompt.length / 4));
+  const diffPercent = Math.round(((optTokensEst - origTokensEst) / origTokensEst) * 100);
+  const tokenSavingsStr = diffPercent <= 0 
+    ? `${Math.abs(diffPercent)}% compression` 
+    : `+${diffPercent}% clarity/detail`;
+
+  const calculatedConfidence = evaluationResult?.score
+    ? Math.min(1.0, Math.max(0.1, Number((evaluationResult.score / 100).toFixed(2))))
+    : Math.min(1.0, Math.max(0.1, Number((analysisResult.score / 100).toFixed(2))));
+
   // 7. Susun hasil akhir sesuai PromptOptimizationResultSchema
   const result: PromptOptimizationResult = {
     requestId: validatedRequest.requestId,
@@ -286,8 +298,8 @@ export async function runOptimizationPipeline(
         completionTokens,
         totalTokens,
       },
-      confidenceScore: 0.95,
-      estimatedTokenSavings: "+24% precision",
+      confidenceScore: calculatedConfidence,
+      estimatedTokenSavings: tokenSavingsStr,
       appliedDomainRule,
     },
   };

@@ -8,6 +8,7 @@ import {
   prisma,
 } from "@prompt-workspace/database";
 import { runPromptSpider } from "@prompt-workspace/prompt-spider";
+import { resolveActiveLLMProvider } from "@prompt-workspace/prompt-engine";
 import { isSpiderFeatureEnabled } from "../../../lib/feature-flags";
 import { resolveSession, getOrCreateSession } from "../../../lib/session";
 import { getSpiderRateLimiter, extractClientIP } from "../../../lib/rate-limiter";
@@ -192,13 +193,24 @@ export async function POST(request: Request) {
       );
     }
 
-    // 7. Panggil Use Case: Spider Engine Terpusat (@prompt-workspace/prompt-spider)
-    const spiderReport = await runPromptSpider({
-      promptContent,
-      promptVersionId: promptVersionId || "ephemeral-version",
-      testSuiteVersionId: testSuiteVersion,
-      runMode: "SINGLE",
-    });
+    // 7. Resolusi Active LLM Adapter & Panggil Spider Engine Terpusat
+    const resolvedLLM = await resolveActiveLLMProvider().catch(() => null);
+    const activeAdapter = resolvedLLM?.adapter;
+    const effectiveProvider = resolvedLLM?.providerId || targetProvider;
+    const effectiveModel = resolvedLLM?.model || targetModel;
+
+    const spiderReport = await runPromptSpider(
+      {
+        promptContent,
+        promptVersionId: promptVersionId || "ephemeral-version",
+        testSuiteVersionId: testSuiteVersion,
+        runMode: "SINGLE",
+      },
+      {
+        adapter: activeAdapter,
+        concurrency: 2,
+      }
+    );
 
     const totalDurationMs = spiderReport.branches.reduce(
       (acc, b) => acc + (b.latencyMs || 0),
@@ -215,8 +227,8 @@ export async function POST(request: Request) {
           promptVersionId,
           testSuiteVersion: spiderReport.testSuiteVersion,
           rubricVersion: spiderReport.rubricVersion,
-          provider: targetProvider,
-          modelId: targetModel,
+          provider: effectiveProvider,
+          modelId: effectiveModel,
           status: spiderReport.status,
           criticalGatePassed: spiderReport.criticalGatePassed,
           qualityMetrics: spiderReport.qualityMetrics,
