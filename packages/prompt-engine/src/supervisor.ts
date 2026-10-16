@@ -44,20 +44,51 @@ function generateUUID(): string {
 }
 
 const sessionStore = new Map<string, AutonomousProjectSession>();
-const DEFAULT_SESSION_DIR =
-  (typeof process !== "undefined" && process.env?.PIEW_SESSION_DIR) || "/tmp/piew-sessions";
+
+function resolveDefaultSessionDir(): string {
+  if (typeof process !== "undefined" && process.env?.PIEW_SESSION_DIR) {
+    return process.env.PIEW_SESSION_DIR;
+  }
+  const node = getNodeFsAndPath();
+  if (node) {
+    try {
+      const osMod = eval("require")("node:os");
+      const home = osMod.homedir();
+      if (home) {
+        return node.path.join(home, ".piew", "sessions");
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return "/tmp/piew-sessions";
+}
 
 function ensureSessionDir(): string {
   const node = getNodeFsAndPath();
   if (!node) return "/tmp";
+  const primary = resolveDefaultSessionDir();
   try {
-    if (!node.fs.existsSync(DEFAULT_SESSION_DIR)) {
-      node.fs.mkdirSync(DEFAULT_SESSION_DIR, { recursive: true });
+    if (!node.fs.existsSync(primary)) {
+      node.fs.mkdirSync(primary, { recursive: true });
     }
-    return DEFAULT_SESSION_DIR;
+    return primary;
   } catch {
-    return "/tmp";
+    // Graceful fallback ke /tmp/piew-sessions jika akses terbatasi
+    try {
+      const fallback = "/tmp/piew-sessions";
+      if (!node.fs.existsSync(fallback)) {
+        node.fs.mkdirSync(fallback, { recursive: true });
+      }
+      return fallback;
+    } catch {
+      return "/tmp";
+    }
   }
+}
+
+export function getSessionStorageDirectory(): string {
+  return ensureSessionDir();
 }
 
 function persistSession(session: AutonomousProjectSession): void {
@@ -77,12 +108,14 @@ function loadSessionFromDisk(sessionId: string): AutonomousProjectSession | null
   const node = getNodeFsAndPath();
   if (!node) return null;
   try {
-    const dir = ensureSessionDir();
-    const filePath = node.path.join(dir, `${sessionId}.json`);
-    if (node.fs.existsSync(filePath)) {
-      const raw = node.fs.readFileSync(filePath, "utf-8");
-      const parsed = JSON.parse(raw);
-      return AutonomousProjectSessionSchema.parse(parsed);
+    const candidateDirs = [ensureSessionDir(), "/tmp/piew-sessions"];
+    for (const dir of candidateDirs) {
+      const filePath = node.path.join(dir, `${sessionId}.json`);
+      if (node.fs.existsSync(filePath)) {
+        const raw = node.fs.readFileSync(filePath, "utf-8");
+        const parsed = JSON.parse(raw);
+        return AutonomousProjectSessionSchema.parse(parsed);
+      }
     }
   } catch (err) {
     console.warn(`[SUPERVISOR] Gagal memuat sesi dari disk: ${(err as Error).message}`);
@@ -133,6 +166,125 @@ export function listProjectSessions(): AutonomousProjectSession[] {
     }
   }
   return result;
+}
+
+// ──────────────────────────────────────────────
+// Hardening: Zero-Trust Active Command Runner & Deep Artifact Inspector
+// ──────────────────────────────────────────────
+
+export interface IndependentExecutionResult {
+  executed: boolean;
+  command?: string;
+  exitCode?: number | null;
+  stdoutSnippet?: string;
+  stderrSnippet?: string;
+  durationMs?: number;
+}
+
+export function executeVerificationCommandSync(
+  command: string,
+  workingDir?: string,
+  timeoutMs: number = 45000
+): IndependentExecutionResult {
+  const node = getNodeFsAndPath();
+  if (!node) {
+    return { executed: false, command };
+  }
+  try {
+    const cp = eval("require")("node:child_process");
+    const cwd = workingDir && node.fs.existsSync(workingDir) ? workingDir : process.cwd();
+    const startTime = Date.now();
+    const res = cp.spawnSync(command, {
+      shell: true,
+      cwd,
+      timeout: timeoutMs,
+      encoding: "utf-8",
+      maxBuffer: 5 * 1024 * 1024,
+    });
+    const durationMs = Date.now() - startTime;
+    const stdoutSnippet = (res.stdout || "").slice(-2500);
+    const stderrSnippet = (res.stderr || "").slice(-2500);
+    const exitCode = res.status !== null ? res.status : res.error ? 1 : 0;
+
+    return {
+      executed: true,
+      command,
+      exitCode,
+      stdoutSnippet,
+      stderrSnippet,
+      durationMs,
+    };
+  } catch (err) {
+    return {
+      executed: true,
+      command,
+      exitCode: 1,
+      stderrSnippet: (err as Error).message,
+    };
+  }
+}
+
+export interface ArtifactIntegrityDetail {
+  name: string;
+  existsOnDisk: boolean;
+  sha256?: string;
+  sizeBytes?: number;
+}
+
+export function verifyArtifactsOnDisk(
+  artifacts: Array<{ name: string }>,
+  workingDir?: string
+): ArtifactIntegrityDetail[] {
+  const node = getNodeFsAndPath();
+  if (!node) return [];
+
+  const cwd = workingDir && node.fs.existsSync(workingDir) ? workingDir : process.cwd();
+  let cryptoMod: any = null;
+  try {
+    cryptoMod = eval("require")("node:crypto");
+  } catch {
+    // browser/restricted fallback
+  }
+
+  return artifacts.map((art) => {
+    const candidatePaths = [
+      art.name,
+      node.path.resolve(cwd, art.name),
+      node.path.resolve(cwd, "src", art.name),
+      node.path.resolve(cwd, "docs", art.name),
+    ];
+    let foundPath: string | null = null;
+    for (const p of candidatePaths) {
+      try {
+        if (node.fs.existsSync(p) && node.fs.statSync(p).isFile()) {
+          foundPath = p;
+          break;
+        }
+      } catch {
+        // continue
+      }
+    }
+
+    if (foundPath) {
+      try {
+        const content = node.fs.readFileSync(foundPath);
+        const sizeBytes = content.length;
+        let sha256 = "";
+        if (cryptoMod) {
+          sha256 = cryptoMod.createHash("sha256").update(content).digest("hex");
+        }
+        return {
+          name: art.name,
+          existsOnDisk: true,
+          sha256,
+          sizeBytes,
+        };
+      } catch {
+        return { name: art.name, existsOnDisk: false };
+      }
+    }
+    return { name: art.name, existsOnDisk: false };
+  });
 }
 
 // ──────────────────────────────────────────────
@@ -310,6 +462,69 @@ HASIL AKHIR:
 - Bukti Verifikasi (Evidence over Claims): Terpenuhi di setiap fase
 - Kepatuhan Batasan Negatif: Zero Scope Creep & Zero Deceptive Fabrication
 ═══════════════════════════════════════════════════════════════════`;
+}
+
+export function exportHandoverBundle(
+  sessionId: string,
+  targetDirectory?: string
+): { markdownPath: string; jsonPath: string; success: boolean; error?: string } {
+  const session = getProjectSession(sessionId);
+  if (!session) {
+    return {
+      markdownPath: "",
+      jsonPath: "",
+      success: false,
+      error: `Sesi ${sessionId} tidak ditemukan`,
+    };
+  }
+  const node = getNodeFsAndPath();
+  if (!node) {
+    return {
+      markdownPath: "",
+      jsonPath: "",
+      success: false,
+      error: "Penyimpanan berkas membutuhkan runtime Node.js",
+    };
+  }
+  try {
+    const outDir = targetDirectory || ensureSessionDir();
+    if (!node.fs.existsSync(outDir)) {
+      node.fs.mkdirSync(outDir, { recursive: true });
+    }
+    const mdPath = node.path.join(outDir, `PIEW-AUDIT-CERTIFICATE-${session.sessionId}.md`);
+    const jsonPath = node.path.join(outDir, `piew-handover-bundle-${session.sessionId}.json`);
+
+    const certMarkdown = generateHandoverCertificate(session);
+    node.fs.writeFileSync(mdPath, certMarkdown, "utf-8");
+    node.fs.writeFileSync(
+      jsonPath,
+      JSON.stringify(
+        {
+          sessionId: session.sessionId,
+          overallStatus: session.overallStatus,
+          exportedAt: new Date().toISOString(),
+          phases: session.phases,
+          auditHistory: session.auditHistory,
+          masterBlueprintMeta: {
+            title: session.masterBlueprint.title,
+            domain: session.masterBlueprint.domain,
+            totalPhases: session.phases.length,
+          },
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+    return { markdownPath: mdPath, jsonPath, success: true };
+  } catch (err) {
+    return {
+      markdownPath: "",
+      jsonPath: "",
+      success: false,
+      error: (err as Error).message,
+    };
+  }
 }
 
 // ──────────────────────────────────────────────
@@ -543,14 +758,29 @@ export function auditAndAdvancePhase(
     "production", "staging", "development", "lingkungan", "environment", "testing",
     "test", "backend", "frontend", "komponen", "arsitektur", "handover", "deployment",
     "key", "keys", "token", "tokens", "database", "repository", "publik", "public",
-    "rahasia", "secret", "secrets", "kredensial", "credentials"
+    "rahasia", "secret", "secrets", "kredensial", "credentials",
+    "hapus", "menghapus", "delete", "deleting", "catatan", "transaksi", "transaction",
+    "transactions", "record", "records", "user", "users", "pengguna", "produk", "product",
+    "item", "items", "pesanan", "order", "orders", "akun", "account", "accounts"
   ]);
 
   for (const constraint of blueprint.negativeConstraints) {
     const constraintLower = constraint.toLowerCase();
+
+    // Deteksi larangan penghapusan transaksi spesifik
+    if (/menghapus\s+catatan|delete\s+transaction|hapus\s+transaksi/i.test(constraintLower)) {
+      if (/(?:menghapus|hapus|delete|drop)\s+(?:catatan|transaksi|transaction|record)/i.test(combinedSubmissionText)) {
+        const safeContext = new RegExp(`(?:tidak|bukan|hindari|tanpa|tanpa ada|zero)\\s+(?:menghapus|hapus|delete)`, "i");
+        if (!safeContext.test(combinedSubmissionText)) {
+          scopeCreepOrForbiddenViolations.push(
+            `Pelanggaran batasan negatif: terdeteksi operasi penghapusan catatan transaksi yang dilarang pengguna ("${constraint}")`
+          );
+        }
+      }
+    }
     
     // Deteksi larangan umum, misal "Jangan buat POS" / "Dilarang membuat sistem kasir POS fisik"
-    const forbiddenMatch = constraintLower.match(/(?:jangan|dilarang|tidak boleh|no)\s+(?:buat|membuat|gunakan|menggunakan|tambah|menambahkan|ada)?\s*([a-z0-9_\-\s]{2,40})/i);
+    const forbiddenMatch = constraintLower.match(/(?:jangan|dilarang|tidak boleh|no)\s+(?:buat|membuat|gunakan|menggunakan|tambah|menambahkan|ada|pasang|memasang|hapus|menghapus)?\s*([a-z0-9_\-\s]{2,40})/i);
     if (forbiddenMatch && forbiddenMatch[1]) {
       const forbiddenTerm = forbiddenMatch[1].trim();
       const tokens = forbiddenTerm
@@ -595,46 +825,96 @@ export function auditAndAdvancePhase(
   // ------------------------------------------------------------
   // D. Verification Evidence Guard (Evidence over Claims)
   // ------------------------------------------------------------
-  const verifOutput = (submission.verificationOutput || "").trim();
   let evidenceCheckPassed = true;
+  let independentExecutionResult: IndependentExecutionResult | undefined = undefined;
+  const verifOutput = (submission.verificationOutput || "").trim();
 
-  if (verifOutput.length < 15) {
-    evidenceCheckPassed = false;
+  if (submission.verificationCommand) {
+    // 🛡️ ZERO-TRUST ACTIVE GATE: PIEW mengeksekusi langsung perintah uji
+    const execRes = executeVerificationCommandSync(
+      submission.verificationCommand,
+      submission.workingDirectory
+    );
+    independentExecutionResult = execRes;
+    if (execRes.executed) {
+      if (execRes.exitCode !== 0) {
+        evidenceCheckPassed = false;
+        consistencyViolations.push(
+          `[ZERO-TRUST VERIFIKASI AKTIF GAGAL] Perintah "${submission.verificationCommand}" menghasilkan Exit Code ${execRes.exitCode}.\nStderr: ${execRes.stderrSnippet || "(kosong)"}`
+        );
+      } else {
+        evidenceCheckPassed = true;
+      }
+    }
   } else {
-    // Indikasi kegagalan fatal dalam terminal log
-    const fatalErrorIndicators = [
-      /\bFAIL\b/,
-      /\bFAILED\b/,
-      /Exit Code [1-9]\d*/i,
-      /AssertionError/i,
-      /Test Suites: \d+ failed/i,
-      /Tests: \d+ failed/i,
-      /npm error code [1-9]\d*/i,
-      /Build failed/i,
-    ];
-
-    const hasFatalError = fatalErrorIndicators.some((pat) => pat.test(verifOutput));
-    if (hasFatalError) {
+    // Passive Verification Output Check
+    if (verifOutput.length < 15) {
       evidenceCheckPassed = false;
     } else {
-      // Sinyal kesuksesan uji nyata
-      const successSignals = [
-        /exit code 0/i,
-        /pass/i,
-        /success/i,
-        /ok/i,
-        /lulus/i,
-        /verified/i,
-        /completed/i,
-        /0 errors/i,
-        /all tests pass/i,
-        /tests? passed/i,
-        /tests: \d+ passed/i,
-        /status 200/i,
+      // Indikasi kegagalan fatal dalam terminal log
+      const fatalErrorIndicators = [
+        /\bFAIL\b/,
+        /\bFAILED\b/,
+        /Exit Code [1-9]\d*/i,
+        /AssertionError/i,
+        /Test Suites: \d+ failed/i,
+        /Tests: \d+ failed/i,
+        /npm error code [1-9]\d*/i,
+        /Build failed/i,
       ];
-      const hasSuccessSignal = successSignals.some((sig) => sig.test(verifOutput));
-      if (!hasSuccessSignal) {
+
+      const hasFatalError = fatalErrorIndicators.some((pat) => pat.test(verifOutput));
+      if (hasFatalError) {
         evidenceCheckPassed = false;
+      } else {
+        // Sinyal kesuksesan uji nyata
+        const successSignals = [
+          /exit code 0/i,
+          /pass/i,
+          /success/i,
+          /ok/i,
+          /lulus/i,
+          /verified/i,
+          /completed/i,
+          /0 errors/i,
+          /all tests pass/i,
+          /tests? passed/i,
+          /tests: \d+ passed/i,
+          /status 200/i,
+        ];
+        const hasSuccessSignal = successSignals.some((sig) => sig.test(verifOutput));
+        if (!hasSuccessSignal) {
+          evidenceCheckPassed = false;
+        }
+      }
+    }
+  }
+
+  // ------------------------------------------------------------
+  // E. Artifact Integrity & On-Disk File Check
+  // ------------------------------------------------------------
+  let artifactIntegrityDetails: ArtifactIntegrityDetail[] | undefined = undefined;
+  if (submission.workingDirectory || (typeof process !== "undefined" && getNodeFsAndPath())) {
+    const verifiedDetails = verifyArtifactsOnDisk(
+      submission.deliveredArtifacts,
+      submission.workingDirectory
+    );
+    if (verifiedDetails && verifiedDetails.length > 0) {
+      artifactIntegrityDetails = verifiedDetails;
+      if (submission.workingDirectory) {
+        for (const detail of verifiedDetails) {
+          if (/\.[a-z0-9]{1,6}$/i.test(detail.name)) {
+            if (!detail.existsOnDisk) {
+              missingDeliverables.push(
+                `Artefak fisik '${detail.name}' tidak ditemukan pada disk (workingDirectory: ${submission.workingDirectory})`
+              );
+            } else if (detail.sizeBytes === 0) {
+              missingDeliverables.push(
+                `Artefak fisik '${detail.name}' ditemukan kosong (0 bytes) pada disk`
+              );
+            }
+          }
+        }
       }
     }
   }
@@ -692,6 +972,8 @@ export function auditAndAdvancePhase(
       nextActionPrompt: correctivePrompt,
       phaseIndex: currentPhase.phaseIndex,
       auditTimestamp: now,
+      independentExecutionResult,
+      artifactIntegrity: artifactIntegrityDetails,
     });
 
     session.auditHistory.push({
@@ -717,6 +999,13 @@ export function auditAndAdvancePhase(
     session.overallStatus = "COMPLETED";
     const handoverPrompt = generateHandoverCertificate(session);
 
+    // Auto-export handover bundle jika berjalan di Node environment
+    try {
+      exportHandoverBundle(session.sessionId);
+    } catch {
+      // non-fatal
+    }
+
     const auditResult = PhaseAuditResultSchema.parse({
       verdict: "PROJECT_COMPLETED",
       score: Math.max(90, calculatedScore),
@@ -727,6 +1016,8 @@ export function auditAndAdvancePhase(
       nextActionPrompt: handoverPrompt,
       phaseIndex: currentPhase.phaseIndex,
       auditTimestamp: now,
+      independentExecutionResult,
+      artifactIntegrity: artifactIntegrityDetails,
     });
 
     session.auditHistory.push({
@@ -764,6 +1055,8 @@ export function auditAndAdvancePhase(
     nextActionPrompt: nextPhasePrompt,
     phaseIndex: previousPhaseSnapshot.phaseIndex,
     auditTimestamp: now,
+    independentExecutionResult,
+    artifactIntegrity: artifactIntegrityDetails,
   });
 
   session.auditHistory.push({

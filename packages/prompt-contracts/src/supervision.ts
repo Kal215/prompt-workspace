@@ -90,6 +90,10 @@ export const PhaseSubmissionInputSchema = z.object({
   deliveredArtifacts: z.array(DeliveredArtifactInputSchema).min(1, "Minimal 1 deliverable wajib dilaporkan"),
   /** Bukti nyata eksekusi (test output, build logs, typecheck result) */
   verificationOutput: z.string().min(1, "verificationOutput wajib diisi (Evidence over Claims)"),
+  /** Perintah verifikasi independen untuk dieksekusi langsung oleh PIEW (Zero-Trust Active Gate) */
+  verificationCommand: z.string().optional(),
+  /** Working directory proyek untuk eksekusi perintah dan verifikasi file di disk (opsional) */
+  workingDirectory: z.string().optional(),
   /** Kendala atau isu yang diketahui (opsional) */
   knownIssues: z.array(z.string()).optional().default([]),
 });
@@ -123,6 +127,28 @@ export const PhaseAuditResultSchema = z.object({
   phaseIndex: z.number().int().min(0).optional(),
   /** Timestamp audit */
   auditTimestamp: z.string().optional(),
+  /** Hasil eksekusi perintah verifikasi independen (Zero-Trust Active Gate) */
+  independentExecutionResult: z
+    .object({
+      executed: z.boolean(),
+      command: z.string().optional(),
+      exitCode: z.number().nullable().optional(),
+      stdoutSnippet: z.string().optional(),
+      stderrSnippet: z.string().optional(),
+      durationMs: z.number().optional(),
+    })
+    .optional(),
+  /** Detail verifikasi integritas artefak di disk (SHA-256 dan ukuran byte) */
+  artifactIntegrity: z
+    .array(
+      z.object({
+        name: z.string(),
+        existsOnDisk: z.boolean(),
+        sha256: z.string().optional(),
+        sizeBytes: z.number().optional(),
+      })
+    )
+    .optional(),
 });
 export type PhaseAuditResult = z.infer<typeof PhaseAuditResultSchema>;
 
