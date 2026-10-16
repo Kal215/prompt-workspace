@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { AppHeader } from "@/components/layout/app-header";
 import { UserGuideSection } from "@/components/workspace/user-guide-section";
 import { PrivacyDisclosure } from "@/components/workspace/privacy-disclosure";
@@ -11,6 +12,7 @@ import {
   Cpu,
   ShieldCheck,
   Plug,
+  Bot,
 } from "lucide-react";
 
 export default function DocsPage() {
@@ -37,7 +39,7 @@ export default function DocsPage() {
   }, [historyRefreshKey]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-[#FF4D00]/20 selection:text-foreground flex flex-col font-sans firecrawl-grid-bg relative">
+    <div className="min-h-screen bg-background text-foreground selection:bg-sky-500/20 selection:text-foreground flex flex-col font-sans firecrawl-grid-bg relative">
       {/* Universal Top Navigation Header */}
       <AppHeader
         historyCount={historyCount}
@@ -50,10 +52,10 @@ export default function DocsPage() {
       {/* Architectural Grid Master Frame Container */}
       <div className="w-full max-w-[1320px] mx-auto border-x border-border bg-background flex-1 flex flex-col relative shadow-[0_0_80px_rgba(0,0,0,0.02)]">
         {/* Sparkle Crosshair Pins at Container Corners */}
-        <div className="absolute -top-4 -left-4 z-20 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border shadow-2xs text-[#FF4D00]">
+        <div className="absolute -top-4 -left-4 z-20 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border shadow-2xs text-sky-500">
           ✦
         </div>
-        <div className="absolute -top-4 -right-4 z-20 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border shadow-2xs text-[#FF4D00]">
+        <div className="absolute -top-4 -right-4 z-20 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border shadow-2xs text-sky-500">
           ✦
         </div>
 
@@ -70,16 +72,16 @@ export default function DocsPage() {
 
           <div className="relative max-w-4xl mx-auto text-center space-y-4">
             {/* Top Tier Badge */}
-            <div className="inline-flex items-center gap-2 rounded-full bg-neutral-100 dark:bg-zinc-800 border border-border px-3.5 py-1 text-xs font-medium text-neutral-700 dark:text-neutral-300 shadow-2xs">
-              <BookOpen className="w-3.5 h-3.5 text-[#FF4D00]" />
-              <span className="font-mono text-[#FF4D00] font-bold">PIEW DOCUMENTATION</span>
+            <div className="inline-flex items-center gap-2 rounded-full bg-sky-500/10 border border-sky-500/20 px-3.5 py-1 text-xs font-medium text-sky-700 dark:text-sky-400 shadow-2xs">
+              <BookOpen className="w-3.5 h-3.5 text-sky-500" />
+              <span className="font-mono text-sky-600 dark:text-sky-400 font-bold">PIEW DOCUMENTATION</span>
               <span>— Architectural Specs, Governance &amp; User Guides</span>
             </div>
 
             {/* Section Eyebrow */}
             <div className="font-mono text-xs text-neutral-500 uppercase tracking-widest flex items-center justify-center gap-1.5">
               <span>{"//"}</span>
-              <span className="w-2 h-2 rounded-xs bg-[#FF4D00]" />
+              <span className="w-2 h-2 rounded-xs bg-sky-500" />
               <span>REFERENCE ARCHITECTURE &amp; ZERO-TRUST SPEC</span>
               <span>{"//"}</span>
             </div>
@@ -87,43 +89,44 @@ export default function DocsPage() {
             {/* Primary Display Title */}
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-neutral-900 dark:text-neutral-50 leading-[1.1]">
               Platform specifications &amp;{" "}
-              <span className="text-[#FF4D00]">prompt engineering guide</span>
+              <span className="text-sky-600 dark:text-sky-500">prompt engineering guide</span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto leading-relaxed">
-              Complete reference documentation for multi-model synthesis, adversarial defense matrix, Model Context Protocol hub, and enterprise privacy compliance.
+              Complete reference documentation for multi-model synthesis, adversarial defense matrix,
+              Model Context Protocol hub, Bounded Agent Runtime, and enterprise privacy compliance.
             </p>
           </div>
         </section>
 
         {/* Section Divider Band 01: Architectural Capabilities */}
         <div id="capabilities" className="architectural-section-band">
-          <span className="w-0.5 h-3.5 bg-[#FF4D00] shrink-0" />
+          <span className="w-0.5 h-3.5 bg-sky-500 shrink-0" />
           <span className="font-mono text-[11px] tracking-widest uppercase text-neutral-500">
-            <strong className="text-[#FF4D00]">01 / 04</strong> • ARCHITECTURAL CAPABILITIES &amp; ZERO-TRUST SPEC
+            <strong className="text-sky-600 dark:text-sky-500">01 / 04</strong> • ARCHITECTURAL CAPABILITIES &amp; ZERO-TRUST SPEC
           </span>
         </div>
 
-        {/* Section 01: Three Pillars Grid */}
+        {/* Section 01: Four Pillars Grid (Phase 6 Architecture Integrated) */}
         <section className="p-6 sm:p-10 border-b border-border space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 border border-border rounded-2xl overflow-hidden bg-card">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border border-border rounded-2xl overflow-hidden bg-card divide-y md:divide-y-0 md:divide-x divide-border">
             {/* Capability 1 */}
-            <div className="p-6 sm:p-8 border-b md:border-b-0 md:border-r border-border space-y-4 hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-[#FF4D00]/10 text-[#FF4D00] flex items-center justify-center font-bold">
+            <div className="p-6 sm:p-8 space-y-4 hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold">
                 <Cpu className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-base text-foreground">Multi-Model Synthesis</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Connect directly with Groq LPUs, Google Gemini, OpenRouter, and local Ollama models with automatic key rotation and zero latency overhead.
+                Connect directly with Groq LPUs, Google Gemini, OpenRouter, and local Ollama models with automatic Smart Cascade Failover and zero latency overhead.
               </p>
-              <div className="pt-2 text-xs font-mono text-[#FF4D00] flex items-center gap-1 font-semibold">
+              <div className="pt-2 text-xs font-mono text-sky-600 dark:text-sky-400 flex items-center gap-1 font-semibold">
                 <span>Pelajari model adaptif ›</span>
               </div>
             </div>
 
             {/* Capability 2 */}
-            <div className="p-6 sm:p-8 border-b md:border-b-0 md:border-r border-border space-y-4 hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50 transition-colors">
+            <div className="p-6 sm:p-8 space-y-4 hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50 transition-colors">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
                 <ShieldCheck className="w-5 h-5" />
               </div>
@@ -138,15 +141,31 @@ export default function DocsPage() {
 
             {/* Capability 3 */}
             <div className="p-6 sm:p-8 space-y-4 hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold">
                 <Plug className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-base text-foreground">Universal MCP Hub</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Seamlessly ground prompts with live context from Model Context Protocol servers: Figma, GitHub, Brave Search, and Postgres databases.
               </p>
-              <div className="pt-2 text-xs font-mono text-sky-600 dark:text-sky-400 flex items-center gap-1 font-semibold">
+              <div className="pt-2 text-xs font-mono text-indigo-600 dark:text-indigo-400 flex items-center gap-1 font-semibold">
                 <span>Jelajahi konektor ›</span>
+              </div>
+            </div>
+
+            {/* Capability 4: Phase 6 Bounded Agent Runtime & Experiments */}
+            <div className="p-6 sm:p-8 space-y-4 hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
+                <Bot className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-base text-foreground">Agent Loop &amp; Experiments</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Bounded Agent Runtime (L0–L3), Hybrid Memory Vault with anti-poisoning guard, declarative sandboxed skills, and Paired Benchmark Experiments (B0..B4).
+              </p>
+              <div className="pt-2 text-xs font-mono text-amber-600 dark:text-amber-400 flex items-center gap-1 font-semibold">
+                <Link href="/agent" className="hover:underline flex items-center gap-1">
+                  <span>Eksplorasi agent console ›</span>
+                </Link>
               </div>
             </div>
           </div>
@@ -154,9 +173,9 @@ export default function DocsPage() {
 
         {/* Section Divider Band 02: User Guide */}
         <div id="guide" className="architectural-section-band">
-          <span className="w-0.5 h-3.5 bg-[#FF4D00] shrink-0" />
+          <span className="w-0.5 h-3.5 bg-sky-500 shrink-0" />
           <span className="font-mono text-[11px] tracking-widest uppercase text-neutral-500">
-            <strong className="text-[#FF4D00]">02 / 04</strong> • COMPREHENSIVE USER GUIDE &amp; BEST PRACTICES
+            <strong className="text-sky-600 dark:text-sky-500">02 / 04</strong> • COMPREHENSIVE USER GUIDE &amp; BEST PRACTICES
           </span>
         </div>
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   listProviderCapabilities,
   listCatalogProviders,
+  getGlobalProviderHealthTracker,
 } from "@prompt-workspace/provider-adapters";
 import path from "path";
 import fs from "fs";
@@ -39,6 +40,23 @@ export async function GET() {
     const config = getSanitizedProvidersConfig();
     const localModels = ["llama3.2", "qwen2.5-coder", "mistral", "minicpm-v", "deepseek-r1:14b"];
 
+    const healthTracker = getGlobalProviderHealthTracker();
+    const healthReport = healthTracker.getHealthReport();
+
+    const activeEndpoint = config.customEndpoints.find(
+      (e) => e.id === config.activeEndpointId || e.isActive
+    );
+
+    const cascadeChain = [
+      ...(activeEndpoint
+        ? [{ id: activeEndpoint.id, name: activeEndpoint.name, type: "custom" as const }]
+        : []),
+      { id: "groq", name: "Groq LPU", type: "cloud" as const, defaultModel: "llama-3.3-70b-versatile" },
+      { id: "gemini", name: "Google Gemini", type: "cloud" as const, defaultModel: "gemini-2.5-flash" },
+      { id: "openrouter", name: "OpenRouter", type: "cloud" as const, defaultModel: "meta-llama/llama-3.3-70b-instruct" },
+      { id: "ollama", name: "Local Ollama", type: "local" as const, defaultModel: "llama3.2" },
+    ];
+
     return NextResponse.json(
       {
         success: true,
@@ -48,6 +66,8 @@ export async function GET() {
         cloudKeys: config.cloudKeys,
         activeEndpointId: config.activeEndpointId,
         localModels,
+        health: healthReport,
+        cascadeChain,
       },
       { status: 200 }
     );

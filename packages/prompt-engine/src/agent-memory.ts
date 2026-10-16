@@ -6,6 +6,7 @@ import {
   MemoryRecord,
   MemoryRecordSchema,
   MemoryScope,
+  MemoryStatus,
   MemoryType,
   MemoryValidationMethod,
 } from "@prompt-workspace/prompt-contracts";
@@ -323,6 +324,34 @@ export class AgentMemoryStore {
       return null; // Anti-IDOR: Jangan bocorkan keberadaan memory orang lain
     }
     return rec;
+  }
+
+  /**
+   * Mengambil seluruh memory untuk manajemen vault (dengan penyortiran terbaru)
+   */
+  public listAllMemories(options?: {
+    ownerId?: string;
+    scope?: MemoryScope;
+    type?: MemoryType;
+    status?: MemoryStatus;
+  }): MemoryRecord[] {
+    const records: MemoryRecord[] = [];
+    for (const record of this.memoryCache.values()) {
+      if (
+        options?.ownerId &&
+        record.scope !== "global" &&
+        record.ownerId !== options.ownerId
+      ) {
+        continue;
+      }
+      if (options?.scope && record.scope !== options.scope) continue;
+      if (options?.type && record.type !== options.type) continue;
+      if (options?.status && record.status !== options.status) continue;
+      records.push({ ...record });
+    }
+    return records.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }
 
   /**

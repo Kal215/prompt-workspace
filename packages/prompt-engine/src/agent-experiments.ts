@@ -299,4 +299,44 @@ export class ScientificExperimentRunner {
 
     return validatedReport;
   }
+
+  /**
+   * Mengambil daftar laporan eksperimen immutable dari disk
+   */
+  public listArtifacts(limit = 20): PairedExperimentReport[] {
+    if (!fs.existsSync(this.artifactsDir)) return [];
+    try {
+      const files = fs.readdirSync(this.artifactsDir).filter((f) => f.endsWith(".json"));
+      const list: PairedExperimentReport[] = [];
+      for (const file of files) {
+        try {
+          const raw = fs.readFileSync(path.join(this.artifactsDir, file), "utf-8");
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.experimentId && parsed.immutableArtifactSha256) {
+            list.push(parsed);
+          }
+        } catch {
+          // ignore corrupted files
+        }
+      }
+      return list
+        .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime())
+        .slice(0, limit);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Mengambil satu artefak immutable berdasarkan hash SHA-256
+   */
+  public getArtifact(sha256: string): PairedExperimentReport | null {
+    const file = path.join(this.artifactsDir, `${sha256}.json`);
+    if (!fs.existsSync(file)) return null;
+    try {
+      return JSON.parse(fs.readFileSync(file, "utf-8"));
+    } catch {
+      return null;
+    }
+  }
 }

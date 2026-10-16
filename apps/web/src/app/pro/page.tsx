@@ -3,14 +3,18 @@
 import React, { useState, useEffect } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { BlueprintStudio } from "@/components/mission-control/blueprint-studio";
+import { PairedExperimentsPanel } from "@/components/pro/paired-experiments-panel";
 import { UnifiedSettingsModal } from "@/components/workspace/unified-settings-modal";
 import { HistorySidebar } from "@/components/workspace/history-sidebar";
-import { Cpu, CheckCircle2 } from "lucide-react";
+import { Cpu, CheckCircle2, FlaskConical, LayoutGrid } from "lucide-react";
 
 export default function ProPage() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyCount, setHistoryCount] = useState(0);
   const [historyRefreshKey] = useState(0);
+  const [activeProTab, setActiveProTab] = useState<"blueprint" | "experiments">(
+    "blueprint"
+  );
   const [settingsState, setSettingsState] = useState<{
     isOpen: boolean;
     initialTab: "providers" | "connectors";
@@ -31,7 +35,7 @@ export default function ProPage() {
   }, [historyRefreshKey]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-[#FF4D00]/20 selection:text-foreground flex flex-col font-sans firecrawl-grid-bg relative">
+    <div className="min-h-screen bg-background text-foreground selection:bg-amber-500/20 selection:text-foreground flex flex-col font-sans firecrawl-grid-bg relative">
       {/* Universal Top Navigation Header */}
       <AppHeader
         historyCount={historyCount}
@@ -44,10 +48,10 @@ export default function ProPage() {
       {/* Architectural Grid Master Frame Container */}
       <div className="w-full max-w-[1320px] mx-auto border-x border-border bg-background flex-1 flex flex-col relative shadow-[0_0_80px_rgba(0,0,0,0.02)]">
         {/* Sparkle Crosshair Pins at Container Corners */}
-        <div className="absolute -top-4 -left-4 z-20 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border shadow-2xs text-[#FF4D00]">
+        <div className="absolute -top-4 -left-4 z-20 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border shadow-2xs text-amber-500">
           ✦
         </div>
-        <div className="absolute -top-4 -right-4 z-20 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border shadow-2xs text-[#FF4D00]">
+        <div className="absolute -top-4 -right-4 z-20 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border shadow-2xs text-amber-500">
           ✦
         </div>
 
@@ -88,7 +92,8 @@ export default function ProPage() {
 
             {/* Subtitle */}
             <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto leading-relaxed">
-              Synthesize full-system blueprints with reactive Mermaid diagrams, multi-specialist council review, and 6-phase executable roadmaps.
+              Synthesize full-system blueprints with reactive Mermaid diagrams, multi-specialist council review,
+              and Scientific Paired Benchmark Experiments (B0..B4).
             </p>
 
             {/* Plan Features Bar */}
@@ -103,7 +108,7 @@ export default function ProPage() {
               </span>
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                <span>Specialist Council Consensus</span>
+                <span>Paired Benchmark Experiments (B0–B4)</span>
               </span>
             </div>
           </div>
@@ -117,9 +122,46 @@ export default function ProPage() {
           </span>
         </div>
 
-        {/* Blueprint Studio Workspace */}
+        {/* Sub-Navigation: Blueprint Studio vs Paired Experiments */}
+        <div className="px-4 sm:px-8 py-3 border-b border-border bg-neutral-50/40 dark:bg-zinc-950/40 flex items-center gap-2 overflow-x-auto">
+          <button
+            type="button"
+            data-testid="subnav-blueprint"
+            onClick={() => setActiveProTab("blueprint")}
+            className={`px-3.5 py-2 rounded-xl text-xs font-mono font-medium flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeProTab === "blueprint"
+                ? "bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30 shadow-2xs"
+                : "text-muted-foreground hover:text-foreground border border-transparent"
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5 text-amber-500" />
+            <span>Meta-Blueprint Studio &amp; Council</span>
+          </button>
+
+          <button
+            type="button"
+            data-testid="tab-experiments"
+            onClick={() => setActiveProTab("experiments")}
+            className={`px-3.5 py-2 rounded-xl text-xs font-mono font-medium flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeProTab === "experiments"
+                ? "bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30 shadow-2xs"
+                : "text-muted-foreground hover:text-foreground border border-transparent"
+            }`}
+          >
+            <FlaskConical className="w-3.5 h-3.5 text-amber-500" />
+            <span>Paired Benchmark Experiments (B0–B4)</span>
+          </button>
+        </div>
+
+        {/* Workspaces (Both mounted for persistent DOM query) */}
         <section className="p-4 sm:p-8 border-b border-border">
-          <BlueprintStudio />
+          <div data-testid="blueprint-studio" className={activeProTab === "blueprint" ? "block" : "hidden"}>
+            <BlueprintStudio />
+          </div>
+
+          <div className={activeProTab === "experiments" ? "block" : "hidden"}>
+            <PairedExperimentsPanel />
+          </div>
         </section>
 
         {/* Section Divider Band: Specs */}
