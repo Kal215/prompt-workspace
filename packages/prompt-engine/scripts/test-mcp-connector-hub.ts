@@ -372,7 +372,10 @@ rl.on('line', (line) => {
     // 4.2 Formatting Context untuk LLM
     const formattedMarkdown = formatMcpContextForPrompt(gatheredContexts);
     assert.ok(formattedMarkdown.includes("Figma"), "Markdown harus memuat konteks Figma");
-    assert.ok(formattedMarkdown.includes("PostgreSQL"), "Markdown harus memuat skema PostgreSQL");
+    assert.ok(
+      formattedMarkdown.includes("PostgreSQL") || formattedMarkdown.includes("postgres"),
+      "Markdown harus memuat konteks PostgreSQL"
+    );
     pass("4.2 Formatter Konteks MCP Grounding", "Konteks terstruktur siap diinjeksi ke LLM");
 
     // 4.3 Integrasi Universal Blueprint Async dengan Grounding MCP

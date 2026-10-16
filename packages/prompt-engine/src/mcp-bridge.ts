@@ -52,25 +52,60 @@ export async function gatherMcpExternalContext(
     );
     if (figmaConnector) {
       const fileId = figmaMatch ? figmaMatch[1] : "FIGMA_LOCAL_SPEC";
+      const fullConnector = await getMcpConnector(
+        figmaConnector.connectorId,
+        options?.customStorePath,
+        true
+      );
+      const figmaToken =
+        fullConnector?.savedApiKeyOrToken ||
+        fullConnector?.savedEnvSecrets?.["FIGMA_ACCESS_TOKEN"] ||
+        (fullConnector?.stdioConfig?.envVars?.["FIGMA_ACCESS_TOKEN"] &&
+        !fullConnector.stdioConfig.envVars["FIGMA_ACCESS_TOKEN"].includes("••••")
+          ? fullConnector.stdioConfig.envVars["FIGMA_ACCESS_TOKEN"]
+          : undefined) ||
+        process.env.FIGMA_ACCESS_TOKEN;
+
+      let extractedContext = "";
+      let entities: string[] = ["FigmaFrame", "DesignToken", "UiComponent"];
+      let componentCount = 0;
+
+      if (figmaToken && figmaMatch) {
+        try {
+          const res = await fetch(`https://api.figma.com/v1/files/${fileId}`, {
+            headers: { "X-Figma-Token": figmaToken },
+            signal: AbortSignal.timeout(4000),
+          });
+          if (res.ok) {
+            const data: any = await res.json();
+            const documentName = data.name || "Figma Document";
+            const frames = (data.document?.children?.[0]?.children || [])
+              .slice(0, 5)
+              .map((c: any) => `#${c.name}`)
+              .join(", ");
+            componentCount = Object.keys(data.components || {}).length;
+            extractedContext = `[Konteks Desain Figma Riil (Live API) — File ID: ${fileId}]:\n- Dokumen: ${documentName}\n- Frame Terbaca: ${frames || "None"}\n- Total Komponen Terdaftar: ${componentCount}`;
+          } else {
+            extractedContext = `[Koneksi Figma API Gagal (${res.status} ${res.statusText}) — File ID: ${fileId}]. Pastikan FIGMA_ACCESS_TOKEN valid. Sistem tidak menggunakan data skema rekayasa.`;
+          }
+        } catch (err: any) {
+          extractedContext = `[Koneksi Figma API Timeout/Offline — File ID: ${fileId}]. Error: ${err.message}. Sistem tidak menggunakan data rekayasa.`;
+        }
+      } else {
+        extractedContext = `[Referensi Figma Terdeteksi — File ID: ${fileId}]:\n- Status: Kredensial FIGMA_ACCESS_TOKEN belum disetel pada konektor figma-mcp.\n- Panduan: Konfigurasikan token Figma pada Settings Konektor untuk menginspeksi frame dan token desain riil secara otomatis. Sistem menolak mengarang data frame/komponen fiktif.`;
+      }
+
       enrichedResults.push({
         connectorId: figmaConnector.connectorId,
         connectorName: figmaConnector.name,
         sourceType: "figma_design_canvas",
         sourceIdentifier: fileId,
-        extractedContext: `[Konteks Desain Figma Terdeteksi — File ID: ${fileId}]:
-- Frame Utama: #DashboardOverview, #ManagementCatalog, #TransactionDetailModal
-- Design Tokens: PrimaryColor (#0066FF), SecondaryGray (#64748B), BorderRadius (8px)
-- Komponen UI: DataGrid, ActionToolbar, StatusBadge, FormFieldGroup`,
-        entities: [
-          "FigmaFrame",
-          "DesignToken",
-          "UiComponent",
-          "InteractionFlow",
-        ],
+        extractedContext,
+        entities,
         metadata: {
           fileId,
-          componentCount: 14,
-          designSystem: "Tailwind / Figma Token Spec",
+          componentCount,
+          designSystem: "Figma Token Spec",
         },
       });
     }
@@ -87,21 +122,40 @@ export async function gatherMcpExternalContext(
       (c) => c.connectorId === "postgres-mcp" || c.category === "database"
     );
     if (dbConnector) {
+      const fullConnector = await getMcpConnector(
+        dbConnector.connectorId,
+        options?.customStorePath,
+        true
+      );
+      const dbUrl =
+        fullConnector?.savedApiKeyOrToken ||
+        fullConnector?.savedEnvSecrets?.["DATABASE_URL"] ||
+        (fullConnector?.stdioConfig?.envVars?.["DATABASE_URL"] &&
+        !fullConnector.stdioConfig.envVars["DATABASE_URL"].includes("••••")
+          ? fullConnector.stdioConfig.envVars["DATABASE_URL"]
+          : undefined) ||
+        process.env.DATABASE_URL;
+
+      let extractedContext = "";
+      let entities: string[] = ["DatabaseTable", "SchemaDefinition"];
+      let tablesDiscovered = 0;
+
+      if (dbUrl) {
+        extractedContext = `[Konteks Skema Database PostgreSQL Riil Terkonfigurasi]:\n- Connection URI: Terpasang (disensor untuk privasi).\n- Status: Siap diinspeksi melalui tools konektor 'postgres-mcp'. Skema tabel akan diselaraskan dengan database fisik tanpa data tiruan.`;
+      } else {
+        extractedContext = `[Referensi Database PostgreSQL Terdeteksi]:\n- Status: DATABASE_URL belum dikonfigurasi pada konektor postgres-mcp.\n- Panduan: Masukkan connection string database pada Settings Konektor untuk introspeksi skema tabel langsung. Sistem menolak mengarang tabel atau kolom tiruan.`;
+      }
+
       enrichedResults.push({
         connectorId: dbConnector.connectorId,
         connectorName: dbConnector.name,
         sourceType: "database_schema_inspection",
-        sourceIdentifier: "postgresql://cluster-db/public",
-        extractedContext: `[Konteks Skema Database PostgreSQL Riil Terdeteksi]:
-- Tabel Eksisting Terbaca:
-  • AuthSession (id: uuid PK, userId: uuid FK, tokenHash: text, expiresAt: timestamp)
-  • UserProfile (id: uuid PK, email: varchar, fullName: varchar, role: varchar)
-  • SystemAuditLog (id: uuid PK, action: varchar, payload: jsonb, createdAt: timestamp)
-- Konvensi Penamaan: Snake_case / CamelCase dengan UUID primary keys dan foreign key constraints aktif.`,
-        entities: ["AuthSession", "UserProfile", "SystemAuditLog"],
+        sourceIdentifier: "postgresql://target-db/public",
+        extractedContext,
+        entities,
         metadata: {
-          dbType: "PostgreSQL 16",
-          tablesDiscovered: 3,
+          dbType: "PostgreSQL",
+          tablesDiscovered,
         },
       });
     }
@@ -122,16 +176,52 @@ export async function gatherMcpExternalContext(
       const repoName = githubMatch
         ? `${githubMatch[1]}/${githubMatch[2]}`
         : "prompt-workspace/core";
+      const fullConnector = await getMcpConnector(
+        ghConnector.connectorId,
+        options?.customStorePath,
+        true
+      );
+      const ghToken =
+        fullConnector?.savedApiKeyOrToken ||
+        fullConnector?.savedEnvSecrets?.["GITHUB_TOKEN"] ||
+        (fullConnector?.stdioConfig?.envVars?.["GITHUB_TOKEN"] &&
+        !fullConnector.stdioConfig.envVars["GITHUB_TOKEN"].includes("••••")
+          ? fullConnector.stdioConfig.envVars["GITHUB_TOKEN"]
+          : undefined) ||
+        process.env.GITHUB_TOKEN;
+
+      let extractedContext = "";
+      let entities: string[] = ["GitHubRepository", "PullRequest", "IssueRecord"];
+
+      if (ghToken && githubMatch) {
+        try {
+          const res = await fetch(`https://api.github.com/repos/${repoName}`, {
+            headers: {
+              Authorization: `Bearer ${ghToken}`,
+              "User-Agent": "PIEW-MCP-Engine",
+            },
+            signal: AbortSignal.timeout(4000),
+          });
+          if (res.ok) {
+            const data: any = await res.json();
+            extractedContext = `[Konteks Repositori GitHub Riil (Live API) — Repo: ${repoName}]:\n- Default Branch: ${data.default_branch}\n- Open Issues / PRs: ${data.open_issues_count}\n- Deskripsi: ${data.description || "No description"}`;
+          } else {
+            extractedContext = `[Koneksi GitHub API Gagal (${res.status} ${res.statusText}) — Repo: ${repoName}]. Sistem menolak mengarang branch atau issue fiktif.`;
+          }
+        } catch (err: any) {
+          extractedContext = `[Koneksi GitHub API Timeout/Offline — Repo: ${repoName}]. Error: ${err.message}.`;
+        }
+      } else {
+        extractedContext = `[Referensi Repositori GitHub Terdeteksi — Repo: ${repoName}]:\n- Status: GITHUB_TOKEN belum dikonfigurasi pada konektor github-mcp.\n- Panduan: Konfigurasikan token GitHub pada Settings Konektor untuk sinkronisasi PR/Issue otomatis. Sistem menolak mengarang issue/branch tiruan.`;
+      }
+
       enrichedResults.push({
         connectorId: ghConnector.connectorId,
         connectorName: ghConnector.name,
         sourceType: "github_repository_context",
         sourceIdentifier: repoName,
-        extractedContext: `[Konteks Repositori GitHub Terdeteksi — Repo: ${repoName}]:
-- Branch Utama: main (Protected, Require PR Review)
-- CI/CD Actions: .github/workflows/ci.yml (Typecheck, Vitest, Release Readiness)
-- Open Issues Relevan: #42 (API Latency Optimization), #48 (Schema Migration)`,
-        entities: ["GitHubRepository", "PullRequest", "IssueRecord"],
+        extractedContext,
+        entities,
         metadata: {
           repoName,
           defaultBranch: "main",
@@ -153,15 +243,33 @@ export async function gatherMcpExternalContext(
     );
     if (notionConnector) {
       const pageId = notionMatch ? notionMatch[1] : "NOTION_DOC_PAGE";
+      const fullConnector = await getMcpConnector(
+        notionConnector.connectorId,
+        options?.customStorePath,
+        true
+      );
+      const notionToken =
+        fullConnector?.savedApiKeyOrToken ||
+        fullConnector?.savedEnvSecrets?.["NOTION_API_KEY"] ||
+        (fullConnector?.stdioConfig?.envVars?.["NOTION_API_KEY"] &&
+        !fullConnector.stdioConfig.envVars["NOTION_API_KEY"].includes("••••")
+          ? fullConnector.stdioConfig.envVars["NOTION_API_KEY"]
+          : undefined) ||
+        process.env.NOTION_API_KEY;
+
+      let extractedContext = "";
+      if (notionToken) {
+        extractedContext = `[Konteks Dokumen Notion Riil Terkonfigurasi — Page ID: ${pageId}]:\n- Status: Kredensial Notion aktif. Konten halaman akan diakses melalui tool notion-mcp secara terverifikasi.`;
+      } else {
+        extractedContext = `[Referensi Dokumen Notion Terdeteksi — Page ID: ${pageId}]:\n- Status: NOTION_API_KEY belum dikonfigurasi pada konektor notion-mcp.\n- Panduan: Setel integrasi token Notion pada Settings Konektor. Sistem menolak membuat kutipan PRD fiktif.`;
+      }
+
       enrichedResults.push({
         connectorId: notionConnector.connectorId,
         connectorName: notionConnector.name,
         sourceType: "notion_document_workspace",
         sourceIdentifier: pageId,
-        extractedContext: `[Konteks Dokumen & PRD Notion Terdeteksi — Page ID: ${pageId}]:
-- Judul Halaman: Product Requirements Document (PRD) v2.0
-- Target Pelanggan: Enterprise B2B Users & Internal Operators
-- Syarat Kepatuhan: Zero Secret Leakage, 99.9% Uptime, Audit Trail Persistence`,
+        extractedContext,
         entities: ["NotionWorkspace", "PrdDocument", "ComplianceRequirement"],
         metadata: {
           pageId,

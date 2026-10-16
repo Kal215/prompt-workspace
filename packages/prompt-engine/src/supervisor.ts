@@ -818,6 +818,56 @@ export function auditAndAdvancePhase(
     }
   }
 
+  // 🛡️ TIER 1: VERIFIKASI FISIK FILE SYSTEM (REAL DISK AUDIT)
+  // Jika workingDirectory didefinisikan atau artefak menyertakan ekstensi berkas,
+  // supervisor memeriksa keberadaan berkas fisik nyata dan ukuran > 0 bytes di disk.
+  const nodeEnv = getNodeFsAndPath();
+  const effectiveWorkingDir = submission.workingDirectory || (nodeEnv && process.cwd());
+
+  if (nodeEnv && effectiveWorkingDir) {
+    for (const art of submission.deliveredArtifacts) {
+      // Deteksi artefak berkas (memiliki ekstensi seperti .ts, .js, .json, .md, .sol, .prisma, dll.)
+      if (/\.[a-z0-9]{1,6}$/i.test(art.name)) {
+        const candidatePaths = [
+          art.name,
+          nodeEnv.path.resolve(effectiveWorkingDir, art.name),
+          nodeEnv.path.resolve(effectiveWorkingDir, "src", art.name),
+          nodeEnv.path.resolve(effectiveWorkingDir, "docs", art.name),
+        ];
+
+        let fileFound = false;
+        let fileEmpty = false;
+
+        for (const p of candidatePaths) {
+          try {
+            if (nodeEnv.fs.existsSync(p) && nodeEnv.fs.statSync(p).isFile()) {
+              fileFound = true;
+              if (nodeEnv.fs.statSync(p).size === 0) {
+                fileEmpty = true;
+              }
+              break;
+            }
+          } catch {
+            // continue searching
+          }
+        }
+
+        // Jika workingDirectory disetel secara eksplisit, tegakkan audit disk ketat
+        if (submission.workingDirectory) {
+          if (!fileFound) {
+            missingDeliverables.push(
+              `Artefak fisik '${art.name}' tidak ditemukan pada disk (workingDirectory: ${submission.workingDirectory})`
+            );
+          } else if (fileEmpty) {
+            missingDeliverables.push(
+              `Artefak fisik '${art.name}' ditemukan kosong (0 bytes) pada disk`
+            );
+          }
+        }
+      }
+    }
+  }
+
   // ------------------------------------------------------------
   // B. Cross-Artifact & Diagram Sync Check
   // ------------------------------------------------------------
@@ -1006,21 +1056,6 @@ export function auditAndAdvancePhase(
     );
     if (verifiedDetails && verifiedDetails.length > 0) {
       artifactIntegrityDetails = verifiedDetails;
-      if (submission.workingDirectory) {
-        for (const detail of verifiedDetails) {
-          if (/\.[a-z0-9]{1,6}$/i.test(detail.name)) {
-            if (!detail.existsOnDisk) {
-              missingDeliverables.push(
-                `Artefak fisik '${detail.name}' tidak ditemukan pada disk (workingDirectory: ${submission.workingDirectory})`
-              );
-            } else if (detail.sizeBytes === 0) {
-              missingDeliverables.push(
-                `Artefak fisik '${detail.name}' ditemukan kosong (0 bytes) pada disk`
-              );
-            }
-          }
-        }
-      }
     }
   }
 
