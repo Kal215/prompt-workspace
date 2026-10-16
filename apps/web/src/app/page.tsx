@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,7 +18,8 @@ import {
   TelemetryMetrics,
 } from "@/components/workspace/telemetry-summary-bar";
 import { CrawlerImportModal } from "@/components/workspace/crawler-import-modal";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppHeader } from "@/components/layout/app-header";
+import { UnifiedSettingsModal } from "@/components/workspace/unified-settings-modal";
 import {
   formatGroundingFactsForContext,
   buildClosedLoopOptimizationContext,
@@ -33,17 +35,12 @@ import {
 import { listDomainPacks, DomainRulePack } from "@prompt-workspace/domain-rules";
 import { ProviderCapability } from "@prompt-workspace/prompt-contracts";
 import { toast } from "sonner";
-import { BlueprintStudio } from "@/components/mission-control/blueprint-studio";
-import { SupervisionConsole } from "@/components/mission-control/supervision-console";
-import { ProvidersSettingsModal } from "@/components/workspace/providers-settings-panel";
-import { McpConnectorsModal } from "@/components/workspace/mcp-connectors-panel";
 import {
   TerminalSquare,
   Loader2,
   AlertTriangle,
   ArrowRight,
   RotateCcw,
-  Sliders,
   RefreshCw,
   Cpu,
   History,
@@ -51,11 +48,10 @@ import {
   Globe,
   PenTool,
   ChevronDown,
-  Plug,
   CheckCircle2,
-  ShieldCheck,
   Code2,
-  Compass,
+  Bot,
+  BookOpen,
 } from "lucide-react";
 
 // Fallback daftar statis aman provider saat inisialisasi / loading
@@ -130,20 +126,15 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PromptOptimizationResult | null>(null);
-  const [isProvidersSettingsOpen, setIsProvidersSettingsOpen] = useState(false);
-  const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
 
-  // Mode Navigasi Tab Teratas: Mission Control (v3.1) vs Classic Studio (v2.0)
-  const [activeMainTab, setActiveMainTab] = useState<"mission-control" | "classic">("classic");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("tab") === "mission-control") {
-        setActiveMainTab("mission-control");
-      }
-    }
-  }, []);
+  // Unified Settings Modal State
+  const [settingsState, setSettingsState] = useState<{
+    isOpen: boolean;
+    initialTab: "providers" | "connectors";
+  }>({
+    isOpen: false,
+    initialTab: "providers",
+  });
 
   // Ambil kapabilitas provider dari /api/providers
   const loadProviders = useCallback(() => {
@@ -489,126 +480,14 @@ export default function Home() {
         onCountChange={setHistoryCount}
       />
 
-      {/* Firecrawl Architectural Sticky Top Navigation Bar */}
-      <header className="sticky top-0 z-40 h-16 w-full bg-background/85 backdrop-blur-md border-b border-border px-3 sm:px-6 flex items-center justify-between overflow-x-auto sm:overflow-x-visible no-scrollbar">
-        <div className="flex items-center gap-2 sm:gap-6 shrink-0">
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-[#FF4D00] text-white flex items-center justify-center font-bold shadow-xs shrink-0">
-              <TerminalSquare className="h-4 w-4" />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-xs sm:text-base tracking-tight text-foreground whitespace-nowrap">
-                Prompt Intelligence Workspace
-              </span>
-              <span className="text-[10px] text-neutral-500 font-mono border border-border px-1.5 py-0.5 rounded bg-muted/60 hidden sm:inline-block">
-                v3.1
-              </span>
-            </div>
-          </div>
-
-          <span className="text-border hidden md:inline">/</span>
-
-          {/* Mode Switcher Nav */}
-          <div className="flex items-center gap-1 p-0.5 sm:p-1 rounded-xl bg-muted/70 border border-border shrink-0">
-            <button
-              type="button"
-              data-testid="tab-classic-studio"
-              onClick={() => setActiveMainTab("classic")}
-              className={`flex items-center gap-1 sm:gap-1.5 py-1 px-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-medium transition-all cursor-pointer ${
-                activeMainTab === "classic"
-                  ? "bg-card text-foreground shadow-2xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF4D00]" />
-              <span className="hidden md:inline">⚡ Classic Studio (v2.0)</span>
-              <span className="md:hidden">Studio</span>
-            </button>
-            <button
-              type="button"
-              data-testid="tab-mission-control"
-              onClick={() => setActiveMainTab("mission-control")}
-              className={`flex items-center gap-1 sm:gap-1.5 py-1 px-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-medium transition-all cursor-pointer ${
-                activeMainTab === "mission-control"
-                  ? "bg-card text-foreground shadow-2xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Cpu className="w-3.5 h-3.5 text-amber-500" />
-              <span className="hidden md:inline">🏛 Mission Control (v3.1)</span>
-              <span className="md:hidden">Mission</span>
-            </button>
-          </div>
-
-          {/* Quick Jump Links */}
-          <nav className="hidden lg:flex items-center gap-4 text-xs font-mono text-muted-foreground">
-            <a href="#studio" className="hover:text-foreground transition-colors">
-              {"// Studio"}
-            </a>
-            <a href="#mission" className="hover:text-foreground transition-colors">
-              {"// Mission"}
-            </a>
-            <a href="#capabilities" className="hover:text-foreground transition-colors">
-              {"// Specs"}
-            </a>
-            <a href="#docs" className="hover:text-foreground transition-colors">
-              {"// Docs"}
-            </a>
-          </nav>
-        </div>
-
-        {/* Right Side Header Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 ml-2">
-          {/* Engine Status Dot */}
-          <div className="hidden xl:flex items-center gap-2 font-mono text-[11px] text-muted-foreground px-2.5 py-1 rounded-md bg-muted/40 border border-border">
-            <span className="inline-block h-2 w-2 rounded-full bg-[#FF4D00] animate-pulse" />
-            <span>Groq LPUs Aktif</span>
-          </div>
-
-          {/* Providers Settings Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            data-testid="open-providers-settings-button"
-            onClick={() => setIsProvidersSettingsOpen(true)}
-            className="h-8 text-xs gap-1 cursor-pointer border-border hover:bg-muted/80 px-2 sm:px-3 font-mono rounded-lg"
-            title="Pengaturan Penyedia AI, API Keys & Custom Endpoints"
-          >
-            <Sliders className="h-3.5 w-3.5 text-[#FF4D00]" />
-            <span className="hidden sm:inline">Providers</span>
-          </Button>
-
-          {/* MCP Connectors Hub Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            data-testid="mcp-connectors-tab"
-            onClick={() => setIsMcpModalOpen(true)}
-            className="h-8 text-xs gap-1 cursor-pointer border-border hover:bg-muted/80 px-2 sm:px-3 font-mono rounded-lg"
-            title="Model Context Protocol (MCP) Connectors Hub"
-          >
-            <Plug className="h-3.5 w-3.5 text-emerald-500" />
-            <span className="hidden sm:inline">Connectors</span>
-          </Button>
-
-          {/* History Toggle Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsHistoryOpen(true)}
-            className="h-8 text-xs gap-1 cursor-pointer border-border hover:bg-muted/80 px-2 sm:px-3 font-mono rounded-lg"
-          >
-            <History className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="hidden sm:inline">Riwayat</span>
-            <span className="font-mono text-[11px] bg-secondary text-secondary-foreground rounded-full px-1.5 py-0.2 ml-0.5">
-              {historyCount}
-            </span>
-          </Button>
-
-          {/* Theme Toggle */}
-          <ThemeToggle />
-        </div>
-      </header>
+      {/* Universal Top Navigation Header */}
+      <AppHeader
+        historyCount={historyCount}
+        onOpenHistory={() => setIsHistoryOpen(true)}
+        onOpenSettings={(tab = "providers") =>
+          setSettingsState({ isOpen: true, initialTab: tab })
+        }
+      />
 
       {/* Telemetry Summary Ribbon */}
       <TelemetrySummaryBar metrics={telemetry} />
@@ -703,16 +582,21 @@ export default function Home() {
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveMainTab(activeMainTab === "classic" ? "mission-control" : "classic");
-                }}
+              <Link
+                href="/pro"
                 className="bg-card border border-border hover:bg-muted/60 text-foreground rounded-full px-4 py-2.5 text-xs font-medium shadow-2xs inline-flex items-center gap-2 cursor-pointer font-mono"
               >
-                <Compass className="w-3.5 h-3.5 text-[#FF4D00]" />
-                <span>Mode: {activeMainTab === "classic" ? "Classic Studio (v2.0)" : "Mission Control (v3.1)"}</span>
-              </button>
+                <Cpu className="w-3.5 h-3.5 text-amber-500" />
+                <span>Buka Pro Architect &rarr;</span>
+              </Link>
+
+              <Link
+                href="/agent"
+                className="bg-card border border-border hover:bg-muted/60 text-foreground rounded-full px-4 py-2.5 text-xs font-medium shadow-2xs inline-flex items-center gap-2 cursor-pointer font-mono"
+              >
+                <Bot className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Buka Agent Console &rarr;</span>
+              </Link>
             </div>
           </div>
 
@@ -885,7 +769,7 @@ export default function Home() {
                   <button
                     type="button"
                     data-testid="open-providers-settings-btn"
-                    onClick={() => setIsProvidersSettingsOpen(true)}
+                    onClick={() => setSettingsState({ isOpen: true, initialTab: "providers" })}
                     className="text-[10px] text-[#FF4D00] hover:underline px-1.5 font-mono cursor-pointer"
                     title="Pengaturan Providers"
                   >
@@ -1062,119 +946,148 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Section 02 Band: Autonomous Mission Control */}
-        <div id="mission" className="architectural-section-band">
+        {/* Section 02 Band: Multi-Tier SaaS Capabilities Preview */}
+        <div id="tiers" className="architectural-section-band">
           <span className="w-0.5 h-3.5 bg-[#FF4D00] shrink-0" />
           <span className="font-mono text-[11px] tracking-widest uppercase text-neutral-500">
-            <strong className="text-[#FF4D00]">02 / 05</strong> &bull; AUTONOMOUS MISSION CONTROL &amp; BLUEPRINT STUDIO
+            <strong className="text-[#FF4D00]">02 / 04</strong> &bull; MULTI-TIER SAAS PLATFORM SUITE
           </span>
         </div>
 
-        {/* Section 02 Content */}
+        {/* Section 02 Content: Pro & Enterprise Tiers Showcase Cards */}
         <section className="p-6 sm:p-10 border-b border-border space-y-8 bg-neutral-50/30 dark:bg-zinc-950/30">
           <div className="max-w-3xl space-y-2">
             <div className="font-mono text-xs text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
               <span>{"//"}</span>
-              <span className="text-[#FF4D00] font-semibold">Agent Ready</span>
+              <span className="text-[#FF4D00] font-semibold">Scalable Architecture</span>
               <span>{"//"}</span>
             </div>
             <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-              Easily supervise your <span className="text-[#FF4D00]">AI agents</span>
+              Explore dedicated <span className="text-[#FF4D00]">Pro &amp; Enterprise</span> suites
             </h2>
             <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
-              Synthesize full-stack software blueprints and supervise autonomous agent execution loops in real-time.
+              Step beyond single prompt optimization into autonomous multi-agent architecture synthesis and real-time execution supervision.
             </p>
           </div>
 
-          <div className="space-y-6">
-            <BlueprintStudio />
-            <SupervisionConsole />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Card 1: Pro Architect */}
+            <div className="rounded-2xl border border-amber-500/20 bg-card p-6 sm:p-8 space-y-5 hover:border-amber-500/40 transition-all shadow-xs flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
+                    <Cpu className="w-5 h-5" />
+                  </div>
+                  <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/20">
+                    TIER 2 • PRO
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold text-foreground">PIEW Pro Architect</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Synthesize full-system blueprints with reactive Mermaid topology graphs, multi-specialist council consensus review, and 6-phase executable roadmaps.
+                </p>
+                <ul className="text-xs font-mono space-y-2 text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Reactive Mermaid Flowchart visualizer</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Specialist Council Consensus evaluation</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>6-Phase milestone &amp; security gate roadmap</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="pt-4 border-t border-border">
+                <Link
+                  href="/pro"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs font-mono transition-colors shadow-2xs"
+                >
+                  <span>Buka Pro Architect Studio</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Card 2: Agent Supervision Console */}
+            <div className="rounded-2xl border border-emerald-500/20 bg-card p-6 sm:p-8 space-y-5 hover:border-emerald-500/40 transition-all shadow-xs flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
+                    <Bot className="w-5 h-5" />
+                  </div>
+                  <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+                    TIER 3 • ENTERPRISE
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold text-foreground">Autonomous Supervision Console</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Supervise autonomous execution loops with 4-Layer Autonomous Audit, SHA-256 disk artifact inspector, session audit logs, and 4-mode human override.
+                </p>
+                <ul className="text-xs font-mono space-y-2 text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Autonomous Zero-Trust MCP loop runner</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>SHA-256 disk artifact &amp; diff verification</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>4-mode human-in-the-loop interlock</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="pt-4 border-t border-border">
+                <Link
+                  href="/agent"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs font-mono transition-colors shadow-2xs"
+                >
+                  <span>Buka Agent Console</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Section 03 Band: Architectural Capabilities Grid */}
-        <div id="capabilities" className="architectural-section-band">
-          <span className="w-0.5 h-3.5 bg-[#FF4D00] shrink-0" />
-          <span className="font-mono text-[11px] tracking-widest uppercase text-neutral-500">
-            <strong className="text-[#FF4D00]">03 / 05</strong> &bull; ARCHITECTURAL CAPABILITIES &amp; ZERO-TRUST SPEC
-          </span>
-        </div>
-
-        {/* Section 03 Content: 3-Column Feature Grid ala Firecrawl */}
-        <section className="p-6 sm:p-10 border-b border-border space-y-8">
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-              Master <span className="text-[#FF4D00]">prompt engineering</span> today
-            </h2>
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-              Complete toolset for prompt synthesis, model testing, and deterministic agent reliability.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 border border-border rounded-2xl overflow-hidden bg-card">
-            {/* Feature 1 */}
-            <div className="p-6 sm:p-8 border-b md:border-b-0 md:border-r border-border space-y-4 hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-[#FF4D00]/10 text-[#FF4D00] flex items-center justify-center font-bold">
-                <Cpu className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base text-foreground">Multi-Model Synthesis</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Connect directly with Groq LPUs, Google Gemini, OpenRouter, and local Ollama models with automatic key rotation and zero latency overhead.
-              </p>
-              <div className="pt-2 text-xs font-mono text-[#FF4D00] flex items-center gap-1 font-semibold">
-                <span>Pelajari model adaptif &rsaquo;</span>
-              </div>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="p-6 sm:p-8 border-b md:border-b-0 md:border-r border-border space-y-4 hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base text-foreground">Adversarial Defense</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Spider 5-category stress testing automatically probes prompt stability against prompt injection, jailbreaks, and context drifting before deployment.
-              </p>
-              <div className="pt-2 text-xs font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
-                <span>Evaluasi spider matrix &rsaquo;</span>
-              </div>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="p-6 sm:p-8 space-y-4 hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold">
-                <Plug className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base text-foreground">Universal MCP Hub</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Seamlessly ground prompts with live context from Model Context Protocol servers: Figma, GitHub, Brave Search, and Postgres databases.
-              </p>
-              <div className="pt-2 text-xs font-mono text-sky-600 dark:text-sky-400 flex items-center gap-1 font-semibold">
-                <span>Jelajahi konektor &rsaquo;</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 04 Band: Documentation & User Guide */}
+        {/* Section 03 Band: Documentation, Privacy & Guidance */}
         <div id="docs" className="architectural-section-band">
           <span className="w-0.5 h-3.5 bg-[#FF4D00] shrink-0" />
           <span className="font-mono text-[11px] tracking-widest uppercase text-neutral-500">
-            <strong className="text-[#FF4D00]">04 / 05</strong> &bull; PRIVACY DISCLOSURE &amp; COMPREHENSIVE GUIDE
+            <strong className="text-[#FF4D00]">03 / 04</strong> &bull; PRIVACY DISCLOSURE &amp; COMPREHENSIVE GUIDE
           </span>
         </div>
 
-        {/* Section 04 Content: Privacy & User Guide */}
+        {/* Section 03 Content: Documentation & Privacy Disclosure (Compliant with E2E DOM selectors) */}
         <section className="p-6 sm:p-10 space-y-6">
+          <div className="flex items-center justify-between pb-2 border-b border-border">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-[#FF4D00]" />
+              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground">
+                Dokumentasi &amp; Privasi Transparan
+              </span>
+            </div>
+            <Link
+              href="/docs"
+              className="text-xs font-mono text-[#FF4D00] hover:underline flex items-center gap-1"
+            >
+              <span>Buka Dokumentasi Lengkap &amp; Specs di /docs &rarr;</span>
+            </Link>
+          </div>
           <UserGuideSection />
           <PrivacyDisclosure />
         </section>
 
-        {/* Section 05 Footer Band */}
+        {/* Section 04 Footer Band */}
         <div className="architectural-section-band border-b-0">
           <span className="w-0.5 h-3.5 bg-[#FF4D00] shrink-0" />
           <span className="font-mono text-[11px] tracking-widest uppercase text-neutral-500">
-            <strong className="text-[#FF4D00]">05 / 05</strong> &bull; ARCHITECTURAL SPECIFICATION &bull; PIEW v3.1
+            <strong className="text-[#FF4D00]">04 / 04</strong> &bull; ARCHITECTURAL SPECIFICATION &bull; PIEW v3.1
           </span>
         </div>
       </div>
@@ -1188,20 +1101,35 @@ export default function Home() {
             el?.scrollIntoView({ behavior: "smooth" });
             el?.focus();
           }}
-          className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
+          className="flex flex-col items-center gap-1 text-[10px] text-[#FF4D00] font-medium cursor-pointer"
         >
-          <PenTool className="h-4 w-4 text-[#FF4D00]" />
+          <PenTool className="h-4 w-4" />
           <span>Editor</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveMainTab("mission-control")}
+        <Link
+          href="/pro"
           className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
         >
           <Cpu className="h-4 w-4" />
-          <span>Mission</span>
-        </button>
+          <span>Pro</span>
+        </Link>
+
+        <Link
+          href="/agent"
+          className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          <Bot className="h-4 w-4" />
+          <span>Agent</span>
+        </Link>
+
+        <Link
+          href="/docs"
+          className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          <BookOpen className="h-4 w-4" />
+          <span>Docs</span>
+        </Link>
 
         <button
           type="button"
@@ -1222,20 +1150,15 @@ export default function Home() {
         onExtract={handleCrawlerExtract}
       />
 
-      {/* Settings > Providers Modal */}
-      <ProvidersSettingsModal
-        isOpen={isProvidersSettingsOpen}
+      {/* Unified Settings Modal (Hosts both Providers & MCP Connectors Hub) */}
+      <UnifiedSettingsModal
+        isOpen={settingsState.isOpen}
+        initialTab={settingsState.initialTab}
         onClose={() => {
-          setIsProvidersSettingsOpen(false);
+          setSettingsState((prev) => ({ ...prev, isOpen: false }));
           loadProviders();
         }}
         onSelectProvider={handleSelectCustomProvider}
-      />
-
-      {/* Settings > MCP Connectors Hub Modal */}
-      <McpConnectorsModal
-        isOpen={isMcpModalOpen}
-        onClose={() => setIsMcpModalOpen(false)}
       />
     </div>
   );
