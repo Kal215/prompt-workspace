@@ -150,8 +150,9 @@ export function listProjectSessions(): AutonomousProjectSession[] {
     try {
       const dir = ensureSessionDir();
       if (node.fs.existsSync(dir)) {
-        const files = (node.fs.readdirSync(dir) as string[]).filter((f: string) =>
-          f.endsWith(".json")
+        const files = (node.fs.readdirSync(dir) as string[]).filter(
+          (f: string) =>
+            f.endsWith(".json") && !f.startsWith("piew-handover-bundle-")
         );
         for (const file of files) {
           const id = file.replace(/\.json$/, "");

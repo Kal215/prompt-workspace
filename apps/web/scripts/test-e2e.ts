@@ -804,6 +804,75 @@ async function runE2ESuite() {
     const hasSecretLeak = pageErrors.some((err) => err.includes("gsk_") || err.includes("DATABASE_URL"));
     assert(!hasSecretLeak, "Tidak ada kebocoran secret atau API key pada console browser");
 
+    // 13. Verifikasi Rute Tier 3 /agent (Sub-Navigasi 4 Modul Enterprise)
+    console.log("\n▶ [Step 13] Menguji integrasi 4 Modul pada Halaman /agent...");
+    await page.goto(`${BASE_URL}/agent`, { waitUntil: "networkidle0" });
+    await new Promise((r) => setTimeout(r, 600));
+
+    // Modul 1: MCP Supervision Loop (Default)
+    const hasSupervisionView = await page.$('[data-testid="mcp-supervision-view"]') !== null;
+    assert(hasSupervisionView, "Halaman /agent memuat modul default MCP Supervision Loop");
+
+    // Modul 2: Bounded Agent Runtime
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const btn = buttons.find((b) => b.textContent?.includes("Bounded Runtime"));
+      if (btn) (btn as HTMLButtonElement).click();
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    const hasRuntimePanel = await page.$('[data-testid="agent-runtime-panel"]') !== null;
+    const hasKillSwitch = await page.$('[data-testid="btn-kill-switch"]') !== null;
+    assert(hasRuntimePanel, "Tab Bounded Agent Runtime terbuka dengan data-testid='agent-runtime-panel'");
+    assert(hasKillSwitch, "Panel Agent Runtime memuat tombol Operator Kill-Switch");
+
+    // Modul 3: Hybrid Memory Vault
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const btn = buttons.find((b) => b.textContent?.includes("Memory Vault"));
+      if (btn) (btn as HTMLButtonElement).click();
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    const hasMemoryPanel = await page.$('[data-testid="agent-memory-panel"]') !== null;
+    assert(hasMemoryPanel, "Tab Hybrid Memory Vault terbuka dengan data-testid='agent-memory-panel'");
+
+    // Modul 4: Declarative Skill Registry
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const btn = buttons.find((b) => b.textContent?.includes("Skill Registry"));
+      if (btn) (btn as HTMLButtonElement).click();
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    const hasSkillsPanel = await page.$('[data-testid="agent-skills-panel"]') !== null;
+    assert(hasSkillsPanel, "Tab Declarative Skill Registry terbuka dengan data-testid='agent-skills-panel'");
+
+    // 14. Verifikasi Rute Tier 2 /pro (Paired Benchmark Experiments)
+    console.log("\n▶ [Step 14] Menguji integrasi Paired Benchmark Experiments pada Halaman /pro...");
+    await page.goto(`${BASE_URL}/pro`, { waitUntil: "networkidle0" });
+    await new Promise((r) => setTimeout(r, 600));
+
+    const hasBlueprintStudio = await page.$('[data-testid="blueprint-studio"]') !== null;
+    assert(hasBlueprintStudio, "Halaman /pro memuat Meta-Blueprint Studio default");
+
+    // Switch ke Paired Benchmark Experiments Tab
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="tab-experiments"]') as HTMLButtonElement | null;
+      if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    const hasExperimentsPanel = await page.$('[data-testid="paired-experiments-panel"]') !== null;
+    const hasRunExpButton = await page.$('[data-testid="btn-run-experiment"]') !== null;
+    assert(hasExperimentsPanel, "Tab Paired Benchmark Experiments terbuka dengan data-testid='paired-experiments-panel'");
+    assert(hasRunExpButton, "Panel Paired Experiments memuat tombol evaluasi benchmark");
+
+    // 15. Verifikasi Rute /docs (Dokumentasi Spesifikasi Fase 6)
+    console.log("\n▶ [Step 15] Menguji halaman dokumentasi /docs...");
+    await page.goto(`${BASE_URL}/docs`, { waitUntil: "networkidle0" });
+    await new Promise((r) => setTimeout(r, 600));
+
+    const docsBodyText = await page.evaluate(() => document.body.textContent || "");
+    const hasAgentDocs = docsBodyText.includes("Bounded Agent Runtime") && docsBodyText.includes("Hybrid Memory Vault");
+    assert(hasAgentDocs, "Halaman /docs memuat dokumentasi arsitektur Fase 6 (Agent Runtime & Memory Vault)");
+
   } finally {
     if (browser) {
       await browser.close().catch(() => {});

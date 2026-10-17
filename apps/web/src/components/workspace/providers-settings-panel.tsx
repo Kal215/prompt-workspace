@@ -95,6 +95,11 @@ export function ProvidersSettingsModal({
   const [ollamaStatus, setOllamaStatus] = useState<"idle" | "checking" | "online" | "offline">("idle");
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
 
+  // Smart Cascade Failover & Health State
+  const [healthReport, setHealthReport] = useState<any>(null);
+  const [cascadeChain, setCascadeChain] = useState<any[]>([]);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+
   // Fetch Providers Data from /api/providers
   const fetchProvidersData = async () => {
     setIsLoading(true);
@@ -111,6 +116,12 @@ export function ProvidersSettingsModal({
             setActiveEndpointId(json.activeEndpointId);
           }
         }
+        if (json.health) {
+          setHealthReport(json.health);
+        }
+        if (Array.isArray(json.cascadeChain)) {
+          setCascadeChain(json.cascadeChain);
+        }
       }
     } catch (err) {
       console.warn("[PROVIDERS_SETTINGS_FETCH_WARN]", err);
@@ -121,6 +132,7 @@ export function ProvidersSettingsModal({
 
   useEffect(() => {
     if (isOpen) {
+      setCurrentTime(Date.now());
       fetchProvidersData();
       if (initialTab) {
         setActiveTab(initialTab);
@@ -586,6 +598,67 @@ export function ProvidersSettingsModal({
                     </p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" />
+                </div>
+
+                {/* Smart Cascade Failover Pool Strip Indicator */}
+                <div
+                  data-testid="smart-cascade-pool-strip"
+                  className="p-3.5 rounded-xl border border-sky-500/25 bg-sky-500/5 dark:bg-sky-500/10 space-y-2.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-sky-500" />
+                      <span>Smart Cascade Failover Pool (Auto-Failover Sequence)</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-sky-600 dark:text-sky-400 font-bold uppercase">
+                      0ms Fast-Skip Cooldown
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                    {(cascadeChain.length > 0
+                      ? cascadeChain
+                      : [
+                          { id: "custom", name: "Custom Endpoint" },
+                          { id: "groq", name: "Groq LPU" },
+                          { id: "gemini", name: "Google Gemini" },
+                          { id: "openrouter", name: "OpenRouter" },
+                          { id: "ollama", name: "Local Ollama" },
+                        ]
+                    ).map((p, idx) => {
+                      const pHealth = healthReport?.providers?.[p.id];
+                      const isCooldown = pHealth?.status === "COOLDOWN";
+                      const cooldownRemaining = isCooldown
+                        ? Math.max(
+                            0,
+                            Math.ceil(((pHealth.cooldownUntil || 0) - (currentTime || 0)) / 1000)
+                          )
+                        : 0;
+
+                      return (
+                        <React.Fragment key={p.id}>
+                          {idx > 0 && <span className="text-neutral-400 text-[10px]">&rarr;</span>}
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border bg-background shadow-2xs">
+                            <span className="text-foreground font-medium">{p.name}</span>
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                isCooldown ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                              }`}
+                            />
+                            <span
+                              className={`text-[10px] font-bold ${
+                                isCooldown
+                                  ? "text-amber-600 dark:text-amber-400"
+                                  : "text-emerald-600 dark:text-emerald-400"
+                              }`}
+                            >
+                              {isCooldown ? `COOLDOWN (${cooldownRemaining}s)` : "HEALTHY"}
+                            </span>
+                          </div>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Search Bar */}

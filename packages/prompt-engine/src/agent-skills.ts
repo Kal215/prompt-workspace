@@ -320,6 +320,32 @@ export class AgentSkillRegistry {
   }
 
   /**
+   * Mengambil seluruh skill terdaftar
+   */
+  public getAllSkills(): SkillRegistryEntry[] {
+    return Array.from(this.skillsMap.values());
+  }
+
+  /**
+   * Mengubah status skill (ACTIVE, DISABLED, dll.)
+   */
+  public setSkillStatus(
+    skillName: string,
+    status: SkillStatus
+  ): { success: boolean; message: string } {
+    const entry = this.skillsMap.get(skillName);
+    if (!entry) {
+      return { success: false, message: "SKILL_NOT_FOUND" };
+    }
+    entry.status = status;
+    entry.updatedAt = new Date().toISOString();
+    fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
+      mode: 0o600,
+    });
+    return { success: true, message: `Skill ${skillName} status diubah ke ${status}.` };
+  }
+
+  /**
    * Mengambil daftar skill aktif
    */
   public getActiveSkills(): SkillManifest[] {

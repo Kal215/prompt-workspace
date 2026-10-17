@@ -307,4 +307,45 @@ export class BoundedAgentRuntime {
       return null;
     }
   }
+
+  /**
+   * Mengambil daftar riwayat eksekusi agent run
+   */
+  public listRuns(limit = 50): AgentRunRecord[] {
+    if (!fs.existsSync(this.baseRunsDir)) return [];
+    try {
+      const files = fs.readdirSync(this.baseRunsDir).filter((f) => f.endsWith(".json"));
+      const runs: AgentRunRecord[] = [];
+      for (const file of files) {
+        try {
+          const content = JSON.parse(fs.readFileSync(path.join(this.baseRunsDir, file), "utf-8"));
+          runs.push(content);
+        } catch {
+          // ignore corrupted files
+        }
+      }
+      return runs
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, limit);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Menghentikan/membatalkan run aktif secara paksa via Kill-Switch operator
+   */
+  public cancelRun(runId: string): AgentRunRecord | null {
+    const record = this.getRun(runId);
+    if (!record) return null;
+    record.status = "cancelled";
+    record.updatedAt = new Date().toISOString();
+    record.completedAt = new Date().toISOString();
+    record.error = {
+      code: "INTERNAL_ERROR",
+      message: "Run dibatalkan oleh operator (Kill-Switch diaktifkan).",
+    };
+    this.saveRunRecord(record);
+    return record;
+  }
 }
