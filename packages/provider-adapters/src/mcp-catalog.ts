@@ -225,135 +225,134 @@ export const BUILTIN_MCP_CONNECTORS_CATALOG: McpConnectorConfig[] = [
     discoveredResources: [],
   },
   {
-    connectorId: "airtable-mcp",
-    name: "Airtable MCP",
-    category: "productivity",
+    connectorId: "filesystem-mcp",
+    name: "Local Filesystem MCP",
+    category: "devtools",
     badgeType: "MCP · Catalog",
     description:
-      "Membaca basis data relasional Airtable dan mengelola record produk, inventaris, atau transaksi.",
+      "Membaca struktur direktori, berkas konfigurasi, package.json, dan skema kode lokal pengguna untuk grounding kontekstual.",
     enabled: true,
-    installedOnDevice: false,
+    installedOnDevice: true,
     transportType: "stdio",
     stdioConfig: {
       command: "npx",
-      args: ["-y", "@modelcontextprotocol/server-airtable"],
-      envVars: {
-        AIRTABLE_API_KEY: "${AIRTABLE_API_KEY}",
-      },
-    },
-    permissionMode: "write_with_approval",
-    connectionStatus: "unused",
-    discoveredTools: [
-      {
-        name: "list_records",
-        description: "Mengambil daftar baris data dari base dan tabel Airtable",
-        inputSchema: {
-          type: "object",
-          properties: {
-            baseId: { type: "string" },
-            tableId: { type: "string" },
-          },
-          required: ["baseId", "tableId"],
-        },
-        isMutating: false,
-      },
-      {
-        name: "create_record",
-        description: "Menambahkan baris record baru ke tabel Airtable",
-        inputSchema: {
-          type: "object",
-          properties: {
-            baseId: { type: "string" },
-            tableId: { type: "string" },
-            fields: { type: "object" },
-          },
-          required: ["baseId", "tableId", "fields"],
-        },
-        isMutating: true,
-      },
-    ],
-    discoveredResources: [],
-  },
-  {
-    connectorId: "asana-mcp",
-    name: "Asana / Linear MCP",
-    category: "productivity",
-    badgeType: "MCP · Catalog",
-    description:
-      "Membaca daftar backlog tugas dan membuat tiket kerja dari deliverables fase eksekusi PIEW.",
-    enabled: true,
-    installedOnDevice: false,
-    transportType: "stdio",
-    stdioConfig: {
-      command: "npx",
-      args: ["-y", "@modelcontextprotocol/server-asana"],
-      envVars: {
-        ASANA_ACCESS_TOKEN: "${ASANA_ACCESS_TOKEN}",
-      },
-    },
-    permissionMode: "write_with_approval",
-    connectionStatus: "unused",
-    discoveredTools: [
-      {
-        name: "list_tasks",
-        description: "Melihat daftar tugas yang belum selesai dalam sebuah proyek",
-        inputSchema: {
-          type: "object",
-          properties: {
-            projectId: { type: "string" },
-          },
-          required: ["projectId"],
-        },
-        isMutating: false,
-      },
-      {
-        name: "create_task",
-        description: "Membuat tugas baru pada papan proyek Asana / Linear",
-        inputSchema: {
-          type: "object",
-          properties: {
-            projectId: { type: "string" },
-            name: { type: "string" },
-            notes: { type: "string" },
-          },
-          required: ["projectId", "name"],
-        },
-        isMutating: true,
-      },
-    ],
-    discoveredResources: [],
-  },
-  {
-    connectorId: "algolia-mcp",
-    name: "Algolia MCP",
-    category: "search",
-    badgeType: "MCP · Catalog",
-    description:
-      "Inspeksi skema facet pencarian, indeks rekaman, dan analitik secara read-only.",
-    enabled: true,
-    installedOnDevice: false,
-    transportType: "stdio",
-    stdioConfig: {
-      command: "npx",
-      args: ["-y", "@algolia/mcp-server"],
-      envVars: {
-        ALGOLIA_APP_ID: "${ALGOLIA_APP_ID}",
-        ALGOLIA_API_KEY: "${ALGOLIA_API_KEY}",
-      },
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      envVars: {},
     },
     permissionMode: "read_only",
     connectionStatus: "unused",
     discoveredTools: [
       {
-        name: "search_index",
-        description: "Mencari data pada indeks Algolia",
+        name: "list_directory",
+        description: "Melihat daftar berkas dan subdirektori dalam path lokal yang diizinkan",
         inputSchema: {
           type: "object",
           properties: {
-            indexName: { type: "string" },
-            query: { type: "string" },
+            path: { type: "string", description: "Path direktori relatif atau absolut" },
           },
-          required: ["indexName", "query"],
+          required: ["path"],
+        },
+        isMutating: false,
+      },
+      {
+        name: "read_file",
+        description: "Membaca isi teks mentah dari berkas kode sumber atau konfigurasi lokal",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Path berkas yang akan dibaca" },
+          },
+          required: ["path"],
+        },
+        isMutating: false,
+      },
+    ],
+    discoveredResources: [],
+  },
+  {
+    connectorId: "linear-mcp",
+    name: "Linear MCP",
+    category: "productivity",
+    badgeType: "MCP · Catalog",
+    description:
+      "Sinkronisasi tiket rekayasa perangkat lunak, issue backlog, dan status sprint dari proyek Linear tim engineering.",
+    enabled: true,
+    installedOnDevice: false,
+    transportType: "stdio",
+    stdioConfig: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-linear"],
+      envVars: {
+        LINEAR_API_KEY: "${LINEAR_API_KEY}",
+      },
+    },
+    permissionMode: "write_with_approval",
+    connectionStatus: "unused",
+    discoveredTools: [
+      {
+        name: "list_issues",
+        description: "Mengambil daftar tiket issue aktif pada tim atau proyek Linear",
+        inputSchema: {
+          type: "object",
+          properties: {
+            teamKey: { type: "string", description: "Kunci identifikasi tim (misal: ENG)" },
+          },
+        },
+        isMutating: false,
+      },
+      {
+        name: "create_issue",
+        description: "Membuat tiket issue atau tugas rekayasa baru pada workspace Linear",
+        inputSchema: {
+          type: "object",
+          properties: {
+            teamId: { type: "string", description: "ID tim Linear sasaran" },
+            title: { type: "string", description: "Judul tiket issue" },
+            description: { type: "string", description: "Deskripsi teknis atau spesifikasi acceptance criteria" },
+          },
+          required: ["teamId", "title"],
+        },
+        isMutating: true,
+      },
+    ],
+    discoveredResources: [],
+  },
+  {
+    connectorId: "docker-mcp",
+    name: "Docker MCP",
+    category: "devtools",
+    badgeType: "MCP · Catalog",
+    description:
+      "Inspeksi konfigurasi Dockerfile, docker-compose.yml, dan status kontainer aktif untuk validasi topologi deployment.",
+    enabled: true,
+    installedOnDevice: false,
+    transportType: "stdio",
+    stdioConfig: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-docker"],
+      envVars: {},
+    },
+    permissionMode: "read_only",
+    connectionStatus: "unused",
+    discoveredTools: [
+      {
+        name: "list_containers",
+        description: "Melihat daftar kontainer Docker aktif beserta port mapping dan status runtime",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+        isMutating: false,
+      },
+      {
+        name: "inspect_container",
+        description: "Mengambil metadata konfigurasi mendalam (env, mounts, networks) dari suatu kontainer",
+        inputSchema: {
+          type: "object",
+          properties: {
+            containerId: { type: "string", description: "ID atau nama kontainer Docker" },
+          },
+          required: ["containerId"],
         },
         isMutating: false,
       },
@@ -429,45 +428,49 @@ export const BUILTIN_MCP_CONNECTORS_CATALOG: McpConnectorConfig[] = [
     discoveredResources: [],
   },
   {
-    connectorId: "spotify-custom-mcp",
-    name: "Spotify MCP · Custom",
-    category: "custom",
-    badgeType: "MCP · Custom",
+    connectorId: "sentry-mcp",
+    name: "Sentry MCP",
+    category: "analytics",
+    badgeType: "MCP · Catalog",
     description:
-      "Konektor lokal kustom terpasang pada perangkat pengguna (On this device) untuk kontrol media dan data pengguna.",
+      "Menarik log pengecualian produksi (unhandled exceptions, stack traces, breadcrumbs) untuk analisis akar masalah dan perbaikan bug.",
     enabled: true,
-    installedOnDevice: true,
+    installedOnDevice: false,
     transportType: "stdio",
     stdioConfig: {
       command: "npx",
-      args: ["-y", "spotify-mcp-server"],
+      args: ["-y", "@modelcontextprotocol/server-sentry"],
       envVars: {
-        SPOTIFY_CLIENT_ID: "${SPOTIFY_CLIENT_ID}",
+        SENTRY_AUTH_TOKEN: "${SENTRY_AUTH_TOKEN}",
       },
     },
-    permissionMode: "write_with_approval",
+    permissionMode: "read_only",
     connectionStatus: "unused",
     discoveredTools: [
       {
-        name: "get_current_playback",
-        description: "Membaca lagu dan status playback yang sedang diputar di perangkat",
+        name: "list_issues",
+        description: "Mengambil daftar insiden galat atau pengecualian produksi terbaru pada proyek Sentry",
         inputSchema: {
           type: "object",
-          properties: {},
+          properties: {
+            organizationSlug: { type: "string" },
+            projectSlug: { type: "string" },
+          },
+          required: ["organizationSlug", "projectSlug"],
         },
         isMutating: false,
       },
       {
-        name: "start_playback",
-        description: "Memulai atau mengubah pemutaran musik di perangkat",
+        name: "get_issue_details",
+        description: "Mengambil rincian stack trace dan konteks breadcrumbs dari insiden galat tertentu",
         inputSchema: {
           type: "object",
           properties: {
-            uri: { type: "string" },
+            issueId: { type: "string" },
           },
-          required: ["uri"],
+          required: ["issueId"],
         },
-        isMutating: true,
+        isMutating: false,
       },
     ],
     discoveredResources: [],
