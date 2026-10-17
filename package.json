@@ -33,6 +33,7 @@
     "test:universal-blueprint": "npx tsx packages/prompt-engine/scripts/test-universal-blueprint.ts",
     "test:supervisor": "npx tsx packages/prompt-engine/scripts/test-autonomous-supervisor.ts",
     "test:providers": "npx tsx packages/provider-adapters/scripts/test-provider-registry.ts",
+    "test:mcp": "npx tsx packages/provider-adapters/scripts/test-mcp-catalog.ts",
     "test:cascade": "npx tsx packages/provider-adapters/scripts/test-cascade-failover.ts",
     "test:dynamic-ai": "npx tsx packages/prompt-engine/scripts/test-dynamic-ai-synthesis.ts",
     "test:mcp-hub": "npx tsx packages/prompt-engine/scripts/test-mcp-connector-hub.ts",

@@ -41,7 +41,7 @@ export function resolveMcpConnectorsConfigPath(customPath?: string): string {
 
 /**
  * Slugify nama konektor
- * Contoh: "Spotify Custom" -> "spotify-custom"
+ * Contoh: "Docker Custom" -> "docker-custom"
  */
 export function slugifyConnectorName(name: string): string {
   const slug = name
@@ -97,7 +97,38 @@ export async function readMcpConnectorsStore(
     const raw = await fs.readFile(filePath, "utf-8");
     const data = JSON.parse(raw);
     if (data && Array.isArray(data.connectors)) {
-      return data as McpConnectorsStoreData;
+      // Pembersihan otomatis konektor usang/tidak relevan dari katalog lama
+      const deprecatedBuiltinIds = new Set([
+        "spotify-custom-mcp",
+        "airtable-mcp",
+        "asana-mcp",
+        "algolia-mcp",
+      ]);
+      const activeConnectors = data.connectors.filter(
+        (c: any) => !deprecatedBuiltinIds.has(c.connectorId)
+      );
+
+      // Sinkronisasi otomatis konektor katalog enterprise baru jika belum tercatat
+      const existingIds = new Set(activeConnectors.map((c: any) => c.connectorId));
+      let hasChanges = activeConnectors.length !== data.connectors.length;
+
+      for (const builtin of BUILTIN_MCP_CONNECTORS_CATALOG) {
+        if (!existingIds.has(builtin.connectorId)) {
+          activeConnectors.push({ ...builtin });
+          hasChanges = true;
+        }
+      }
+
+      const syncedStore: McpConnectorsStoreData = {
+        version: data.version || "1.0.0",
+        connectors: activeConnectors,
+      };
+
+      if (hasChanges) {
+        await writeMcpConnectorsStore(syncedStore, customPath);
+      }
+
+      return syncedStore;
     }
   } catch (error: any) {
     if (error.code !== "ENOENT") {
