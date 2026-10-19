@@ -52,6 +52,7 @@ export * from "./diagram-synthesizer.js";
 export * from "./consistency-guard.js";
 export * from "./universal-synthesizer.js";
 export * from "./supervisor.js";
+export * from "./supervisor/index.js";
 export * from "./dynamic-llm-synthesizer.js";
 export * from "./mcp-client.js";
 export * from "./mcp-bridge.js";
