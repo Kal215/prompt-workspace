@@ -271,7 +271,7 @@ export default function AgentMissionControlPage() {
 
   // Modal Hubungkan Editor Koding (MCP & API)
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
-  const [connectTab, setConnectTab] = useState<"cursor" | "claude" | "windsurf" | "api">("cursor");
+  const [connectTab, setConnectTab] = useState<"cursor" | "claude" | "windsurf" | "hermes" | "codex" | "api">("cursor");
 
   // 1. Data Supervisi / Kualitas
   const [sessions, setSessions] = useState<SupervisionSession[]>([]);
@@ -543,12 +543,34 @@ export default function AgentMissionControlPage() {
   }, [activeSession, selectedPhaseIndex]);
 
   const activeRun = useMemo(() => {
-    return agentRuns.find((r) => r.runId === selectedRunId) || agentRuns[0] || null;
+    if (!selectedRunId) return null;
+    return agentRuns.find((r) => r.runId === selectedRunId) || null;
   }, [agentRuns, selectedRunId]);
 
   // ──────────────────────────────────────────────
   // Aksi-aksi Pengguna
   // ──────────────────────────────────────────────
+
+  const handleStartNewTaskDraft = () => {
+    setActiveModule("runtime");
+    setSelectedRunId("");
+    setTaskPrompt("");
+    setHardConstraints("");
+    setIsHistoryDrawerOpen(false);
+    setTimeout(() => {
+      const textarea = document.getElementById("task-prompt-input");
+      if (textarea) {
+        textarea.focus();
+        textarea.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 100);
+    showToast(
+      lang === "en"
+        ? "New task draft ready! Enter your objective on the left."
+        : "Formulir tugas baru siap! Silakan masukkan tujuan tugas Anda di kolom kiri.",
+      "info"
+    );
+  };
 
   const handleCopyPhasePrompt = (phase: any, phaseIndex: number) => {
     if (!phase) return;
@@ -1039,6 +1061,7 @@ Silakan kerjakan tugas di atas langsung di dalam editor koding ini. Setelah sele
                       {lang === "en" ? "What should AI build or fix?" : "Apa yang ingin Anda buat atau perbaiki?"}
                     </label>
                     <textarea
+                      id="task-prompt-input"
                       value={taskPrompt}
                       onChange={(e) => setTaskPrompt(e.target.value)}
                       placeholder={lang === "en" ? "e.g. Build an inventory table with low-stock alerts..." : "Contoh: Buatkan tabel produk dengan peringatan jika stok habis..."}
@@ -1137,7 +1160,7 @@ Silakan kerjakan tugas di atas langsung di dalam editor koding ini. Setelah sele
                       onChange={(e) => setSelectedRunId(e.target.value)}
                       className="text-xs font-medium bg-stone-100 border border-stone-300 rounded-lg px-2.5 py-1 focus:outline-none max-w-sm truncate"
                     >
-                      {agentRuns.length === 0 && <option value="">(Belum ada tugas)</option>}
+                      <option value="">{lang === "en" ? "+ (Drafting New Task)" : "+ (Siapkan Tugas Baru)"}</option>
                       {agentRuns.map((r) => {
                         const taskText = r.intent?.goal || r.intent?.task || r.initialPrompt || "Tugas Otonom";
                         return (
@@ -1147,6 +1170,16 @@ Silakan kerjakan tugas di atas langsung di dalam editor koding ini. Setelah sele
                         );
                       })}
                     </select>
+
+                    <button
+                      type="button"
+                      onClick={handleStartNewTaskDraft}
+                      className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-medium flex items-center gap-1 border border-stone-200 cursor-pointer shadow-2xs transition-colors"
+                      title={lang === "en" ? "Draft new task" : "Buat tugas baru"}
+                    >
+                      <Plus className="w-3 h-3 text-stone-600" />
+                      <span>{lang === "en" ? "New" : "Baru"}</span>
+                    </button>
                   </div>
 
                   {activeRun && activeRun.status === "running" && (
@@ -1255,8 +1288,31 @@ Silakan kerjakan tugas di atas langsung di dalam editor koding ini. Setelah sele
                     )}
                   </div>
                 ) : (
-                  <div className="p-8 text-center bg-white border border-stone-200 rounded-2xl text-stone-500 text-xs">
-                    {lang === "en" ? "Select a task to view progress." : "Pilih tugas untuk melihat progres."}
+                  <div className="p-8 text-center bg-white border border-dashed border-stone-300 rounded-2xl space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
+                      <Sparkles className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-semibold text-stone-900">
+                        {lang === "en" ? "Ready for a New Task!" : "Siap Mengerjakan Tugas Baru!"}
+                      </h4>
+                      <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
+                        {lang === "en"
+                          ? "Fill out the coding objective and settings on the left, then click 'Start Task' to let AI begin."
+                          : "Masukkan tujuan koding pada formulir di sebelah kiri, lalu klik 'Mulai Kerjakan Tugas' untuk memulai pengerjaan AI."}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const textarea = document.getElementById("task-prompt-input");
+                        if (textarea) textarea.focus();
+                      }}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>{lang === "en" ? "Focus Input Form" : "Tulis Sasaran Tugas"}</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -2123,11 +2179,7 @@ Silakan kerjakan tugas di atas langsung di dalam editor koding ini. Setelah sele
 
               <button
                 type="button"
-                onClick={() => {
-                  setTaskPrompt("");
-                  setSelectedRunId("");
-                  setIsHistoryDrawerOpen(false);
-                }}
+                onClick={handleStartNewTaskDraft}
                 className="w-full py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -2430,18 +2482,20 @@ Silakan kerjakan tugas di atas langsung di dalam editor koding ini. Setelah sele
             </div>
 
             {/* Tab Selector Editor */}
-            <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl text-xs font-medium">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 bg-stone-100 p-1 rounded-xl text-xs font-medium">
               {[
                 { id: "cursor", label: "Cursor IDE" },
-                { id: "claude", label: "Claude Desktop" },
+                { id: "claude", label: "Claude Code" },
                 { id: "windsurf", label: "Windsurf" },
-                { id: "api", label: "REST API / Webhook" },
+                { id: "hermes", label: "Hermes Agent" },
+                { id: "codex", label: "OpenAI Codex" },
+                { id: "api", label: "REST API" },
               ].map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setConnectTab(t.id as any)}
-                  className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer text-center ${
+                  className={`py-1.5 rounded-lg transition-all cursor-pointer text-center truncate px-1 text-[11px] ${
                     connectTab === t.id
                       ? "bg-white text-stone-900 font-semibold shadow-xs"
                       : "text-stone-600 hover:text-stone-900"
@@ -2594,6 +2648,150 @@ Silakan kerjakan tugas di atas langsung di dalam editor koding ini. Setelah sele
                   </div>
                   <pre className="p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] overflow-x-auto">
 npx tsx scripts/piew-mcp-server.ts
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: Hermes Agent (Nous Research) */}
+            {connectTab === "hermes" && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60 space-y-1.5 text-stone-700">
+                  <span className="font-semibold text-stone-900 block flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {lang === "en" ? "Hermes Agent MCP Setup:" : "Pengaturan MCP untuk Hermes Agent:"}
+                  </span>
+                  <p className="text-[11px] text-stone-600 leading-relaxed">
+                    {lang === "en"
+                      ? "Add piew-supervisor to ~/.hermes/config.yaml under mcp_servers or register it via CLI."
+                      : "Tambahkan piew-supervisor ke berkas konfigurasi ~/.hermes/config.yaml pada blok mcp_servers atau via terminal CLI."}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-stone-700">
+                      {lang === "en" ? "Hermes config.yaml Snippet:" : "Cuplikan YAML config.yaml:"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const yamlStr = `mcp_servers:
+  piew-supervisor:
+    command: "npx"
+    args: ["tsx", "scripts/piew-mcp-server.ts"]`;
+                        navigator.clipboard.writeText(yamlStr);
+                        showToast(lang === "en" ? "Hermes YAML config copied!" : "Konfigurasi YAML Hermes disalin!", "success");
+                      }}
+                      className="text-[11px] text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{lang === "en" ? "Copy YAML" : "Salin YAML"}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] overflow-x-auto leading-relaxed">
+{`mcp_servers:
+  piew-supervisor:
+    command: "npx"
+    args: ["tsx", "scripts/piew-mcp-server.ts"]`}
+                  </pre>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-stone-700">
+                      {lang === "en" ? "CLI Command Alternative:" : "Perintah Terminal Alternatif:"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText('hermes tool install piew-supervisor --command "npx tsx scripts/piew-mcp-server.ts"');
+                        showToast(lang === "en" ? "CLI command copied!" : "Perintah terminal disalin!", "success");
+                      }}
+                      className="text-[11px] text-stone-600 hover:text-stone-900 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{lang === "en" ? "Copy Command" : "Salin Perintah"}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] overflow-x-auto">
+hermes tool install piew-supervisor --command "npx tsx scripts/piew-mcp-server.ts"
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 5: OpenAI Codex & Antigravity */}
+            {connectTab === "codex" && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60 space-y-1.5 text-stone-700">
+                  <span className="font-semibold text-stone-900 block flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                    {lang === "en" ? "OpenAI Codex & Antigravity CLI Integration:" : "Integrasi OpenAI Codex & Antigravity CLI:"}
+                  </span>
+                  <p className="text-[11px] text-stone-600 leading-relaxed">
+                    {lang === "en"
+                      ? "Connect PIEW tools directly to OpenAI Codex CLI or execute deterministic phase audits."
+                      : "Hubungkan alat PIEW langsung ke OpenAI Codex CLI atau jalankan audit fase deterministik via CLI runner."}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-stone-700">
+                      {lang === "en" ? "Codex Tools Config (JSON):" : "Konfigurasi Tools Codex (JSON):"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const jsonStr = JSON.stringify({
+                          mcpServers: {
+                            "piew-supervisor": {
+                              command: "npx",
+                              args: ["tsx", "scripts/piew-mcp-server.ts"]
+                            }
+                          }
+                        }, null, 2);
+                        navigator.clipboard.writeText(jsonStr);
+                        showToast(lang === "en" ? "Codex JSON config copied!" : "Konfigurasi JSON Codex disalin!", "success");
+                      }}
+                      className="text-[11px] text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{lang === "en" ? "Copy JSON" : "Salin JSON"}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] overflow-x-auto leading-relaxed">
+{`{
+  "mcpServers": {
+    "piew-supervisor": {
+      "command": "npx",
+      "args": ["tsx", "scripts/piew-mcp-server.ts"]
+    }
+  }
+}`}
+                  </pre>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-stone-700">
+                      {lang === "en" ? "Direct CLI Audit Runner:" : "Perintah Audit Terminal Langsung:"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText("npx tsx scripts/piew-cli.ts --audit --phase=0");
+                        showToast(lang === "en" ? "CLI command copied!" : "Perintah audit disalin!", "success");
+                      }}
+                      className="text-[11px] text-stone-600 hover:text-stone-900 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{lang === "en" ? "Copy Command" : "Salin Perintah"}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] overflow-x-auto">
+npx tsx scripts/piew-cli.ts --audit --phase=0
                   </pre>
                 </div>
               </div>
