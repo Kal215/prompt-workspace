@@ -41,6 +41,8 @@ import {
   RotateCcw,
   Sparkles,
   CheckCheck,
+  History,
+  Trash2,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
@@ -197,6 +199,17 @@ interface McpConnectorItem {
   transportType: string;
 }
 
+interface AgentHistoryItem {
+  id: string;
+  title: string;
+  createdAt: string;
+  status: string;
+  score?: number;
+  profile?: string;
+  autonomyLevel?: string;
+  currentPrompt?: string;
+}
+
 // ──────────────────────────────────────────────
 // Pemetaan Nama Tahapan Ramah Orang Awam
 // ──────────────────────────────────────────────
@@ -219,11 +232,41 @@ const PHASE_TITLES_EN: Record<number, string> = {
   5: "Completion & Release",
 };
 
+// Pembersih Log Audit Tanpa Banner ASCII
+function getCleanAuditLog(audit: any, lang: "en" | "id") {
+  if (!audit || !audit.auditResult) return "";
+  const res = audit.auditResult;
+  const isPassed = res.verdict === "VERIFIED_PROCEED" || res.verdict === "PROJECT_COMPLETED";
+
+  if (isPassed) {
+    return lang === "en"
+      ? `[LOG] Phase ${audit.phaseIndex + 1} passed automated audit (Quality Score: ${res.score}/100). All deliverables verified on disk with zero compile errors and zero rule violations.`
+      : `[LOG] Tahap ${audit.phaseIndex + 1} berhasil diverifikasi (Skor Mutu: ${res.score}/100). Seluruh berkas fisik di disk telah diperiksa, bebas galat kompilasi, dan mematuhi batasan aturan.`;
+  }
+
+  const raw = res.nextActionPrompt || "";
+  const lines = raw.split("\n");
+  const filtered = lines.filter((line: string) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("═══") || trimmed.startsWith("---") || trimmed.startsWith("===")) return false;
+    if (trimmed.includes("SERTIFIKAT AUDIT OTONOM") || trimmed.includes("PROJECT AUDIT CERTIFICATE")) return false;
+    if (trimmed.includes("PIEW AUTONOMOUS SUPERVISION") || trimmed.includes("PIEW AUTONOMOUS SUPERVISOR PROTOCOL")) return false;
+    if (trimmed.includes("DISPATCH") && trimmed.includes("PHASE_")) return false;
+    if (trimmed.startsWith("PROYEK:") || trimmed.startsWith("SESI ID:") || trimmed.startsWith("STATUS KESELURUHAN:")) return false;
+    return true;
+  });
+
+  return filtered.join("\n").trim() || raw;
+}
+
 export default function AgentMissionControlPage() {
   const { lang } = useLanguage();
 
-  // Modul aktif utama
-  const [activeModule, setActiveModule] = useState<AgentModule>("supervision");
+  // Tab default: "runtime" (Tugas AI) sesuai permintaan
+  const [activeModule, setActiveModule] = useState<AgentModule>("runtime");
+
+  // Sub-tab pada panel Alat & Aplikasi: "skills" (Aturan Prompt) vs "connectors" (Konektor MCP)
+  const [skillsSubTab, setSkillsSubTab] = useState<"skills" | "connectors">("skills");
 
   // 1. Data Supervisi / Kualitas
   const [sessions, setSessions] = useState<SupervisionSession[]>([]);
@@ -253,6 +296,11 @@ export default function AgentMissionControlPage() {
   const [startingRun, setStartingRun] = useState(false);
   const [showRunTechnicalDetails, setShowRunTechnicalDetails] = useState(false);
 
+  // Riwayat Tugas Mandiri Khusus Halaman Agent
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+  const [agentHistory, setAgentHistory] = useState<AgentHistoryItem[]>([]);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+
   // 3. Data Ingatan AI (Memory)
   const [memories, setMemories] = useState<MemoryRecord[]>([]);
   const [memoryTypeFilter, setMemoryTypeFilter] = useState<string>("all");
@@ -275,6 +323,48 @@ export default function AgentMissionControlPage() {
   const showToast = (text: string, type: "success" | "error" | "info" = "info") => {
     setToast({ text, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  // Muat riwayat tugas lokal khusus agent dari localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("piew_agent_task_history");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setAgentHistory(parsed);
+      }
+    } catch {}
+  }, []);
+
+  const saveAgentHistoryItem = (item: AgentHistoryItem) => {
+    setAgentHistory((prev) => {
+      const filtered = prev.filter((h) => h.id !== item.id);
+      const updated = [item, ...filtered];
+      try {
+        localStorage.setItem("piew_agent_task_history", JSON.stringify(updated.slice(0, 50)));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const deleteAgentHistoryItem = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setAgentHistory((prev) => {
+      const updated = prev.filter((h) => h.id !== id);
+      try {
+        localStorage.setItem("piew_agent_task_history", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    showToast(lang === "en" ? "Task removed from history" : "Tugas dihapus dari riwayat", "info");
+  };
+
+  const clearAllAgentHistory = () => {
+    setAgentHistory([]);
+    try {
+      localStorage.removeItem("piew_agent_task_history");
+    } catch {}
+    showToast(lang === "en" ? "Agent history cleared" : "Riwayat tugas agent dibersihkan", "info");
   };
 
   // ──────────────────────────────────────────────
@@ -310,6 +400,19 @@ export default function AgentMissionControlPage() {
         if (data.runs.length > 0 && !selectedRunId) {
           setSelectedRunId(data.runs[0].runId);
         }
+
+        // Sinkronkan ke riwayat lokal agent
+        data.runs.forEach((r: AgentRun) => {
+          const title = r.intent?.goal || r.intent?.task || r.initialPrompt || "Tugas Otonom";
+          saveAgentHistoryItem({
+            id: r.runId,
+            title,
+            createdAt: r.createdAt || new Date().toISOString(),
+            status: r.status,
+            score: r.finalScore,
+            currentPrompt: r.currentPrompt,
+          });
+        });
       }
     } catch (err) {
       console.error("Gagal mengambil riwayat tugas:", err);
@@ -545,6 +648,17 @@ export default function AgentMissionControlPage() {
       const data = await res.json();
       if (data.success && data.run) {
         showToast(lang === "en" ? "AI started working on the task!" : "AI mulai mengerjakan tugas!", "success");
+
+        // Simpan ke riwayat mandiri agent
+        saveAgentHistoryItem({
+          id: data.run.runId,
+          title: taskPrompt.trim(),
+          createdAt: new Date().toISOString(),
+          status: data.run.status,
+          profile: budgetProfile,
+          autonomyLevel: autonomyLevel,
+        });
+
         setTaskPrompt("");
         await fetchAgentRuns();
         setSelectedRunId(data.run.runId);
@@ -609,6 +723,7 @@ export default function AgentMissionControlPage() {
     }
   };
 
+  // Validasi / Tolak Ingatan AI dengan penanganan tepat
   const handleValidateMemory = async (memoryId: string, isValid: boolean) => {
     try {
       const res = await fetch("/api/memory", {
@@ -626,15 +741,43 @@ export default function AgentMissionControlPage() {
         showToast(
           isValid
             ? (lang === "en" ? "Memory approved!" : "Ingatan disetujui!")
-            : (lang === "en" ? "Memory removed." : "Ingatan ditolak."),
+            : (lang === "en" ? "Memory marked as rejected." : "Ingatan ditolak."),
           "success"
         );
         await fetchMemories();
+      } else {
+        showToast(data.error || "Gagal memproses ingatan", "error");
       }
     } catch (err: any) {
       showToast("Gagal memproses ingatan", "error");
     }
   };
+
+  // Hapus permanen ingatan
+  const handleDeleteMemory = async (memoryId: string) => {
+    try {
+      const res = await fetch(`/api/memory?id=${encodeURIComponent(memoryId)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(lang === "en" ? "Memory permanently deleted." : "Ingatan berhasil dihapus permanen.", "info");
+        await fetchMemories();
+      } else {
+        showToast(data.error || "Gagal menghapus ingatan", "error");
+      }
+    } catch (err: any) {
+      showToast("Gagal menghapus ingatan", "error");
+    }
+  };
+
+  // Filter riwayat tugas agent
+  const filteredHistory = useMemo(() => {
+    if (!historySearchQuery.trim()) return agentHistory;
+    const q = historySearchQuery.toLowerCase();
+    return agentHistory.filter((h) => h.title.toLowerCase().includes(q) || h.id.toLowerCase().includes(q));
+  }, [agentHistory, historySearchQuery]);
 
   return (
     <div className="flex h-screen w-full bg-[#faf9f6] text-stone-900 overflow-hidden font-sans antialiased selection:bg-stone-200">
@@ -668,66 +811,88 @@ export default function AgentMissionControlPage() {
           </div>
 
           {/* 4 Tab Sederhana Tanpa Istilah Aneh */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-stone-100 border border-stone-200 text-xs">
-            <button
-              type="button"
-              onClick={() => setActiveModule("supervision")}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-medium ${
-                activeModule === "supervision"
-                  ? "bg-white text-stone-900 shadow-xs font-semibold"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{lang === "en" ? "Quality Checks" : "Pemeriksaan Kualitas"}</span>
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-stone-100 border border-stone-200 text-xs">
+              {/* Tab 1: Tugas AI (Default) */}
+              <button
+                type="button"
+                onClick={() => setActiveModule("runtime")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-medium ${
+                  activeModule === "runtime"
+                    ? "bg-white text-stone-900 shadow-xs font-semibold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                <Cpu className="w-3.5 h-3.5 text-blue-600" />
+                <span>{lang === "en" ? "AI Tasks" : "Tugas AI"}</span>
+                {agentRuns.filter((r) => r.status === "running").length > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse ml-0.5" />
+                )}
+              </button>
 
+              {/* Tab 2: Pemeriksaan Kualitas */}
+              <button
+                type="button"
+                onClick={() => setActiveModule("supervision")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-medium ${
+                  activeModule === "supervision"
+                    ? "bg-white text-stone-900 shadow-xs font-semibold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{lang === "en" ? "Quality Checks" : "Pemeriksaan Kualitas"}</span>
+              </button>
+
+              {/* Tab 3: Ingatan AI */}
+              <button
+                type="button"
+                onClick={() => setActiveModule("memory")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-medium ${
+                  activeModule === "memory"
+                    ? "bg-white text-stone-900 shadow-xs font-semibold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                <Database className="w-3.5 h-3.5 text-purple-600" />
+                <span>{lang === "en" ? "AI Memory" : "Ingatan AI"}</span>
+                <span className="text-[10px] font-mono px-1 rounded bg-stone-200 text-stone-600">
+                  {memories.length}
+                </span>
+              </button>
+
+              {/* Tab 4: Alat & Aplikasi */}
+              <button
+                type="button"
+                onClick={() => setActiveModule("skills")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-medium ${
+                  activeModule === "skills"
+                    ? "bg-white text-stone-900 shadow-xs font-semibold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                <Wrench className="w-3.5 h-3.5 text-amber-600" />
+                <span>{lang === "en" ? "Tools & Apps" : "Alat & Aplikasi"}</span>
+                <span className="text-[10px] font-mono px-1 rounded bg-stone-200 text-stone-600">
+                  {skills.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Tombol Riwayat Khusus Halaman Agent */}
             <button
               type="button"
-              onClick={() => setActiveModule("runtime")}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-medium ${
-                activeModule === "runtime"
-                  ? "bg-white text-stone-900 shadow-xs font-semibold"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
+              onClick={() => setIsHistoryDrawerOpen(true)}
+              className="px-3 py-2 rounded-xl bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              title={lang === "en" ? "Agent Task History" : "Riwayat Tugas AI"}
             >
-              <Cpu className="w-3.5 h-3.5 text-blue-600" />
-              <span>{lang === "en" ? "AI Tasks" : "Tugas AI"}</span>
-              {agentRuns.filter((r) => r.status === "running").length > 0 && (
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse ml-0.5" />
+              <History className="w-3.5 h-3.5 text-stone-600" />
+              <span>{lang === "en" ? "Task History" : "Riwayat Tugas"}</span>
+              {agentHistory.length > 0 && (
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-stone-200 text-stone-700 font-semibold">
+                  {agentHistory.length}
+                </span>
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveModule("memory")}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-medium ${
-                activeModule === "memory"
-                  ? "bg-white text-stone-900 shadow-xs font-semibold"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              <Database className="w-3.5 h-3.5 text-purple-600" />
-              <span>{lang === "en" ? "AI Memory" : "Ingatan AI"}</span>
-              <span className="text-[10px] font-mono px-1 rounded bg-stone-200 text-stone-600">
-                {memories.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveModule("skills")}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-medium ${
-                activeModule === "skills"
-                  ? "bg-white text-stone-900 shadow-xs font-semibold"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              <Wrench className="w-3.5 h-3.5 text-amber-600" />
-              <span>{lang === "en" ? "Tools & Apps" : "Alat & Aplikasi"}</span>
-              <span className="text-[10px] font-mono px-1 rounded bg-stone-200 text-stone-600">
-                {skills.length}
-              </span>
             </button>
           </div>
         </header>
@@ -743,7 +908,255 @@ export default function AgentMissionControlPage() {
         )}
 
         {/* ──────────────────────────────────────────────
-            MODUL 1: PEMERIKSAAN KUALITAS (SUPERVISION)
+            MODUL 1: TUGAS AI (AGENT RUNTIME - DEFAULT)
+           ────────────────────────────────────────────── */}
+        {activeModule === "runtime" && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Kolom Kiri: Form Tugas Baru yang Sederhana */}
+              <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                    {lang === "en" ? "NEW TASK" : "TUGAS BARU"}
+                  </span>
+                  <h3 className="text-sm font-semibold text-stone-900">
+                    {lang === "en" ? "Give AI a Coding Objective" : "Berikan Tugas kepada AI"}
+                  </h3>
+                </div>
+
+                <form onSubmit={handleStartAgentRun} className="space-y-3.5 text-xs">
+                  <div>
+                    <label className="text-[11px] font-medium text-stone-700 block mb-1">
+                      {lang === "en" ? "What should AI build or fix?" : "Apa yang ingin Anda buat atau perbaiki?"}
+                    </label>
+                    <textarea
+                      value={taskPrompt}
+                      onChange={(e) => setTaskPrompt(e.target.value)}
+                      placeholder={lang === "en" ? "e.g. Build an inventory table with low-stock alerts..." : "Contoh: Buatkan tabel produk dengan peringatan jika stok habis..."}
+                      rows={4}
+                      className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Kecepatan & Ketelitian */}
+                  <div>
+                    <label className="text-[11px] font-medium text-stone-700 block mb-1">
+                      {lang === "en" ? "Speed & Thoroughness:" : "Kecepatan & Ketelitian:"}
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: "eco", label: lang === "en" ? "Fast" : "Cepat" },
+                        { id: "balanced", label: lang === "en" ? "Standard" : "Standar" },
+                        { id: "deep", label: lang === "en" ? "Deep" : "Mendalam" },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setBudgetProfile(item.id as any)}
+                          className={`py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer text-center ${
+                            budgetProfile === item.id
+                              ? "bg-stone-900 text-white border-stone-900 shadow-xs font-semibold"
+                              : "bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100"
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Cara Kerja AI */}
+                  <div>
+                    <label className="text-[11px] font-medium text-stone-700 block mb-1">
+                      {lang === "en" ? "How AI should work:" : "Cara Kerja AI:"}
+                    </label>
+                    <select
+                      value={autonomyLevel}
+                      onChange={(e) => setAutonomyLevel(e.target.value)}
+                      className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
+                    >
+                      <option value="L2_bounded_autonomy">
+                        {lang === "en" ? "Automatic (Recommended)" : "Otomatis Terarah (Disarankan)"}
+                      </option>
+                      <option value="L1_bounded_steps">
+                        {lang === "en" ? "Ask permission for every step" : "Minta izin di setiap langkah"}
+                      </option>
+                      <option value="L3_supervised_autonomy">
+                        {lang === "en" ? "Autonomous with supervision" : "Mandiri dengan pengawasan"}
+                      </option>
+                      <option value="L4_full_autonomy">
+                        {lang === "en" ? "Fully autonomous" : "Mandiri sepenuhnya"}
+                      </option>
+                    </select>
+                  </div>
+
+                  {/* Larangan / Aturan Khusus (Opsional) */}
+                  <div>
+                    <label className="text-[11px] font-medium text-stone-700 block mb-1">
+                      {lang === "en" ? "Prohibitions / Rules (Optional):" : "Larangan / Batasan Khusus (Opsional):"}
+                    </label>
+                    <input
+                      type="text"
+                      value={hardConstraints}
+                      onChange={(e) => setHardConstraints(e.target.value)}
+                      placeholder={lang === "en" ? "e.g. Do not use fake data, keep schema unchanged..." : "Contoh: Jangan pakai data palsu, jangan ubah skema database..."}
+                      className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={startingRun || !taskPrompt.trim()}
+                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>{startingRun ? (lang === "en" ? "Starting..." : "Memulai...") : (lang === "en" ? "Start Task" : "Mulai Kerjakan Tugas")}</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Kolom Kanan: Aktivitas Pengerjaan AI Waktu-Nyata */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Pemilih Riwayat Tugas */}
+                <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-stone-600">
+                      {lang === "en" ? "Selected Task:" : "Tugas Terpilih:"}
+                    </span>
+                    <select
+                      value={selectedRunId}
+                      onChange={(e) => setSelectedRunId(e.target.value)}
+                      className="text-xs font-medium bg-stone-100 border border-stone-300 rounded-lg px-2.5 py-1 focus:outline-none max-w-sm truncate"
+                    >
+                      {agentRuns.length === 0 && <option value="">(Belum ada tugas)</option>}
+                      {agentRuns.map((r) => {
+                        const taskText = r.intent?.goal || r.intent?.task || r.initialPrompt || "Tugas Otonom";
+                        return (
+                          <option key={r.runId} value={r.runId}>
+                            {taskText.slice(0, 35)}...
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {activeRun && activeRun.status === "running" && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancelRun(activeRun.runId)}
+                      className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                    >
+                      <Square className="w-3 h-3 fill-current" />
+                      <span>{lang === "en" ? "Stop Task" : "Hentikan Tugas"}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Detail Tugas Terpilih */}
+                {activeRun ? (
+                  <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                          {lang === "en" ? "TASK" : "TUGAS"}
+                        </span>
+                        <h4 className="text-sm font-bold text-stone-900">
+                          {activeRun.intent?.goal || activeRun.intent?.task || activeRun.initialPrompt || "Tugas AI"}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {activeRun.finalScore !== undefined && (
+                          <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
+                            {lang === "en" ? `Score: ${activeRun.finalScore}/100` : `Skor: ${activeRun.finalScore}/100`}
+                          </span>
+                        )}
+                        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full capitalize ${
+                          activeRun.status === "completed"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : activeRun.status === "running"
+                            ? "bg-amber-100 text-amber-800 animate-pulse"
+                            : "bg-stone-200 text-stone-700"
+                        }`}>
+                          {activeRun.status === "completed"
+                            ? (lang === "en" ? "Completed" : "Selesai")
+                            : activeRun.status === "running"
+                            ? (lang === "en" ? "Working..." : "Sedang Dikerjakan...")
+                            : (lang === "en" ? "Stopped" : "Dihentikan")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Timeline Aktivitas AI (Ramah & Bersih) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-blue-600" />
+                          {lang === "en" ? "What AI Did:" : "Catatan Aktivitas AI:"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowRunTechnicalDetails(!showRunTechnicalDetails)}
+                          className="text-[11px] text-stone-500 hover:text-stone-800 font-medium flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>{showRunTechnicalDetails ? (lang === "en" ? "Simple View" : "Tampilan Sederhana") : (lang === "en" ? "Technical View" : "Tampilan Teknis")}</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 max-h-60 overflow-y-auto p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs">
+                        {activeRun.steps && activeRun.steps.length > 0 ? (
+                          activeRun.steps.map((st, idx) => (
+                            <div key={idx} className="flex items-start gap-2.5 py-1.5 border-b border-stone-200/60 last:border-b-0">
+                              <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5 font-semibold text-[10px]">
+                                {st.stepIndex}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-stone-800 font-medium leading-relaxed">
+                                  {st.actionProposal?.purpose || st.actionProposal?.toolId || "Menyelesaikan langkah pekerjaan..."}
+                                </p>
+                                {showRunTechnicalDetails && (
+                                  <div className="mt-1 text-[10px] text-stone-500 font-mono">
+                                    Decision: {st.policyDecision?.decision} • Risk: {st.policyDecision?.riskClass} • Score: {st.executionOutcome?.stepScore}/100
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-stone-400 shrink-0 font-medium">
+                                {st.timestamp ? new Date(st.timestamp).toLocaleTimeString() : "Selesai"}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-stone-400 py-4 text-center">
+                            {lang === "en" ? "No steps recorded yet." : "Belum ada langkah yang dicatat."}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Hasil Akhir / Kode yang Dihasilkan */}
+                    {activeRun.currentPrompt && (
+                      <div>
+                        <span className="text-xs font-semibold text-stone-800 block mb-1.5 flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5 text-stone-600" />
+                          {lang === "en" ? "Refined Result / Rules Applied:" : "Hasil & Aturan yang Diterapkan:"}
+                        </span>
+                        <div className="max-h-40 overflow-y-auto p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-700 font-mono whitespace-pre-wrap">
+                          {activeRun.currentPrompt}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-white border border-stone-200 rounded-2xl text-stone-500 text-xs">
+                    {lang === "en" ? "Select a task to view progress." : "Pilih tugas untuk melihat progres."}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ──────────────────────────────────────────────
+            MODUL 2: PEMERIKSAAN KUALITAS (SUPERVISION)
            ────────────────────────────────────────────── */}
         {activeModule === "supervision" && (
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-6">
@@ -1080,13 +1493,13 @@ export default function AgentMissionControlPage() {
                         </div>
                       </div>
 
-                      {/* Catatan Arahan AI (Steering Directive) yang Bersih */}
+                      {/* Catatan Arahan AI (Steering Directive) Bersih Tanpa Banner Sertifikat ASCII */}
                       {latestAuditForPhase && (
                         <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-3">
                           <div className="flex items-center justify-between border-b border-stone-100 pb-2">
                             <span className="text-xs font-semibold flex items-center gap-1.5 text-stone-800">
                               <Sliders className="w-3.5 h-3.5 text-amber-600" />
-                              {lang === "en" ? "AI Guidance & Next Action" : "Catatan Arahan untuk Langkah Selanjutnya"}
+                              {lang === "en" ? "Audit Log & Status" : "Log & Status Pemeriksaan"}
                             </span>
                             <button
                               type="button"
@@ -1098,13 +1511,14 @@ export default function AgentMissionControlPage() {
                             </button>
                           </div>
 
-                          <p className="text-xs text-stone-700 leading-relaxed bg-amber-50/50 p-3 rounded-xl border border-amber-200/60">
-                            {latestAuditForPhase.auditResult.nextActionPrompt.slice(0, 300)}...
+                          {/* Tampilan Log Bersih Tanpa Banner ASCII Menakutkan */}
+                          <p className="text-xs text-stone-700 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200 font-mono">
+                            {getCleanAuditLog(latestAuditForPhase, lang)}
                           </p>
 
                           {showTechnicalDetails && (
                             <div className="mt-3 p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] max-h-48 overflow-y-auto whitespace-pre-wrap">
-                              {latestAuditForPhase.auditResult.nextActionPrompt}
+                              {getCleanAuditLog(latestAuditForPhase, lang)}
                             </div>
                           )}
                         </div>
@@ -1212,254 +1626,6 @@ export default function AgentMissionControlPage() {
                 )}
               </>
             )}
-          </div>
-        )}
-
-        {/* ──────────────────────────────────────────────
-            MODUL 2: TUGAS AI (AGENT RUNTIME)
-           ────────────────────────────────────────────── */}
-        {activeModule === "runtime" && (
-          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Kolom Kiri: Form Tugas Baru yang Sederhana */}
-              <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
-                    {lang === "en" ? "NEW TASK" : "TUGAS BARU"}
-                  </span>
-                  <h3 className="text-sm font-semibold text-stone-900">
-                    {lang === "en" ? "Give AI a Coding Objective" : "Berikan Tugas kepada AI"}
-                  </h3>
-                </div>
-
-                <form onSubmit={handleStartAgentRun} className="space-y-3.5 text-xs">
-                  <div>
-                    <label className="text-[11px] font-medium text-stone-700 block mb-1">
-                      {lang === "en" ? "What should AI build or fix?" : "Apa yang ingin Anda buat atau perbaiki?"}
-                    </label>
-                    <textarea
-                      value={taskPrompt}
-                      onChange={(e) => setTaskPrompt(e.target.value)}
-                      placeholder={lang === "en" ? "e.g. Build an inventory table with low-stock alerts..." : "Contoh: Buatkan tabel produk dengan peringatan jika stok habis..."}
-                      rows={4}
-                      className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 leading-relaxed"
-                    />
-                  </div>
-
-                  {/* Kecepatan & Ketelitian */}
-                  <div>
-                    <label className="text-[11px] font-medium text-stone-700 block mb-1">
-                      {lang === "en" ? "Speed & Thoroughness:" : "Kecepatan & Ketelitian:"}
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: "eco", label: lang === "en" ? "Fast" : "Cepat" },
-                        { id: "balanced", label: lang === "en" ? "Standard" : "Standar" },
-                        { id: "deep", label: lang === "en" ? "Deep" : "Mendalam" },
-                      ].map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setBudgetProfile(item.id as any)}
-                          className={`py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer text-center ${
-                            budgetProfile === item.id
-                              ? "bg-stone-900 text-white border-stone-900 shadow-xs font-semibold"
-                              : "bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100"
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Cara Kerja AI */}
-                  <div>
-                    <label className="text-[11px] font-medium text-stone-700 block mb-1">
-                      {lang === "en" ? "How AI should work:" : "Cara Kerja AI:"}
-                    </label>
-                    <select
-                      value={autonomyLevel}
-                      onChange={(e) => setAutonomyLevel(e.target.value)}
-                      className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
-                    >
-                      <option value="L2_bounded_autonomy">
-                        {lang === "en" ? "Automatic (Recommended)" : "Otomatis Terarah (Disarankan)"}
-                      </option>
-                      <option value="L1_bounded_steps">
-                        {lang === "en" ? "Ask permission for every step" : "Minta izin di setiap langkah"}
-                      </option>
-                      <option value="L3_supervised_autonomy">
-                        {lang === "en" ? "Autonomous with supervision" : "Mandiri dengan pengawasan"}
-                      </option>
-                      <option value="L4_full_autonomy">
-                        {lang === "en" ? "Fully autonomous" : "Mandiri sepenuhnya"}
-                      </option>
-                    </select>
-                  </div>
-
-                  {/* Larangan / Aturan Khusus (Opsional) */}
-                  <div>
-                    <label className="text-[11px] font-medium text-stone-700 block mb-1">
-                      {lang === "en" ? "Prohibitions / Rules (Optional):" : "Larangan / Batasan Khusus (Opsional):"}
-                    </label>
-                    <input
-                      type="text"
-                      value={hardConstraints}
-                      onChange={(e) => setHardConstraints(e.target.value)}
-                      placeholder={lang === "en" ? "e.g. Do not use fake data, keep schema unchanged..." : "Contoh: Jangan pakai data palsu, jangan ubah skema database..."}
-                      className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={startingRun || !taskPrompt.trim()}
-                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>{startingRun ? (lang === "en" ? "Starting..." : "Memulai...") : (lang === "en" ? "Start Task" : "Mulai Kerjakan Tugas")}</span>
-                  </button>
-                </form>
-              </div>
-
-              {/* Kolom Kanan: Aktivitas Pengerjaan AI Waktu-Nyata */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Pemilih Riwayat Tugas */}
-                <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-stone-600">
-                      {lang === "en" ? "Selected Task:" : "Tugas Terpilih:"}
-                    </span>
-                    <select
-                      value={selectedRunId}
-                      onChange={(e) => setSelectedRunId(e.target.value)}
-                      className="text-xs font-medium bg-stone-100 border border-stone-300 rounded-lg px-2.5 py-1 focus:outline-none max-w-sm truncate"
-                    >
-                      {agentRuns.length === 0 && <option value="">(Belum ada tugas)</option>}
-                      {agentRuns.map((r) => {
-                        const taskText = r.intent?.goal || r.intent?.task || r.initialPrompt || "Tugas Otonom";
-                        return (
-                          <option key={r.runId} value={r.runId}>
-                            {taskText.slice(0, 35)}...
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-
-                  {activeRun && activeRun.status === "running" && (
-                    <button
-                      type="button"
-                      onClick={() => handleCancelRun(activeRun.runId)}
-                      className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                    >
-                      <Square className="w-3 h-3 fill-current" />
-                      <span>{lang === "en" ? "Stop Task" : "Hentikan Tugas"}</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Detail Tugas Terpilih */}
-                {activeRun ? (
-                  <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                      <div>
-                        <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
-                          {lang === "en" ? "TASK" : "TUGAS"}
-                        </span>
-                        <h4 className="text-sm font-bold text-stone-900">
-                          {activeRun.intent?.goal || activeRun.intent?.task || activeRun.initialPrompt || "Tugas AI"}
-                        </h4>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {activeRun.finalScore !== undefined && (
-                          <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
-                            {lang === "en" ? `Score: ${activeRun.finalScore}/100` : `Skor: ${activeRun.finalScore}/100`}
-                          </span>
-                        )}
-                        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full capitalize ${
-                          activeRun.status === "completed"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : activeRun.status === "running"
-                            ? "bg-amber-100 text-amber-800 animate-pulse"
-                            : "bg-stone-200 text-stone-700"
-                        }`}>
-                          {activeRun.status === "completed"
-                            ? (lang === "en" ? "Completed" : "Selesai")
-                            : activeRun.status === "running"
-                            ? (lang === "en" ? "Working..." : "Sedang Dikerjakan...")
-                            : (lang === "en" ? "Stopped" : "Dihentikan")}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Timeline Aktivitas AI (Ramah & Bersih, Bukan Terminal Menakutkan) */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
-                          <Activity className="w-3.5 h-3.5 text-blue-600" />
-                          {lang === "en" ? "What AI Did:" : "Catatan Aktivitas AI:"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowRunTechnicalDetails(!showRunTechnicalDetails)}
-                          className="text-[11px] text-stone-500 hover:text-stone-800 font-medium flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>{showRunTechnicalDetails ? (lang === "en" ? "Simple View" : "Tampilan Sederhana") : (lang === "en" ? "Technical View" : "Tampilan Teknis")}</span>
-                        </button>
-                      </div>
-
-                      <div className="space-y-2 max-h-60 overflow-y-auto p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs">
-                        {activeRun.steps && activeRun.steps.length > 0 ? (
-                          activeRun.steps.map((st, idx) => (
-                            <div key={idx} className="flex items-start gap-2.5 py-1.5 border-b border-stone-200/60 last:border-b-0">
-                              <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5 font-semibold text-[10px]">
-                                {st.stepIndex}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-stone-800 font-medium leading-relaxed">
-                                  {st.actionProposal?.purpose || st.actionProposal?.toolId || "Menyelesaikan langkah pekerjaan..."}
-                                </p>
-                                {showRunTechnicalDetails && (
-                                  <div className="mt-1 text-[10px] text-stone-500 font-mono">
-                                    Decision: {st.policyDecision?.decision} • Risk: {st.policyDecision?.riskClass} • Score: {st.executionOutcome?.stepScore}/100
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-stone-400 shrink-0 font-medium">
-                                {st.timestamp ? new Date(st.timestamp).toLocaleTimeString() : "Selesai"}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-stone-400 py-4 text-center">
-                            {lang === "en" ? "No steps recorded yet." : "Belum ada langkah yang dicatat."}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Hasil Akhir / Kode yang Dihasilkan */}
-                    {activeRun.currentPrompt && (
-                      <div>
-                        <span className="text-xs font-semibold text-stone-800 block mb-1.5 flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-stone-600" />
-                          {lang === "en" ? "Refined Result / Rules Applied:" : "Hasil & Aturan yang Diterapkan:"}
-                        </span>
-                        <div className="max-h-40 overflow-y-auto p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-700 font-mono whitespace-pre-wrap">
-                          {activeRun.currentPrompt}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center bg-white border border-stone-200 rounded-2xl text-stone-500 text-xs">
-                    {lang === "en" ? "Select a task to view progress." : "Pilih tugas untuk melihat progres."}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
 
@@ -1574,13 +1740,22 @@ export default function AgentMissionControlPage() {
                           {lang === "en" ? "Approve" : "Setujui"}
                         </button>
                       )}
-                      {m.status !== "rejected" && (
+                      {m.status !== "rejected" ? (
                         <button
                           type="button"
                           onClick={() => handleValidateMemory(m.id, false)}
                           className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium transition-colors cursor-pointer text-xs"
                         >
                           {lang === "en" ? "Reject" : "Tolak"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMemory(m.id)}
+                          className="p-1 rounded-lg hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                          title="Hapus Permanen"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -1598,91 +1773,289 @@ export default function AgentMissionControlPage() {
         )}
 
         {/* ──────────────────────────────────────────────
-            MODUL 4: ALAT & APLIKASI (SKILLS & MCP)
+            MODUL 4: ALAT & APLIKASI (SKILLS & MCP DENGAN SUB-TAB)
            ────────────────────────────────────────────── */}
         {activeModule === "skills" && (
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-6">
-            {/* Bagian 1: Keahlian AI Terpasang */}
-            <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
-                    {lang === "en" ? "AGENT CAPABILITIES" : "KEAHLIAN AI"}
-                  </span>
-                  <h3 className="text-sm font-semibold text-stone-900">
-                    {lang === "en" ? "Installed Skills & Functions" : "Kemampuan Khusus yang Dikuasai AI"}
-                  </h3>
-                </div>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-700 font-medium">
-                  {skills.length} {lang === "en" ? "Skills Ready" : "Keahlian Aktif"}
+            {/* Sub-tab Pengatur Tampilan Keahlian vs Konektor Eksekusi */}
+            <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-stone-600">
+                  {lang === "en" ? "View:" : "Kategori Alat:"}
                 </span>
+                <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl text-xs font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setSkillsSubTab("skills")}
+                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                      skillsSubTab === "skills"
+                        ? "bg-white text-stone-900 font-semibold shadow-xs"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    {lang === "en" ? "Prompt Skills (Canonical Rules)" : "Keahlian Prompt (3 Aturan Baku)"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSkillsSubTab("connectors")}
+                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                      skillsSubTab === "connectors"
+                        ? "bg-white text-stone-900 font-semibold shadow-xs"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    {lang === "en" ? "Execution Tools & MCP (10 Apps)" : "Alat Eksekusi & MCP (10 Aplikasi)"}
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {skills.map((sk) => (
-                  <div key={sk.manifest.name} className="p-4 rounded-xl border border-stone-200 bg-stone-50/50 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-stone-900">
-                        {sk.manifest.name}
-                      </span>
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        {lang === "en" ? "Ready to Use" : "Siap Digunakan"}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-stone-600 leading-relaxed">
-                      {sk.manifest.summary}
-                    </p>
-
-                    <div className="flex items-center justify-between text-[11px] text-stone-400 pt-1">
-                      <span>{lang === "en" ? `Version ${sk.activeVersion}` : `Versi ${sk.activeVersion}`}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <span className="text-xs text-stone-400 font-medium">
+                {skillsSubTab === "skills" ? "Aturan pengaman instruksi LLM" : "Aplikasi & layanan sistem nyata"}
+              </span>
             </div>
 
-            {/* Bagian 2: Aplikasi & Layanan Terhubung */}
-            <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
-                    {lang === "en" ? "CONNECTED APPS" : "APLIKASI TERHUBUNG"}
-                  </span>
-                  <h3 className="text-sm font-semibold text-stone-900">
-                    {lang === "en" ? "External Tools & Services" : "Layanan Eksternal yang Dapat Diakses AI"}
-                  </h3>
-                </div>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
-                  {mcpConnectors.filter((c) => c.enabled).length}/{mcpConnectors.length} {lang === "en" ? "Connected" : "Terhubung"}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {mcpConnectors.map((c) => (
-                  <div key={c.connectorId} className="p-3.5 rounded-xl border border-stone-200 bg-white space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-xs text-stone-800 truncate">
-                        {c.name}
-                      </span>
-                      <span className={`w-2.5 h-2.5 rounded-full ${c.enabled ? "bg-emerald-500" : "bg-stone-300"}`} />
-                    </div>
-                    <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed">
-                      {c.description}
-                    </p>
-                    <div className="flex items-center justify-between text-[10px] text-stone-400 pt-1">
-                      <span className="font-medium text-stone-600">{c.category || "Alat"}</span>
-                      <span className={c.enabled ? "text-emerald-700 font-medium" : "text-stone-400"}>
-                        {c.enabled ? (lang === "en" ? "Active" : "Aktif") : (lang === "en" ? "Disabled" : "Mati")}
-                      </span>
-                    </div>
+            {/* Sub-tab 1: Keahlian Prompt (Canonical Skills Saja) */}
+            {skillsSubTab === "skills" && (
+              <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                      {lang === "en" ? "PROMPT RULES & SKILLS" : "KEAHLIAN & ATURAN PROMPT"}
+                    </span>
+                    <h3 className="text-sm font-semibold text-stone-900">
+                      {lang === "en" ? "Built-in System Guardrails" : "Aturan Baku Penjamin Kualitas AI"}
+                    </h3>
                   </div>
-                ))}
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
+                    3 {lang === "en" ? "Active" : "Aktif"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    {
+                      name: "hard-constraint-lock",
+                      summary: lang === "en"
+                        ? "Locks absolute user prohibitions so they cannot be bypassed by secondary advice."
+                        : "Mengunci batasan mutlak pengguna agar tidak dilanggar oleh saran atau optimasi sekunder.",
+                      version: "1.0.0",
+                    },
+                    {
+                      name: "mermaid-entity-consistency",
+                      summary: lang === "en"
+                        ? "Enforces 100% parity between Mermaid ERD diagrams and database schema code."
+                        : "Menjaga konsistensi 100% antara entitas diagram Mermaid ERD dengan teks spesifikasi arsitektur.",
+                      version: "1.0.0",
+                    },
+                    {
+                      name: "strict-json-output",
+                      summary: lang === "en"
+                        ? "Ensures LLM responds in clean, parseable JSON without rogue markdown fences."
+                        : "Memastikan LLM merespons dalam format JSON valid tanpa pembungkus markdown liar.",
+                      version: "1.0.0",
+                    },
+                  ].map((sk) => (
+                    <div key={sk.name} className="p-4 rounded-xl border border-stone-200 bg-stone-50/50 space-y-2 flex flex-col justify-between">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold font-mono text-stone-900">
+                            {sk.name}
+                          </span>
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                            {lang === "en" ? "Ready" : "Siap"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-600 leading-relaxed">
+                          {sk.summary}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-stone-400 pt-2 border-t border-stone-200/60 font-mono">
+                        <span>v{sk.version}</span>
+                        <span>Scope: Global</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Sub-tab 2: Alat Eksekusi & Konektor MCP */}
+            {skillsSubTab === "connectors" && (
+              <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                      {lang === "en" ? "CONNECTED APPS & MCP" : "APLIKASI TERHUBUNG & MCP"}
+                    </span>
+                    <h3 className="text-sm font-semibold text-stone-900">
+                      {lang === "en" ? "Real Action Tools & Environment Bridges" : "Perkakas Eksekusi Nyata & Jembatan Sistem"}
+                    </h3>
+                  </div>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
+                    {mcpConnectors.filter((c) => c.enabled).length}/{mcpConnectors.length} {lang === "en" ? "Connected" : "Terhubung"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {mcpConnectors.map((c) => (
+                    <div key={c.connectorId} className="p-3.5 rounded-xl border border-stone-200 bg-white space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-xs text-stone-800 truncate">
+                          {c.name}
+                        </span>
+                        <span className={`w-2.5 h-2.5 rounded-full ${c.enabled ? "bg-emerald-500" : "bg-stone-300"}`} />
+                      </div>
+                      <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed">
+                        {c.description}
+                      </p>
+                      <div className="flex items-center justify-between text-[10px] text-stone-400 pt-1">
+                        <span className="font-medium text-stone-600">{c.category || "Alat"}</span>
+                        <span className={c.enabled ? "text-emerald-700 font-medium" : "text-stone-400"}>
+                          {c.enabled ? (lang === "en" ? "Active" : "Aktif") : (lang === "en" ? "Disabled" : "Mati")}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* ──────────────────────────────────────────────
+          SLIDE-OVER DRAWER: Riwayat Tugas Khusus Agent
+         ────────────────────────────────────────────── */}
+      {isHistoryDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white w-full max-w-md h-full shadow-2xl border-l border-stone-200 flex flex-col justify-between animate-in slide-in-from-right duration-200">
+            {/* Header Drawer */}
+            <div className="p-5 border-b border-stone-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
+                  <History className="w-4 h-4 text-stone-600" />
+                  <span>{lang === "en" ? "AI Task History" : "Riwayat Tugas AI"}</span>
+                </h3>
+                <p className="text-[11px] text-stone-500 mt-0.5">
+                  {lang === "en" ? "Dedicated to Agent Workspace only" : "Riwayat mandiri khusus halaman Agent"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHistoryDrawerOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Kontrol Pencarian & Mulai Baru */}
+            <div className="p-4 border-b border-stone-100 space-y-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-stone-400" />
+                <input
+                  type="text"
+                  value={historySearchQuery}
+                  onChange={(e) => setHistorySearchQuery(e.target.value)}
+                  placeholder={lang === "en" ? "Search task history..." : "Cari riwayat tugas..."}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-stone-400"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTaskPrompt("");
+                  setSelectedRunId("");
+                  setIsHistoryDrawerOpen(false);
+                }}
+                className="w-full py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{lang === "en" ? "Start New Task (+)" : "Mulai Tugas Baru (+)"}</span>
+              </button>
+            </div>
+
+            {/* Daftar Riwayat Tugas */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+              {filteredHistory.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    setSelectedRunId(item.id);
+                    setIsHistoryDrawerOpen(false);
+                  }}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer space-y-1.5 ${
+                    selectedRunId === item.id
+                      ? "bg-stone-900 text-white border-stone-900 shadow-sm"
+                      : "bg-white border-stone-200 hover:bg-stone-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className={selectedRunId === item.id ? "text-stone-300" : "text-stone-400"}>
+                      {new Date(item.createdAt).toLocaleDateString()} • {new Date(item.createdAt).toLocaleTimeString()}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => deleteAgentHistoryItem(item.id, e)}
+                      className={`p-1 rounded transition-colors ${
+                        selectedRunId === item.id ? "text-stone-400 hover:text-white" : "text-stone-300 hover:text-rose-600"
+                      }`}
+                      title="Hapus"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <p className={`text-xs font-medium line-clamp-2 ${selectedRunId === item.id ? "text-stone-100" : "text-stone-800"}`}>
+                    {item.title}
+                  </p>
+
+                  <div className="flex items-center justify-between text-[10px] pt-1">
+                    <span className={`px-2 py-0.5 rounded-full capitalize font-semibold ${
+                      item.status === "completed"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : item.status === "running"
+                        ? "bg-amber-100 text-amber-800 animate-pulse"
+                        : "bg-stone-200 text-stone-700"
+                    }`}>
+                      {item.status}
+                    </span>
+                    {item.score !== undefined && (
+                      <span className={`font-mono font-medium ${selectedRunId === item.id ? "text-emerald-400" : "text-emerald-600"}`}>
+                        Skor: {item.score}/100
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {filteredHistory.length === 0 && (
+                <div className="py-12 text-center text-stone-400 text-xs">
+                  {lang === "en" ? "No task history found." : "Belum ada riwayat tugas."}
+                </div>
+              )}
+            </div>
+
+            {/* Footer Drawer */}
+            {agentHistory.length > 0 && (
+              <div className="p-4 border-t border-stone-200 flex items-center justify-between">
+                <span className="text-[11px] text-stone-500 font-mono">
+                  {agentHistory.length} tugas tersimpan
+                </span>
+                <button
+                  type="button"
+                  onClick={clearAllAgentHistory}
+                  className="text-xs text-rose-600 hover:text-rose-700 font-medium cursor-pointer"
+                >
+                  {lang === "en" ? "Clear All" : "Hapus Semua"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ──────────────────────────────────────────────
           MODAL: Buat Proyek Baru
