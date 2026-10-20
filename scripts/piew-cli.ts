@@ -19,6 +19,8 @@ import {
   AgentMemoryStore,
   AgentSkillRegistry,
   ScientificExperimentRunner,
+  runAutonomousEmpiricalAudit,
+  getProjectSession,
 } from "@prompt-workspace/prompt-engine";
 import {
   SynthesisStylePreset,
@@ -47,6 +49,11 @@ Opsi:
   --url=<url>         URL dokumentasi/GitHub referensi (maks 2, pisahkan koma atau ulang flag)
   --context=<teks>    Konteks tambahan / spesifikasi arsitektur
   --supervise         Inisialisasi sesi supervisi otonom (Closed-Loop MCP Supervisor)
+  --audit             Jalankan audit fisik empiris mandiri pada fase aktif
+  --session=<id>      ID sesi supervisi untuk audit atau inspeksi status
+  --phase=<index>     Indeks fase yang diaudit (default: fase aktif)
+  --build-cmd=<cmd>   Perintah kompilasi verifikasi (default: npm run build)
+  --test-cmd=<cmd>    Perintah test suite verifikasi (default: npm test)
   --providers         Tampilkan daftar penyedia built-in dan custom endpoints
   --test-provider=<id> Uji koneksi diagnostik ke provider atau custom endpoint
   --connectors        Tampilkan status Universal MCP Connectors & Tools Hub
@@ -94,6 +101,11 @@ async function main() {
   let memoryMode = false;
   let skillsMode = false;
   let experimentMode = false;
+  let auditMode = false;
+  let sessionTarget: string | undefined;
+  let phaseTarget: number | undefined;
+  let buildCmdTarget: string | undefined;
+  let testCmdTarget: string | undefined;
 
   for (const arg of args) {
     if (arg === "--providers" || arg === "--list-providers") {
@@ -116,6 +128,16 @@ async function main() {
       experimentMode = true;
     } else if (arg === "--supervise") {
       superviseMode = true;
+    } else if (arg === "--audit") {
+      auditMode = true;
+    } else if (arg.startsWith("--session=")) {
+      sessionTarget = arg.slice("--session=".length).trim();
+    } else if (arg.startsWith("--phase=")) {
+      phaseTarget = parseInt(arg.slice("--phase=".length).trim(), 10);
+    } else if (arg.startsWith("--build-cmd=")) {
+      buildCmdTarget = arg.slice("--build-cmd=".length).trim();
+    } else if (arg.startsWith("--test-cmd=")) {
+      testCmdTarget = arg.slice("--test-cmd=".length).trim();
     } else if (arg.startsWith("--style=")) {
       stylePreset = arg.split("=")[1] as SynthesisStylePreset;
     } else if (arg.startsWith("--budget=")) {
@@ -396,6 +418,71 @@ async function main() {
     process.exit(result.ok ? 0 : 1);
   }
 
+  if (auditMode) {
+    if (!sessionTarget) {
+      console.error("❌ Error: Opsi --session=<sessionId> wajib diberikan untuk menjalankan audit fisik.");
+      process.exit(1);
+    }
+    const session = getProjectSession(sessionTarget);
+    if (!session) {
+      console.error(`❌ Error: Sesi proyek "${sessionTarget}" tidak ditemukan pada penyimpanan lokal.`);
+      process.exit(1);
+    }
+    const phaseIdx = phaseTarget !== undefined ? phaseTarget : session.currentPhaseIndex;
+    const currentPhase = session.phases[phaseIdx];
+    if (!currentPhase) {
+      console.error(`❌ Error: Fase indeks ${phaseIdx} tidak valid pada sesi ${sessionTarget}.`);
+      process.exit(1);
+    }
+
+    console.log(`\n🔍 MENJALANKAN AUDIT FISIK EMPIRIS (PIEW SUPERVISOR)...`);
+    console.log(`Sesi: ${session.sessionId} | Fase: ${currentPhase.phaseId} (${currentPhase.title})`);
+    console.log(`Workspace: ${process.cwd()}\n`);
+
+    const executionResult = runAutonomousEmpiricalAudit(
+      {
+        sessionId: session.sessionId,
+        phaseIndex: phaseIdx,
+        summaryOfWork: `Audit fisik dipicu via CLI pada direktori kerja ${process.cwd()}`,
+        deliveredArtifacts: currentPhase.requiredDeliverables.map((d) => ({
+          name: d,
+          type: "artifact",
+        })),
+        verificationOutput: "Audit fisik diinisiasi secara independen oleh PIEW CLI runner.",
+        workingDirectory: process.cwd(),
+      },
+      {
+        workingDirectory: process.cwd(),
+        buildCommand: buildCmdTarget || "npm run build",
+        testCommand: testCmdTarget,
+        maxRetriesPerPhase: 3,
+        timeoutMs: 60000,
+      }
+    );
+
+    if (jsonOutput) {
+      console.log(JSON.stringify(executionResult, null, 2));
+      process.exit(0);
+    }
+
+    const { auditResult, empiricalDetail, steeringDirective } = executionResult;
+    console.log("═".repeat(68));
+    console.log(`HASIL KEPUTUSAN AUDIT MUTU: ${auditResult.verdict}`);
+    console.log(`Skor Kualitas: ${auditResult.score}/100 | Durasi Audit: ${empiricalDetail.auditDurationMs}ms`);
+    console.log("═".repeat(68));
+    console.log(`Git Diff Verified    : ${empiricalDetail.gitDiffVerified ? "YA" : "TIDAK"} (${empiricalDetail.gitChangedFiles.length} berkas berubah)`);
+    console.log(`Build Exit Code      : ${empiricalDetail.terminalBuildExitCode !== null && empiricalDetail.terminalBuildExitCode !== undefined ? empiricalDetail.terminalBuildExitCode : "TIDAK DIEKSEKUSI"}`);
+    console.log(`Pelanggaran Batasan  : ${empiricalDetail.negativeConstraintsViolations.length} pelanggaran`);
+    console.log(`Total Cacat Terdeteksi: ${empiricalDetail.defects.length} temuan\n`);
+
+    console.log("─".repeat(68));
+    console.log("📋 DIREKTIF PENGARAHAN (STEERING PROMPT):");
+    console.log("─".repeat(68));
+    console.log(steeringDirective.fullSteeringPrompt);
+    console.log("═".repeat(68) + "\n");
+    process.exit(0);
+  }
+
   if (!prompt) {
     console.error("❌ Error: Prompt utama wajib diberikan.");
     printUsage();
@@ -432,6 +519,7 @@ async function main() {
       process.exit(0);
     } catch (err: any) {
       console.error(`❌ Gagal menginisialisasi sesi supervisi: ${err.message}`);
+      if (err.stack) console.error(err.stack);
       process.exit(1);
     }
   }
