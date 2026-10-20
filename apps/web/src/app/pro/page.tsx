@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Sparkles,
   Play,
@@ -286,10 +287,8 @@ const AUDIENCE_LEVELS = [
 ];
 
 export default function ProPage() {
+  const router = useRouter();
   const { lang } = useLanguage();
-
-  // Mode: 1 Model vs Bandingkan 2 Model (Arena)
-  const [arenaMode, setArenaMode] = useState<"single" | "arena">("arena");
 
   // Core Inputs
   const [prompt, setPrompt] = useState("");
@@ -316,7 +315,6 @@ export default function ProPage() {
   // Installed models list
   const [installedModels, setInstalledModels] = useState<ModelOption[]>([]);
   const [selectedModelA, setSelectedModelA] = useState("");
-  const [selectedModelB, setSelectedModelB] = useState("");
   const [isLoadingModels, setIsLoadingModels] = useState(true);
 
   // Grounding Web Crawler & Auto-Detection
@@ -382,16 +380,12 @@ export default function ProPage() {
 
   // Execution & Synthesis States
   const [isSynthesizing, setIsSynthesizing] = useState(false);
-  const [isLoadingA, setIsLoadingA] = useState(false);
-  const [isLoadingB, setIsLoadingB] = useState(false);
-  const [resultA, setResultA] = useState<ExecutionResult | null>(null);
-  const [resultB, setResultB] = useState<ExecutionResult | null>(null);
   const [synthesisResult, setSynthesisResult] = useState<SynthesisResult | null>(null);
 
   // Active View Tabs:
-  // 'master' | 'blueprint' | 'arena' | 'spider' | 'analytics' | 'payload'
+  // 'master' | 'blueprint' | 'spider' | 'analytics' | 'payload'
   const [activeTab, setActiveTab] = useState<
-    "master" | "blueprint" | "arena" | "spider" | "analytics" | "payload"
+    "master" | "blueprint" | "spider" | "analytics" | "payload"
   >("master");
 
   // Sub-view in Master Prompt: Full Text vs Diff
@@ -403,8 +397,6 @@ export default function ProPage() {
   // Copy status
   const [copiedMaster, setCopiedMaster] = useState(false);
   const [copiedRaw, setCopiedRaw] = useState(false);
-  const [copiedA, setCopiedA] = useState(false);
-  const [copiedB, setCopiedB] = useState(false);
 
   // Pro Studio Dedicated History Drawer
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -482,7 +474,6 @@ export default function ProPage() {
           if (opts.length > 0) {
             setInstalledModels(opts);
             setSelectedModelA(opts[0].id);
-            setSelectedModelB(opts.length > 1 ? opts[1].id : opts[0].id);
           } else {
             const fallback: ModelOption[] = [
               {
@@ -497,7 +488,6 @@ export default function ProPage() {
             ];
             setInstalledModels(fallback);
             setSelectedModelA(fallback[0].id);
-            setSelectedModelB(fallback[0].id);
           }
         }
       } catch {
@@ -515,7 +505,6 @@ export default function ProPage() {
           ];
           setInstalledModels(fallback);
           setSelectedModelA(fallback[0].id);
-          setSelectedModelB(fallback[0].id);
         }
       } finally {
         if (isMounted) setIsLoadingModels(false);
@@ -672,11 +661,7 @@ export default function ProPage() {
         activeMcpConnectors,
         groundingData,
         selectedModelA,
-        selectedModelB,
-        arenaMode,
         synthesisResult: customSynthesisResult || synthesisResult,
-        resultA,
-        resultB,
       };
 
       const res = await fetch("/api/pro-history", {
@@ -703,21 +688,17 @@ export default function ProPage() {
     if (Array.isArray(record.activeMcpConnectors)) setActiveMcpConnectors(record.activeMcpConnectors);
     if (record.groundingData !== undefined) setGroundingData(record.groundingData);
     if (record.selectedModelA) setSelectedModelA(record.selectedModelA);
-    if (record.selectedModelB) setSelectedModelB(record.selectedModelB);
-    if (record.arenaMode) setArenaMode(record.arenaMode);
     if (record.synthesisResult) {
       setSynthesisResult(record.synthesisResult);
       setActiveTab("master");
     }
-    if (record.resultA !== undefined) setResultA(record.resultA);
-    if (record.resultB !== undefined) setResultB(record.resultB);
     setIsHistoryOpen(false);
     toast.info(lang === "en" ? "Pro session restored from history" : "Sesi Pro berhasil dimuat dari riwayat");
   };
 
-  // 2. JALANKAN PERBANDINGAN MODEL LANGSUNG
-  const executeModel = async (overridePrompt?: string) => {
-    const textToRun = (overridePrompt || prompt).trim();
+  // 2. BUKA DI PLAYGROUND UNTUK EKSEKUSI & PERBANDINGAN MODEL
+  const handleOpenInPlayground = (overridePrompt?: string) => {
+    const textToRun = (overridePrompt || synthesisResult?.optimizedPrompt || prompt).trim();
     if (!textToRun) {
       toast.error(
         lang === "en"
@@ -726,134 +707,14 @@ export default function ProPage() {
       );
       return;
     }
-
-    const modelOptA =
-      installedModels.find((m) => m.id === selectedModelA) || installedModels[0];
-    const modelOptB =
-      installedModels.find((m) => m.id === selectedModelB) ||
-      installedModels[1] ||
-      installedModels[0];
-
-    // Gabungkan instruksi sistem + alat MCP + Grounding
-    let finalSystemPrompt = systemInstruction || "";
-    if (activeMcpConnectors.length > 0) {
-      finalSystemPrompt += `\n\n[AVAILABLE MCP CONNECTORS]: ${activeMcpConnectors.join(", ")}`;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("piew_playground_prompt", textToRun);
     }
-    if (groundingData?.facts && groundingData.facts.length > 0) {
-      finalSystemPrompt += `\n\n[VERIFIED WEB FACTS]:\n${groundingData.facts.join("\n")}`;
-    }
-
-    // Jalankan Model Pertama (A)
-    setIsLoadingA(true);
-    setResultA(null);
-    setActiveTab("arena");
-
-    const runA = async () => {
-      try {
-        const resA = await fetch("/api/execute", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Origin: window.location.origin,
-          },
-          body: JSON.stringify({
-            prompt: textToRun,
-            systemInstruction: finalSystemPrompt || undefined,
-            providerId: modelOptA.providerId,
-            model: modelOptA.model,
-            parameters: {
-              temperature,
-              topP,
-              maxTokens,
-            },
-          }),
-        });
-        const dataA = await resA.json();
-        if (!resA.ok || dataA.success === false) {
-          throw new Error(dataA.error || "Eksekusi Model A gagal");
-        }
-        setResultA({
-          output: dataA.data?.output || dataA.output || "",
-          latencyMs: dataA.data?.latencyMs || dataA.latencyMs || 0,
-          tokensUsed: dataA.data?.tokenUsage?.total || dataA.tokensUsed || 0,
-          model: modelOptA.name,
-          provider: modelOptA.provider,
-          timestamp: new Date().toLocaleTimeString(),
-        });
-      } catch (err: any) {
-        setResultA({
-          output: `Error: ${err.message}`,
-          latencyMs: 0,
-          tokensUsed: 0,
-          model: modelOptA.name,
-          provider: modelOptA.provider,
-          timestamp: new Date().toLocaleTimeString(),
-          error: err.message,
-        });
-      } finally {
-        setIsLoadingA(false);
-      }
-    };
-
-    // Jalankan Model Kedua (B) jika mode Bandingkan 2 Model aktif
-    const runB = async () => {
-      if (arenaMode !== "arena") return;
-      setIsLoadingB(true);
-      setResultB(null);
-      try {
-        const resB = await fetch("/api/execute", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Origin: window.location.origin,
-          },
-          body: JSON.stringify({
-            prompt: textToRun,
-            systemInstruction: finalSystemPrompt || undefined,
-            providerId: modelOptB.providerId,
-            model: modelOptB.model,
-            parameters: {
-              temperature,
-              topP,
-              maxTokens,
-            },
-          }),
-        });
-        const dataB = await resB.json();
-        if (!resB.ok || dataB.success === false) {
-          throw new Error(dataB.error || "Eksekusi Model B gagal");
-        }
-        setResultB({
-          output: dataB.data?.output || dataB.output || "",
-          latencyMs: dataB.data?.latencyMs || dataB.latencyMs || 0,
-          tokensUsed: dataB.data?.tokenUsage?.total || dataB.tokensUsed || 0,
-          model: modelOptB.name,
-          provider: modelOptB.provider,
-          timestamp: new Date().toLocaleTimeString(),
-        });
-      } catch (err: any) {
-        setResultB({
-          output: `Error: ${err.message}`,
-          latencyMs: 0,
-          tokensUsed: 0,
-          model: modelOptB.name,
-          provider: modelOptB.provider,
-          timestamp: new Date().toLocaleTimeString(),
-          error: err.message,
-        });
-      } finally {
-        setIsLoadingB(false);
-      }
-    };
-
-    await Promise.all([runA(), runB()]);
-    toast.success(
-      lang === "en" ? "Model execution finished!" : "Model selesai memberikan jawaban!"
-    );
+    router.push("/playground");
   };
 
   // 3. COPY HELPER
-  const handleCopyText = async (text: string, target: "master" | "raw" | "A" | "B") => {
+  const handleCopyText = async (text: string, target: "master" | "raw") => {
     try {
       await navigator.clipboard.writeText(text);
       if (target === "master") {
@@ -862,12 +723,6 @@ export default function ProPage() {
       } else if (target === "raw") {
         setCopiedRaw(true);
         setTimeout(() => setCopiedRaw(false), 2000);
-      } else if (target === "A") {
-        setCopiedA(true);
-        setTimeout(() => setCopiedA(false), 2000);
-      } else if (target === "B") {
-        setCopiedB(true);
-        setTimeout(() => setCopiedB(false), 2000);
       }
       toast.success(lang === "en" ? "Copied to clipboard!" : "Berhasil disalin ke papan klip!");
     } catch {
@@ -1290,86 +1145,31 @@ export default function ProPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-stone-700 flex items-center gap-1.5">
                   <Cpu className="w-3.5 h-3.5 text-stone-500" />
-                  {arenaMode === "arena"
-                    ? lang === "en"
-                      ? "Compare 2 Models"
-                      : "Bandingkan 2 Model"
-                    : lang === "en"
-                    ? "Target Model"
-                    : "Pilihan Model AI"}
+                  {lang === "en" ? "Target Model" : "Pilihan Model AI"}
                 </span>
-
-                {/* Toggle Button: Bandingkan 2 Model vs 1 Model */}
-                <button
-                  type="button"
-                  onClick={() => setArenaMode(arenaMode === "arena" ? "single" : "arena")}
-                  className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-stone-200 hover:bg-stone-100 text-stone-600 transition-colors cursor-pointer flex items-center gap-1"
-                >
-                  <SplitSquareVertical className="w-3 h-3" />
-                  {arenaMode === "arena"
-                    ? lang === "en"
-                      ? "Compare 2 Models: ON"
-                      : "Bandingkan 2 Model: AKTIF"
-                    : lang === "en"
-                    ? "Single Model Only"
-                    : "Gunakan 1 Model Saja"}
-                </button>
               </div>
 
-              <div className={`grid gap-2 ${arenaMode === "arena" ? "grid-cols-2" : "grid-cols-1"}`}>
-                {/* Model Pertama (A) */}
-                <div>
-                  <span className="text-[10px] font-mono text-stone-400 block mb-0.5">
-                    {arenaMode === "arena"
-                      ? lang === "en"
-                        ? "Primary Model (A):"
-                        : "Model Pertama (A):"
-                      : lang === "en"
-                      ? "Selected Model:"
-                      : "Model Pilihan:"}
-                  </span>
-                  <select
-                    value={selectedModelA}
-                    onChange={(e) => setSelectedModelA(e.target.value)}
-                    className="w-full text-xs font-mono rounded-xl border border-stone-200 bg-stone-50/80 px-2 py-1.5 text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-400 cursor-pointer"
-                  >
-                    {installedModels.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Model Kedua (B - Arena Only) */}
-                {arenaMode === "arena" && (
-                  <div>
-                    <span className="text-[10px] font-mono text-stone-400 block mb-0.5">
-                      {lang === "en" ? "Comparison Model (B):" : "Model Kedua (B) — Pembanding:"}
-                    </span>
-                    <select
-                      value={selectedModelB}
-                      onChange={(e) => setSelectedModelB(e.target.value)}
-                      className="w-full text-xs font-mono rounded-xl border border-stone-200 bg-stone-50/80 px-2 py-1.5 text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-400 cursor-pointer"
-                    >
-                      {installedModels.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+              <div>
+                <select
+                  value={selectedModelA}
+                  onChange={(e) => setSelectedModelA(e.target.value)}
+                  className="w-full text-xs font-mono rounded-xl border border-stone-200 bg-stone-50/80 px-2.5 py-2 text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-400 cursor-pointer"
+                >
+                  {installedModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* DUAL ACTION BUTTONS: SINTESIS UTUH VS JALANKAN MODEL */}
-            <div className="grid grid-cols-1 gap-2 pt-0.5">
-              {/* Tombol Utama: Buat Prompt Lengkap & Rancangan */}
+            {/* ACTION BUTTON: SINTESIS MASTER PROMPT & ARSITEKTUR */}
+            <div className="pt-0.5">
               <button
                 type="button"
                 onClick={handleSynthesizeMasterPrompt}
-                disabled={isSynthesizing || isLoadingA || isLoadingB}
+                disabled={isSynthesizing}
                 className="w-full py-2.5 px-4 rounded-xl bg-stone-900 hover:bg-stone-800 active:scale-[0.99] text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSynthesizing ? (
@@ -1384,34 +1184,6 @@ export default function ProPage() {
                       {lang === "en"
                         ? "⚡ Generate Complete Prompt & Blueprint"
                         : "⚡ Buat Prompt Lengkap & Rancangan"}
-                    </span>
-                  </>
-                )}
-              </button>
-
-              {/* Tombol Sekunder: Bandingkan 2 Model Langsung / Jalankan 1 Model */}
-              <button
-                type="button"
-                onClick={() => executeModel()}
-                disabled={isLoadingA || isLoadingB || isSynthesizing}
-                className="w-full py-2 px-3 rounded-xl bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoadingA || isLoadingB ? (
-                  <>
-                    <RotateCcw className="w-3.5 h-3.5 animate-spin text-stone-500" />
-                    <span>{lang === "en" ? "Running models..." : "Mengeksekusi model..."}</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3.5 h-3.5 text-stone-900" />
-                    <span>
-                      {arenaMode === "arena"
-                        ? lang === "en"
-                          ? "▶️ Compare Both Models Directly"
-                          : "▶️ Jalankan Perbandingan 2 Model"
-                        : lang === "en"
-                        ? "▶️ Run Model Directly"
-                        : "▶️ Jalankan 1 Model Langsung"}
                     </span>
                   </>
                 )}
@@ -1504,24 +1276,7 @@ export default function ProPage() {
                 )}
               </button>
 
-              {/* 3. Tab Bandingkan 2 Model (Arena) */}
-              <button
-                type="button"
-                onClick={() => setActiveTab("arena")}
-                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap font-medium text-xs ${
-                  activeTab === "arena"
-                    ? "bg-stone-900 text-white font-semibold shadow-xs"
-                    : "text-stone-600 hover:text-stone-900"
-                }`}
-              >
-                <Play className="w-3.5 h-3.5" />
-                <span>{lang === "en" ? "Compare 2 Models" : "Bandingkan 2 Model"}</span>
-                {(resultA || resultB) && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block ml-0.5" />
-                )}
-              </button>
-
-              {/* 4. Tab Uji Keamanan */}
+              {/* 3. Tab Uji Keamanan */}
               <button
                 type="button"
                 onClick={() => setActiveTab("spider")}
@@ -1621,27 +1376,19 @@ export default function ProPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {/* Tombol Langsung Uji ke 2 Model */}
+                        {/* Tombol Langsung Uji di Playground */}
                         <button
                           type="button"
-                          onClick={() => executeModel(synthesisResult.optimizedPrompt)}
+                          onClick={() => handleOpenInPlayground(synthesisResult.optimizedPrompt)}
                           className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
                           title={
                             lang === "en"
-                              ? "Test this prompt in Model Comparison Arena"
-                              : "Jalankan prompt hasil rancangan ini langsung ke Model AI"
+                              ? "Test and benchmark this prompt in Playground"
+                              : "Uji dan bandingkan prompt ini di Playground"
                           }
                         >
                           <Play className="w-3.5 h-3.5 text-lime-400" />
-                          <span>
-                            {arenaMode === "arena"
-                              ? lang === "en"
-                                ? "Compare Results in 2 Models →"
-                                : "Bandingkan Jawaban Prompt Ini →"
-                              : lang === "en"
-                              ? "Run This Prompt Now →"
-                              : "Jalankan Prompt Ini Sekarang →"}
-                          </span>
+                          <span>{lang === "en" ? "Test in Playground →" : "Buka di Playground →"}</span>
                         </button>
 
                         {/* Copy Button */}
@@ -1891,157 +1638,7 @@ export default function ProPage() {
             )}
 
             {/* ══════════════════════════════════════════════════════════
-                TAB 3: BANDINGKAN 2 MODEL (ARENA HASIL EKSEKUSI)
-            ══════════════════════════════════════════════════════════ */}
-            {activeTab === "arena" && (
-              <div className="space-y-4">
-                {/* Header Stats Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xs font-bold text-stone-900">
-                      {arenaMode === "arena"
-                        ? lang === "en"
-                          ? "Side-by-Side Model Comparison (Model A vs Model B)"
-                          : "Perbandingan Jawaban: Model A vs Model B"
-                        : lang === "en"
-                        ? "Single Model Output"
-                        : "Jawaban Model AI"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs font-mono text-stone-600">
-                    {resultA && (
-                      <span>
-                        Model A: <strong>{resultA.latencyMs}ms</strong> ({resultA.tokensUsed} tokens)
-                      </span>
-                    )}
-                    {resultB && arenaMode === "arena" && (
-                      <span>
-                        Model B: <strong>{resultB.latencyMs}ms</strong> ({resultB.tokensUsed} tokens)
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Container Output Jawaban */}
-                {arenaMode === "single" ? (
-                  /* TAMPILAN 1 MODEL */
-                  <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                      <span className="text-xs font-bold text-stone-900">{selectedModelA}</span>
-                      {resultA && (
-                        <button
-                          type="button"
-                          onClick={() => handleCopyText(resultA.output, "A")}
-                          className="text-xs font-mono text-stone-500 hover:text-stone-900 cursor-pointer"
-                        >
-                          {copiedA ? (lang === "en" ? "Copied!" : "Disalin!") : (lang === "en" ? "Copy Answer" : "Salin Jawaban")}
-                        </button>
-                      )}
-                    </div>
-                    {isLoadingA ? (
-                      <div className="py-20 flex flex-col items-center justify-center gap-2 text-stone-400">
-                        <RotateCcw className="w-6 h-6 animate-spin text-lime-600" />
-                        <span className="text-xs font-mono">
-                          {lang === "en" ? "AI is generating response..." : "Sedang menulis jawaban..."}
-                        </span>
-                      </div>
-                    ) : resultA ? (
-                      <div className="bg-[#faf9f6] p-5 rounded-2xl border border-stone-200/80 max-h-[650px] overflow-y-auto">
-                        <MarkdownView content={resultA.output} />
-                      </div>
-                    ) : (
-                      <div className="py-16 text-center text-xs text-stone-400">
-                        {lang === "en"
-                          ? "Click 'Run Model Directly' or 'Compare Results in 2 Models' to generate output."
-                          : "Klik 'Jalankan 1 Model Langsung' atau 'Bandingkan Jawaban Prompt Ini' untuk melihat hasil."}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* TAMPILAN 2 MODEL BERDAMPINGAN */
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Kolom Model Pertama (A) */}
-                    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-3 flex flex-col">
-                      <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] font-mono text-lime-800 font-bold px-1.5 py-0.5 rounded bg-lime-100 uppercase">
-                            Model A
-                          </span>
-                          <h4 className="text-xs font-bold text-stone-900">{selectedModelA}</h4>
-                        </div>
-                        {resultA && (
-                          <button
-                            type="button"
-                            onClick={() => handleCopyText(resultA.output, "A")}
-                            className="text-[11px] font-mono text-stone-500 hover:text-stone-900 cursor-pointer"
-                          >
-                            {copiedA ? (lang === "en" ? "Copied!" : "Disalin!") : (lang === "en" ? "Copy" : "Salin")}
-                          </button>
-                        )}
-                      </div>
-                      {isLoadingA ? (
-                        <div className="py-20 flex flex-col items-center justify-center gap-2 text-stone-400">
-                          <RotateCcw className="w-5 h-5 animate-spin text-lime-600" />
-                          <span className="text-xs font-mono">
-                            {lang === "en" ? "Model A is answering..." : "Model A sedang menulis jawaban..."}
-                          </span>
-                        </div>
-                      ) : resultA ? (
-                        <div className="bg-[#faf9f6] p-4 rounded-xl border border-stone-200/80 flex-1 max-h-[550px] overflow-y-auto">
-                          <MarkdownView content={resultA.output} />
-                        </div>
-                      ) : (
-                        <div className="py-16 text-center text-xs text-stone-400">
-                          {lang === "en" ? "Ready to test Model A" : "Menunggu eksekusi Model A"}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Kolom Model Kedua (B) */}
-                    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-3 flex flex-col">
-                      <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] font-mono text-sky-800 font-bold px-1.5 py-0.5 rounded bg-sky-100 uppercase">
-                            Model B
-                          </span>
-                          <h4 className="text-xs font-bold text-stone-900">{selectedModelB}</h4>
-                        </div>
-                        {resultB && (
-                          <button
-                            type="button"
-                            onClick={() => handleCopyText(resultB.output, "B")}
-                            className="text-[11px] font-mono text-stone-500 hover:text-stone-900 cursor-pointer"
-                          >
-                            {copiedB ? (lang === "en" ? "Copied!" : "Disalin!") : (lang === "en" ? "Copy" : "Salin")}
-                          </button>
-                        )}
-                      </div>
-                      {isLoadingB ? (
-                        <div className="py-20 flex flex-col items-center justify-center gap-2 text-stone-400">
-                          <RotateCcw className="w-5 h-5 animate-spin text-sky-600" />
-                          <span className="text-xs font-mono">
-                            {lang === "en" ? "Model B is answering..." : "Model B sedang menulis jawaban..."}
-                          </span>
-                        </div>
-                      ) : resultB ? (
-                        <div className="bg-[#faf9f6] p-4 rounded-xl border border-stone-200/80 flex-1 max-h-[550px] overflow-y-auto">
-                          <MarkdownView content={resultB.output} />
-                        </div>
-                      ) : (
-                        <div className="py-16 text-center text-xs text-stone-400">
-                          {lang === "en" ? "Ready to test Model B" : "Menunggu eksekusi Model B"}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ══════════════════════════════════════════════════════════
-                TAB 4: UJI KEAMANAN & KETAHANAN (SPIDER MATRIX)
+                TAB 3: UJI KEAMANAN & KETAHANAN (SPIDER MATRIX)
             ══════════════════════════════════════════════════════════ */}
             {activeTab === "spider" && (
               <div className="space-y-4">
@@ -2138,37 +1735,41 @@ export default function ProPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-2">
                     <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block">
-                      {lang === "en" ? "Response Speed (ms)" : "Kecepatan Respon (ms)"}
+                      {lang === "en" ? "Prompt Length" : "Panjang Prompt"}
                     </span>
                     <div className="text-2xl font-bold font-mono text-stone-900">
-                      {resultA ? `${resultA.latencyMs} ms` : "—"}
+                      {synthesisResult?.optimizedPrompt?.length || prompt.length} char
                     </div>
                     <p className="text-[11px] text-stone-500">
-                      {resultA ? `${lang === "en" ? "Measured from" : "Diukur dari"} ${resultA.provider}` : (lang === "en" ? "Run model to measure" : "Jalankan model untuk mengukur")}
+                      {lang === "en" ? "Total characters synthesized" : "Total karakter hasil rancangan"}
                     </p>
                   </div>
 
                   <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-2">
                     <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block">
-                      {lang === "en" ? "Token Consumption" : "Jumlah Kata / Token Terpakai"}
+                      {lang === "en" ? "System Diagrams" : "Diagram Arsitektur"}
                     </span>
                     <div className="text-2xl font-bold font-mono text-stone-900">
-                      {resultA ? `${resultA.tokensUsed} tok` : "—"}
+                      {availableDiagrams.length}
                     </div>
                     <p className="text-[11px] text-stone-500">
-                      {resultA ? (lang === "en" ? "Total tokens prompt + completion" : "Total token instruksi dan jawaban") : (lang === "en" ? "Run model to measure" : "Jalankan model untuk mengukur")}
+                      {lang === "en" ? "Multi-diagram blueprints generated" : "Diagram arsitektur & alur data"}
                     </p>
                   </div>
 
                   <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-2">
                     <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block">
-                      {lang === "en" ? "Data Integrity (SHA-256)" : "Keaslian Data Evaluasi (SHA-256)"}
+                      {lang === "en" ? "Playground Testing" : "Pengujian Model"}
                     </span>
-                    <div className="text-xs font-mono text-stone-800 truncate pt-1">
-                      d8e8fca2dc6451ef9c81e82d8c3685...
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenInPlayground()}
+                      className="text-xs font-mono font-semibold text-lime-700 hover:text-lime-800 underline underline-offset-4 cursor-pointer pt-1 block"
+                    >
+                      {lang === "en" ? "Benchmark in Playground →" : "Uji di Playground →"}
+                    </button>
                     <p className="text-[11px] text-stone-500">
-                      {lang === "en" ? "Tamper-proof unbiased evaluation" : "Jaminan evaluasi asli tanpa manipulasi"}
+                      {lang === "en" ? "Measure latency & side-by-side output" : "Ukur latensi dan komparasi respon"}
                     </p>
                   </div>
                 </div>
@@ -2228,8 +1829,7 @@ export default function ProPage() {
                       customConstraints,
                       hyperparameters: { temperature, topP, maxTokens },
                       models: {
-                        modelA: selectedModelA,
-                        modelB: arenaMode === "arena" ? selectedModelB : undefined,
+                        targetModel: selectedModelA,
                       },
                       synthesis: {
                         hasResult: !!synthesisResult,
