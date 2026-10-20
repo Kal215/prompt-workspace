@@ -86,16 +86,37 @@ Buka browser di [http://localhost:3000](http://localhost:3000) untuk melihat hal
 
 ## Fitur Utama
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            FITUR UTAMA PIEW                                 │
-├───────────────────────┬──────────────────────────┬──────────────────────────┤
-│ 1. PEMERIKSAAN KODE   │ 2. PENGARAH REVISI       │ 3. ALAT INTEGRASI (MCP)  │
-│ • Cek perubahan file  │ • Tunjukkan letak salah  │ • 10 Konektor standar    │
-│ • Jalankan build/test │ • Batas 3 kali coba      │ • GitHub, Linear, Sentry │
-│ • Cek status Docker   │ • Pengerjaan bertahap    │ • Figma, DB, Puppeteer   │
-│ • Jaga aturan larangan│ • Kendali tangan manusia │ • Akses file yang aman   │
-└───────────────────────┴──────────────────────────┴──────────────────────────┘
+```mermaid
+flowchart TD
+    Hub(["PIEW: Fitur Utama"])
+    
+    subgraph P1["1. Pemeriksaan Kode"]
+        direction TB
+        A1["Cek Perubahan File (Git Diff)"]
+        A2["Uji Kompilasi & Unit Test"]
+        A3["Cek Status Container Docker"]
+        A4["Jaga Batasan & Aturan Larangan"]
+    end
+
+    subgraph P2["2. Pengarah Revisi"]
+        direction TB
+        B1["Tunjukkan File & Baris Error"]
+        B2["Batas Perbaikan Maksimal 3 Kali"]
+        B3["Pengerjaan Bertahap (DB ➔ API ➔ UI)"]
+        B4["Eskalasi ke Bantuan Pengguna"]
+    end
+
+    subgraph P3["3. 10 Konektor MCP"]
+        direction TB
+        C1["GitHub & Linear (Kode & Tiket)"]
+        C2["Sentry (Log & Rekaman Error)"]
+        C3["Figma (Token Desain & UI)"]
+        C4["Database, File Proyek, & Browser"]
+    end
+
+    Hub --> A1
+    Hub --> B1
+    Hub --> C1
 ```
 
 ### 1. Pemeriksaan Kode Asli (`packages/prompt-engine/src/supervisor/`)

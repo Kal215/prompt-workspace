@@ -86,16 +86,36 @@ Open [http://localhost:3000](http://localhost:3000) to view the supervision dash
 
 ## Key Features
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                             CORE PIEW FEATURES                              │
-├───────────────────────┬──────────────────────────┬──────────────────────────┤
-│ 1. CODE VERIFICATION  │ 2. TARGETED FEEDBACK     │ 3. TOOL INTEGRATIONS     │
-│ • Inspect git changes │ • Pinpoint exact lines   │ • 10 Standard MCP tools  │
-│ • Run build & tests   │ • 3-try retry limit      │ • GitHub, Linear, Sentry │
-│ • Check Docker status │ • Step-by-step progress  │ • Figma, DB, Puppeteer   │
-│ • Enforce boundaries  │ • User intervention gate │ • Safe file operations   │
-└───────────────────────┴──────────────────────────┴──────────────────────────┘
+```mermaid
+flowchart TD
+    Hub(["PIEW: Core Features"])
+    
+    subgraph P1["1. Code Verification"]
+        direction TB
+        A1["Inspect Git Diff Changes"]
+        A2["Run Terminal Build & Tests"]
+        A3["Check Docker Container Health"]
+        A4["Enforce Negative Constraints"]
+    end
+
+    subgraph P2["2. Targeted Feedback"]
+        B1["Pinpoint Error Messages & Lines"]
+        B2["3-Attempt Retry Circuit Breaker"]
+        B3["Step-by-Step Progress (DB ➔ API ➔ UI)"]
+        B4["User Intervention Escalation"]
+    end
+
+    subgraph P3["3. 10 Standard MCP Tools"]
+        direction TB
+        C1["GitHub & Linear (Code & Issues)"]
+        C2["Sentry (Logs & Stack Traces)"]
+        C3["Figma (Design Tokens & UI Specs)"]
+        C4["Database, Workspace Files, & Browser"]
+    end
+
+    Hub --> A1
+    Hub --> B1
+    Hub --> C1
 ```
 
 ### 1. Real Code Verification (`packages/prompt-engine/src/supervisor/`)
