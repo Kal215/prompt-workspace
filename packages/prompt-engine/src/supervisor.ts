@@ -714,7 +714,7 @@ export async function initAutonomousProjectAsync(
   const now = new Date().toISOString();
   const session: AutonomousProjectSession = AutonomousProjectSessionSchema.parse({
     sessionId,
-    projectTitle: blueprint.title,
+    originalPrompt: prompt,
     domainId: blueprint.domain,
     subtopicId: input.subtopicId || "universal_dynamic",
     audienceLevel,

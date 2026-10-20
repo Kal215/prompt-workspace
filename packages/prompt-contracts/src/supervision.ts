@@ -213,3 +213,68 @@ export const GetCurrentPhaseInputSchema = z.object({
   sessionId: z.string().min(1, "sessionId wajib diisi"),
 });
 export type GetCurrentPhaseInput = z.infer<typeof GetCurrentPhaseInputSchema>;
+
+// ──────────────────────────────────────────────
+// 6. Empirical Verification & Steering Schemas (RFC-008)
+// ──────────────────────────────────────────────
+
+export const DefectSeverityEnum = z.enum(["CRITICAL", "MAJOR", "MINOR"]);
+export type DefectSeverity = z.infer<typeof DefectSeverityEnum>;
+
+export const AuditDefectItemSchema = z.object({
+  severity: DefectSeverityEnum,
+  category: z.string().min(1),
+  fileLocation: z.string().optional(),
+  lineRange: z.string().optional(),
+  failureMessage: z.string().min(1),
+  rawOutputSnippet: z.string().optional(),
+});
+export type AuditDefectItem = z.infer<typeof AuditDefectItemSchema>;
+
+export const EmpiricalAuditDetailSchema = z.object({
+  gitDiffVerified: z.boolean(),
+  gitChangedFiles: z.array(z.string()).default([]),
+  gitDeletionsDetected: z.boolean().default(false),
+  gitSummary: z.string().optional(),
+  terminalBuildExitCode: z.number().nullable().optional(),
+  terminalTestExitCode: z.number().nullable().optional(),
+  terminalOutputSnippet: z.string().optional(),
+  dockerStatus: z.enum(["RUNNING", "STOPPED", "CRASH_LOOP", "NOT_CONFIGURED"]).default("NOT_CONFIGURED"),
+  dockerSummary: z.string().optional(),
+  negativeConstraintsViolations: z.array(z.string()).default([]),
+  defects: z.array(AuditDefectItemSchema).default([]),
+  auditDurationMs: z.number().int().min(0).default(0),
+});
+export type EmpiricalAuditDetail = z.infer<typeof EmpiricalAuditDetailSchema>;
+
+export const SteeringDirectiveSchema = z.object({
+  phaseIndex: z.number().int().min(0),
+  phaseId: z.string(),
+  phaseTitle: z.string(),
+  retryCount: z.number().int().min(0),
+  maxRetries: z.number().int().min(1).default(3),
+  canRetry: z.boolean(),
+  verdict: PhaseAuditVerdictEnum,
+  summaryDiagnosis: z.string(),
+  criticalDefects: z.array(AuditDefectItemSchema).default([]),
+  negativeViolations: z.array(z.string()).default([]),
+  requiredActions: z.array(z.string()).default([]),
+  fullSteeringPrompt: z.string(),
+  humanEscalationRequired: z.boolean().default(false),
+});
+export type SteeringDirective = z.infer<typeof SteeringDirectiveSchema>;
+
+export const AutonomousVerificationConfigSchema = z.object({
+  workingDirectory: z.string(),
+  buildCommand: z.string().optional().default("npm run build"),
+  testCommand: z.string().optional().default("npm test"),
+  timeoutMs: z.number().int().min(1000).default(60000),
+  maxRetriesPerPhase: z.number().int().min(1).default(3),
+  enableDockerCheck: z.boolean().default(false),
+  containerName: z.string().optional(),
+  expectedPorts: z.array(z.number().int()).optional().default([]),
+  enforceNegativeConstraints: z.boolean().default(true),
+});
+export type AutonomousVerificationConfig = z.infer<
+  typeof AutonomousVerificationConfigSchema
+>;
