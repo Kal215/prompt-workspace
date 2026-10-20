@@ -143,7 +143,7 @@ export async function POST(request: Request) {
         providerId: validatedData.providerId || undefined,
         targetModel: validatedData.targetModel || undefined,
         adapter: customAdapter,
-      });
+      } as any);
       if (blueprintRes?.blueprint) {
         universalBlueprint = blueprintRes.blueprint;
         mermaidDiagrams = blueprintRes.blueprint.diagrams || [];
