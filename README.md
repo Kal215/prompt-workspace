@@ -1,60 +1,51 @@
-# Prompt Intelligence Engineering Workspace (PIEW)
-**Versi: v2.0.0 (Closed-Loop Synthesis Platform, Crawler Grounding & Spider Matrix Evaluation)**
+**English** · [Bahasa Indonesia](docs/readme/README_id.md)
 
-Prompt Intelligence Engineering Workspace (PIEW) adalah platform rekayasa prompt tingkat lanjut (*advanced prompt engineering*) yang mengimplementasikan metodologi **Preserve Intent**, **Analyze Before Optimize**, **Evidence Over Claims**, dan **Closed-Loop Synthesis**.
+# PIEW: Prompt Intelligence & Engineering Workspace
 
-Mulai versi 2.0.0, PIEW mentransformasikan arsitektur optimasi satu arah (Open-Loop) menjadi siklus iterasi tertutup (*Closed-Loop Synthesis*): mengimpor dokumen spesifikasi eksternal melalui **Crawler Grounding** yang dilindungi SSRF Guard, mengoptimasi prompt dengan 5 Domain Rule Packs berstandar tinggi, menguji prompt secara empiris melalui **Spider Matrix Runner** (5 cabang uji adversarial konkurensi terkontrol), dan menyimpan hasil perbaikan ke dalam silsilah **Prompt Versioning** berbasis SQLite WAL.
+### Autonomous Lead Architect, Empirical Quality Gatekeeper & Model Context Protocol (MCP) Runtime
 
----
+**Eliminate AI coding agent hallucinations, infinite loops, and the self-report trap with evidence-based physical verification.**
 
-## 📚 Dokumentasi Cepat (Quick Links)
-
-### Panduan Rilis v2.0.0 & Arsitektur
-- 📝 [Catatan Rilis v2.0.0 (Release Notes)](docs/product/RELEASE-NOTES-v2.0.0.md)
-- 🏛️ [ADR-002: Integrasi Crawler, Spider & Closed-Loop Engine](docs/architecture/ADR-002-crawler-spider-integration.md)
-- 🔍 [Gate 0 Compatibility Report (Audit Skema v1.0 vs v2.0)](docs/architecture/GATE-0-COMPATIBILITY-REPORT.md)
-- 🚨 [Panduan Operasional & Penanganan Insiden v2.0 (Runbook SOP)](docs/operations/RUNBOOK.md)
-
-### Panduan Pengguna & Operasi v1.x
-- 📖 [Panduan Pengguna Lengkap & FAQ (User Guide & FAQ)](docs/product/USER-GUIDE-AND-FAQ.md)
-- 📋 [Checklist Kesiapan Rilis v1.1.0](docs/operations/RELEASE-CHECKLIST-v1.1.0.md)
-- 📝 [Catatan Rilis v1.1.0](docs/product/RELEASE-NOTES-v1.1.0.md)
-
-### Tata Kelola Platform & Kontribusi
-- 📐 [Kebijakan Kompatibilitas, Versioning & Deprikasi](docs/architecture/COMPATIBILITY-AND-VERSIONING-POLICY.md)
-- 🤝 [Panduan Kontribusi Developer (CONTRIBUTING.md)](CONTRIBUTING.md)
-- 🔒 [Kebijakan Keamanan & Rotasi Rahasia (SECURITY.md)](SECURITY.md)
-- 🏛️ [Keputusan Arsitektur Sistem (ADR-001: Modular Monolith)](docs/architecture/ADR-001-modular-monolith-and-security.md)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Model Context Protocol](https://img.shields.io/badge/MCP-Standard%202.0-5c4ee5?style=flat-square)](https://modelcontextprotocol.io/)
+[![Architecture](https://img.shields.io/badge/Architecture-Modular%20Monolith-orange?style=flat-square)](#monorepo-architecture)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
 ---
 
-## ⚡ Open-Source Quickstart: CLI & MCP Server (Cursor / Claude Code)
-
-PIEW v2.2+ hadir sebagai mesin **Headless** mandiri yang dapat langsung dipanggil dari baris perintah terminal maupun terintegrasi native ke dalam IDE AI seperti **Cursor**, **Windsurf**, dan **Claude Code** via **Model Context Protocol (MCP)**.
-
-### 1. Eksekusi Cepat via Terminal (PIEW CLI)
-Ubah ide mentah menjadi Master Prompt operasional langsung dari terminal tanpa perlu membuka browser:
+**[Quick Start](#quick-start)** · **[Why PIEW](#why-piew)** · **[Core Capabilities](#core-capabilities)** · **[How PIEW Works](#how-piew-works)** · **[MCP Integration](#ide-integration-mcp-server)** · **[CLI Reference](#cli-reference)** · **[Monorepo Map](#monorepo-architecture)**
 
 ```bash
-# Sintesis instan dengan arsitektur 11-tahap standar
-npm run piew -- "Buat website toko kue dengan fitur stok barang dan laporan penjualan. Jangan buat POS."
-
-# Mode ringkas taktis & hemat token (eco)
-npm run piew -- "Perbaiki memory leak di WebSocket server" --style=concise_tactical --budget=eco
-
-# Ambil konteks teknis dari dokumentasi resmi (Grounding)
-npm run piew -- "Konfigurasi Stripe Webhook di Next.js App Router" --url=https://docs.stripe.com/webhooks --style=concise_tactical
+npm run piew -- --help
 ```
 
-### 2. Pasang ke Cursor / VS Code / Claude Code (MCP Server)
-PIEW mengekspos 4 MCP Tools berkemampuan tinggi:
-1. `piew_autopilot`: Pipeline otonom 1-klik (Crawl ➔ Ekstraksi Spesifikasi ➔ Sintesis Master Prompt ➔ Self-Repair ➔ Audit Spider).
-2. `piew_synthesize_master_prompt`: Mengubah ide menjadi Master Prompt terstruktur anti-scope-creep.
-3. `piew_crawl_grounding_context`: Mengambil fakta teknis dari GitHub atau dokumentasi resmi (MDN, Next.js, Stripe, Prisma, Tailwind, Zod) dengan perlindungan SSRF level soket.
-4. `piew_verify_prompt_spider`: Menjalankan uji stres adversarial 5-cabang (Critical Gate Pass).
+> [!IMPORTANT]
+> **Evidence Over Claims**: AI coding agents frequently claim a feature is complete while leaving broken imports, failing unit tests, or silently violating architecture constraints. PIEW never trusts agent self-reports; it verifies physical code diffs, compiler exit codes, and test runners before greenlighting progress.
 
-#### Pilihan A: Mode Stdio (Lokal / Remote SSH)
-Tambahkan ke konfigurasi MCP IDE Anda (`cursor.json` atau `claude_desktop_config.json`):
+---
+
+## Why PIEW?
+
+Modern AI coding agents (Cursor, Claude Code, Windsurf, Aider) are exceptional implementors, but they lack autonomous architectural governance:
+
+| The AI Agent Failure Mode | The Real-World Impact | How PIEW Solves It |
+|---|---|---|
+| **Self-Report Trap** | Agent claims *"Everything is built and working!"* despite syntax errors. | **Empirical Audit**: Requires physical `git diff` proof and compiler exit code 0. |
+| **Infinite Revision Loop** | Agent hallucinates repetitive fixes, burning tokens until context is exhausted. | **3x Circuit Breaker**: Hard limit of 3 revisions per milestone before escalating to a human. |
+| **Negative Constraint Drift** | Agent uses dummy mock data or deletes critical transaction schemas. | **Negative Constraint Guard**: AST & regex auditing to prevent forbidden patterns. |
+| **Scope Creep Monolith** | Agent tries to build DB, API, and UI in a single turn, resulting in broken stubs. | **Progressive Phasing**: Deconstructs projects into linear milestones (DB &rarr; API &rarr; UI). |
+
+---
+
+## Quick Start
+
+### 1. Connect to Cursor / Claude Desktop (Model Context Protocol)
+
+PIEW provides a native MCP server exposing physical code inspection and autonomous supervision tools to your IDE.
+
+Add to your `cursor.json` or `claude_desktop_config.json`:
+
 ```json
 {
   "mcpServers": {
@@ -66,199 +57,179 @@ Tambahkan ke konfigurasi MCP IDE Anda (`cursor.json` atau `claude_desktop_config
 }
 ```
 
-#### Pilihan B: Mode HTTP/SSE (Nirkabel via Tailscale / LAN)
-Jalankan server MCP sebagai daemon HTTP/SSE di port `3125`:
+Now, your IDE agent can autonomously invoke PIEW's quality gatekeeper before marking any task as complete.
+
+### 2. Standalone Terminal CLI (PIEW CLI)
+
+Run empirical quality audits directly on your local workspace:
+
 ```bash
-npm run mcp:sse
-```
-Lalu di Cursor pada laptop/PC mana pun di jaringan yang sama, tambahkan server dengan URL:
-```text
-http://100.127.180.57:3125/sse
+# Verify active workspace against TypeScript compiler and test runners
+npm run piew -- --audit --session=piew-proj-alpha --build-cmd="npm run typecheck" --test-cmd="npm test"
+
+# Synthesize a high-structure Master Prompt with anti-scope-creep constraints
+npm run piew -- "Build a bakery inventory management system. DO NOT use physical POS hardware." --supervise
 ```
 
-### 3. File Konfigurasi Opsional (`piew.config.json`)
-Anda dapat menambahkan file `piew.config.json` di root proyek untuk mengatur setelan default:
-```json
-{
-  "defaultStylePreset": "comprehensive_blueprint",
-  "defaultBudgetMode": "balanced",
-  "allowedDomains": [
-    "internal-wiki.mycompany.com",
-    "docs.internal.corp"
-  ]
-}
+### 3. Launch Web Mission Control (Next.js 15)
+
+```bash
+# Install dependencies across all 8 monorepo workspaces
+npm install
+
+# Start the web development server
+npm run dev --workspace=web
+```
+Open [http://localhost:3000](http://localhost:3000) to inspect real-time audit graphs, milestone transitions, and circuit breaker metrics.
+
+---
+
+## Core Capabilities
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           PIEW SUPERVISOR ENGINE                            │
+├───────────────────────┬──────────────────────────┬──────────────────────────┤
+│ 1. EMPIRICAL AUDIT    │ 2. DETERMINISTIC STEER   │ 3. ENTERPRISE MCP        │
+│ • Git Diff Inspector  │ • 4-Component Directive  │ • 10 Standard Connectors │
+│ • Terminal Verifier   │ • 3x Retry Circuit Break │ • GitHub, Linear, Sentry │
+│ • Docker Health Check │ • Progressive Phasing    │ • Figma, DB, Puppeteer   │
+│ • Negative Guard      │ • Human-in-the-Loop Gate │ • Sandboxed File System  │
+└───────────────────────┴──────────────────────────┴──────────────────────────┘
+```
+
+### 1. Empirical Quality Gatekeeper (`packages/prompt-engine/src/supervisor/`)
+* **`gitDiffInspector`**: Inspects physical additions, modifications, and flags unexpected file deletions.
+* **`terminalVerifier`**: Executes build and test commands with isolated 60s timeout guards and structured error line parsing (`file(line,col): error`).
+* **`dockerHealthChecker`**: Validates container runtime health, exposed ports, and crash-loop patterns.
+* **`negativeConstraintGuard`**: Blocks regressions against explicit user prohibitions (e.g., forbidding dummy data or mock APIs).
+
+### 2. Deterministic Steering & Circuit Breaker
+When an audit fails, PIEW does not send vague feedback. It generates a **4-Component Steering Directive**:
+1. **Empirical Diagnosis**: Exact compiler or runtime failure extracted from stderr.
+2. **Defective Files & Lines**: Absolute file path, line number, and column.
+3. **Mandatory Action**: Deterministic steps required to resolve the failure.
+4. **Tolerance Boundaries**: Inviolable constraints and zero-tolerance regression rules.
+
+*If an agent fails 3 consecutive repair attempts on the same milestone, PIEW trips the **Circuit Breaker** (`BLOCKED_CIRCUIT_BREAKER_TRIGGERED`), stopping token waste and requesting human intervention.*
+
+### 3. 10 Enterprise MCP Connectors (`packages/provider-adapters/src/mcp-catalog.ts`)
+Native integrations for production engineering workflows:
+* **GitHub**: PR reviews, branch operations, and diff analysis.
+* **Linear**: Issue synchronization and milestone tracking.
+* **Sentry**: Crash telemetry and stack trace ingestion.
+* **Figma**: UI token extraction and layout specs.
+* **Docker Engine**: Local container diagnostics and log extraction.
+* **Database**: PostgreSQL / SQLite schema inspection and query testing.
+* **Brave / Firecrawl Search**: SSRF-protected technical documentation retrieval.
+* **Sandboxed File System**: Safe workspace file operations.
+* **Memory Bridge**: Semantic long-term retrieval via Qdrant & Mem0.
+* **Puppeteer**: Headless browser DOM and screenshot capture.
+
+---
+
+## How PIEW Works
+
+```text
+User / Task Goal
+       │
+       ▼
+┌────────────────────────┐
+│  Phase Decomposition   │ ── Linear Milestones (DB ➔ API ➔ UI)
+└────────────────────────┘
+       │
+       ▼
+┌────────────────────────┐
+│  Coding Agent Executes │ ── Cursor / Claude Code modifies local files
+└────────────────────────┘
+       │
+       ▼
+┌────────────────────────┐
+│  PIEW Empirical Audit  │ ── Git Diff + Compiler (tsc) + Test Runner + Docker
+└────────────────────────┘
+       │
+       ├─────────────────────────────────┐
+       ▼ [PASS]                          ▼ [FAIL]
+┌────────────────────────┐      ┌────────────────────────┐
+│ Unlock Next Milestone  │      │ Issue Steering Prompt  │ ◄── Max 3 Retries
+└────────────────────────┘      └────────────────────────┘
+                                         │
+                                         ▼ [Exceeded 3x]
+                                ┌────────────────────────┐
+                                │ TRIP CIRCUIT BREAKER   │ ── Escalate to Human
+                                └────────────────────────┘
 ```
 
 ---
 
-## 🔄 Alur Kerja Closed-Loop Synthesis v2.0
+## Monorepo Architecture
 
-```text
-  [Dokumen Eksternal / GitHub Raw]
-                 │
-                 ▼
-     ┌────────────────────────┐
-     │ 1. CRAWLER GROUNDING   │ ── SSRF Guard, Secret Redactor, Content Extractor
-     └────────────────────────┘
-                 │ (Grounding Context)
-                 ▼
-     ┌────────────────────────┐
-     │ 2. OPTIMIZATION ENGINE │ ── 5 Domain Packs, Preserve Intent, Scaffolding
-     └────────────────────────┘
-                 │ (Optimized Prompt Version)
-                 ▼
-     ┌────────────────────────┐
-     │ 3. SPIDER MATRIX       │ ── 5-Branch Stress Test, Semaphore Concurrency (2),
-     │    EVALUATOR           │    Honest Scoring (criticalGatePassed Rule)
-     └────────────────────────┘
-                 │ (Quality Metrics & Vulnerabilities)
-                 ▼
-     ┌────────────────────────┐
-     │ 4. VERSION REFINEMENT  │ ── Prompt Version Bar, Linier Diff, Multi-User
-     │    & STORAGE           │    SQLite WAL Mode (0% SQLITE_BUSY)
-     └────────────────────────┘
-```
-
-1. **Crawler Grounding**: Pengguna mengimpor spesifikasi teknis dari web atau berkas mentah GitHub. Engine memverifikasi keamanan URL terhadap serangan SSRF dan menyensor rahasia (API key/token) sebelum mengekstraksi teks relevan.
-2. **Engine Optimizer**: Menganalisis kelemahan prompt asli dengan 8 taksonomi celah, menyuntikkan batasan teknis dari dokumen *grounding*, dan menghasilkan versi prompt berstruktur tinggi.
-3. **Spider Matrix Evaluator**: Menjalankan matriks pengujian adversarial secara paralel dengan pembatasan konkurensi (Semaphore cap: 2) terhadap 5 cabang kasus (Happy Path, Edge Case, Injection, Format Strictness, Typo Tolerance).
-4. **Version Refinement & Storage**: Menyimpan hasil pengujian dan versi prompt ke database SQLite WAL mode, menampilkan komparasi pada Prompt Version Bar, serta merekomendasikan perbaikan lanjutan.
-
----
-
-## 🏗️ 1. Arsitektur Modular Monolith (8 Packages Workspace)
-
-Repositori ini menggunakan arsitektur **Modular Monolith** berbasis `npm workspaces` dengan 8 package terisolasi:
+PIEW is architected as an isolated, type-safe **Modular Monolith** using `npm workspaces`:
 
 ```text
 prompt-workspace/
 ├── apps/
-│   └── web/                         # Next.js 15 (Turbopack, App Router, Tailwind CSS, shadcn/ui)
-│       ├── src/app/api/             # Route handlers (/api/optimize, /api/history, /api/crawl, /api/spider)
-│       ├── src/components/workspace/# Komponen UI (Crawler Modal, Spider Panel, Version Bar, Playground)
-│       ├── src/lib/                 # Helper keamanan (session HMAC-SHA256, csrf, rate-limiter, feature-flags)
-│       ├── scripts/                 # Suite pengujian integrasi & API (test-api.ts, test-e2e.ts)
-│       └── tests/                   # Suite pengujian unit native (history-api.test.mjs)
+│   └── web/                         # Next.js 15 (Turbopack, App Router, Tailwind CSS, Lucide)
+│       └── src/app/api/             # Next.js API Routes (/api/supervision, /api/agent-runs, /api/skills)
 │
 ├── packages/
-│   ├── prompt-contracts/            # Single Source of Truth kontrak data Zod v2.0 (Crawler & Spider schemas)
-│   ├── prompt-crawler/              # Engine Crawler (SSRF Guard, Fetcher, Redactor, Extractor)
-│   ├── prompt-spider/               # Engine Spider (5-Branch Test Suite, Runner, Evaluator, Semaphore)
-│   ├── prompt-engine/               # Core Engine (Analyzer, Optimizer, Evaluator, Closed-Loop Helper)
-│   ├── provider-adapters/           # Multi-provider adapters (Groq, Gemini, OpenRouter, Ollama lokal)
-│   ├── domain-rules/                # 5 Domain Rule Packs berversi (General, Coding, Debugging, Academic, Business)
-│   └── database/                    # Prisma ORM, skema SQLite WAL v2.0, migrasi SQL, dan helper persistensi
-│       ├── prisma/                  # schema.prisma, dev.db aktif, dan migration history
-│       └── scripts/                 # Otomasi backup, restore, dan test persistence terisolasi
+│   ├── prompt-contracts/            # Zod contracts & Single Source of Truth for schemas
+│   ├── prompt-engine/               # Core engine & Autonomous Supervisor runtime
+│   │   ├── src/supervisor/          # Physical audit tools, Steering Director & Circuit Breaker
+│   │   └── scripts/                 # Empirical supervisor test suites
+│   ├── provider-adapters/           # Multi-provider cascade router & 10 Enterprise MCP Connectors
+│   ├── prompt-crawler/              # SSRF-guarded documentation scraper & secret redactor
+│   ├── prompt-spider/               # 5-branch adversarial stress testing matrix
+│   ├── domain-rules/                # Versioned domain engineering rule packs
+│   └── database/                    # Prisma ORM & SQLite WAL storage engine
 │
-├── docs/                            # Dokumentasi arsitektur (ADR-001, ADR-002), Runbook SOP, Release Notes
-├── scripts/                         # Otomasi audit kesiapan rilis (release-readiness-check.mjs) & tooling
-├── test-fixtures/                   # Fixture baseline prompt terstandarisasi (PIW-BL-001 s/d 005)
-├── CONTRIBUTING.md                  # Standar kontribusi, DoR, DoD, dan aturan PR
-├── SECURITY.md                      # Kebijakan pelaporan kerentanan & SOP rotasi rahasia
-├── .env.example                     # Templat konfigurasi environment multi-provider & v2.0 feature flags
-└── package.json                     # Konfigurasi root monorepo workspaces
+├── docs/
+│   ├── readme/                      # Multi-language documentation (README_id.md)
+│   ├── architecture/                # Architecture Decision Records (ADRs) & specs
+│   └── product/                     # Release notes & user guides
+│
+├── scripts/
+│   ├── piew-cli.ts                  # Autonomous supervisor CLI runner
+│   └── piew-mcp-server.ts           # Standard Model Context Protocol (MCP) server
+│
+├── SUPERVISOR_EXECUTION_STATE.md    # Durable physical runtime checkpoint state
+├── RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.pdf  # Canonical 8-page architecture specification
+└── package.json                     # Monorepo root workspace configuration
 ```
 
 ---
 
-## ⚙️ 2. Prasyarat & Panduan Instalasi Lintas-OS (Windows & Linux)
+## Scripts & Quality Gates
 
-### Prasyarat Sistem
-- **Node.js**: Versi `>= 18.0.0` (Direkomendasikan Node.js LTS v20 atau v22).
-- **npm**: Versi `>= 9.0.0`.
-- **Google Chrome / Chromium / MS Edge**: Diperlukan untuk pengujian browser headless E2E.
-- *(Opsional)* **Ollama**: Jika ingin menjalankan model LLM secara lokal/offline.
+All packages enforce strict zero-regression standards:
 
-### Langkah Instalasi
-1. **Clone Repositori**:
-   ```bash
-   git clone https://github.com/Kal215/prompt-workspace.git
-   cd prompt-workspace
-   ```
+```bash
+# Verify TypeScript compilation across all 8 workspaces
+npm run typecheck
 
-2. **Pasang Seluruh Dependensi Monorepo**:
-   ```bash
-   npm install
-   ```
+# Run the comprehensive autonomous supervisor empirical test suite
+npx tsx packages/prompt-engine/scripts/test-empirical-supervisor.ts
 
-3. **Inisialisasi Database SQLite & Client**:
-   ```bash
-   npm run build --workspace=@prompt-workspace/database
-   ```
+# Test enterprise MCP catalog connectivity & JSON-RPC schema compliance
+npm run test:mcp
 
-4. **Konfigurasi Environment Variables**:
-   Salin file `.env.example` menjadi `.env` di root workspace:
-   ```bash
-   cp .env.example .env      # Linux / macOS / Git Bash
-   copy .env.example .env    # Windows Command Prompt
-   ```
+# Test multi-provider failover pool and cascade router
+npm run test:providers
+
+# Run full monorepo production build
+npm run build
+```
 
 ---
 
-## 🔐 3. Konfigurasi Environment (`.env`)
+## Contributing & Security
 
-| Variabel | Keterangan & Tujuan | Nilai Default / Contoh | Wajib / Opsional |
-|:---|:---|:---|:---:|
-| `GROQ_API_KEY_1` s/d `GROQ_API_KEY_6` | Kunci API Groq untuk pool rotasi round-robin | `gsk_...` | **Wajib** (Min. 1 kunci) |
-| `GROQ_MODEL` | Model default Groq | `llama-3.3-70b-versatile` | Opsional |
-| `GEMINI_API_KEY` / `GEMINI_API_KEYS` | Kunci API Google Gemini (koma terpisah) | `AIzaSy...` | Opsional |
-| `OPENROUTER_API_KEY` | Kunci API OpenRouter untuk katalog model global | `sk-or-v1-...` | Opsional |
-| `OLLAMA_BASE_URL` | URL server Ollama lokal | `http://127.0.0.1:11434` | Opsional |
-| `DATABASE_URL` | Path koneksi SQLite | `file:./packages/database/prisma/dev.db` | **Wajib** |
-| `SESSION_SECRET` | Kunci rahasia HMAC-SHA256 (Minimal 32 karakter) | String acak 32+ char | **Wajib di Produksi** |
-| `TRUST_PROXY` | Aktifkan jika berada di balik reverse proxy | `0` (atau `1`) | Opsional |
-| `ALLOWED_ORIGINS` | Daftar origin yang diizinkan untuk CSRF | `https://domain-resmi.com` | Opsional |
-| **`NEXT_PUBLIC_ENABLE_CRAWLER`** | Feature flag & kill-switch instan modul Crawler | `true` | Opsional (Default: `true`) |
-| **`NEXT_PUBLIC_ENABLE_SPIDER`** | Feature flag & kill-switch instan modul Spider | `true` | Opsional (Default: `true`) |
-| **`CRAWLER_MAX_BYTES`** | Batas maksimum muatan dokumen crawler (byte) | `524288` (512 KB) | Opsional |
-| **`SPIDER_MAX_CASES`** | Jumlah maksimum cabang kasus uji Spider | `5` | Opsional |
-| **`SPIDER_CONCURRENCY`** | Batas konkurensi Semaphore eksekusi cabang Spider | `2` | Opsional |
+* **Contributing Guidelines**: Please review [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming conventions, DoR (Definition of Ready), and DoD (Definition of Done).
+* **Security & Vulnerability Reporting**: Refer to [SECURITY.md](SECURITY.md) for disclosure policies and secret rotation protocols.
+* **Strict Boundary Rule**: Backend agents modify `packages/*` and `scripts/*`; Frontend agents modify `apps/web/*`.
 
 ---
 
-## 🚀 4. Daftar Perintah Kerja & Pengujian Monorepo (Scripts)
+## License
 
-| Perintah | Deskripsi |
-|:---|:---|
-| **`npm run test:v2-engines`** | **Menjalankan seluruh 4 test suite engine v2.0 (Contracts, Crawler, Spider, Closed-Loop)** |
-| `npm run test:contracts` | Menguji validasi skema Zod v2.0 pada `@prompt-workspace/prompt-contracts` |
-| `npm run test:crawler` | Menguji SSRF Guard, Secret Redaction, dan Content Extraction pada Crawler |
-| `npm run test:spider` | Menguji Semaphore konkurensi (<= 2), aturan `criticalGatePassed`, dan persistensi SQLite WAL |
-| `npm run test:closed-loop`| Menguji alur sintesis tertutup dari Grounding hingga Spider Matrix |
-| `npm run dev --workspace=web` | Menjalankan Next.js development server pada `http://localhost:3000` |
-| `npm run build` | Mengompilasi seluruh 8 workspace TypeScript dan Next.js production build |
-| `npm run typecheck` | Menjalankan typecheck TypeScript di seluruh 8 workspace monorepo |
-| `npm run lint --workspace=web` | Menjalankan verifikasi static analysis / ESLint pada kode web |
-| `npm run test --workspace=@prompt-workspace/database` | Menjalankan uji persistensi database & WAL mode pada database terisolasi |
-| `npm run test:unit --workspace=web` | Menjalankan 39 pengujian unit Vitest (komponen UI, feature-flags, modal) |
-| `npm run test:api --workspace=web` | Menjalankan 79 asersi pengujian API nyata (termasuk `/api/crawl` dan `/api/spider`) |
-| `npm run db:backup` | Membuat backup terenkapsulasi dari database aktif ke folder `backups/` |
-| `npm run db:restore` | Memulihkan database dari file backup (mendukung flag `--target`) |
-| `node scripts/release-readiness-check.mjs` | Menjalankan skrip audit kesiapan rilis otomatis Checklist Kelulusan P0 v2.0 |
-
----
-
-## 🛡️ 5. Tata Kelola & Pertahanan Keamanan PIEW v2.0
-
-1. **SSRF Guard & Network Defense-in-Depth**:
-   - Blokade loopback (`127.0.0.1`), subnet privat (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), Carrier-Grade NAT (`100.64.0.0/10`), Link-Local / Cloud Metadata (`169.254.169.254`), dan multicast/broadcast.
-   - Whitelist protokol ketat (`http:`, `https:`), payload cap 512 KB, dan batas waktu 10 detik.
-
-2. **Secret Redaction Otomatis**:
-   - Pemindaian regex real-time menyensor kunci API (OpenAI, Anthropic, Groq, AWS, GitHub) dan data sensitif sebelum diproses oleh LLM.
-
-3. **Perlindungan Anti-IDOR & Hak Milik Data**:
-   - Seluruh record `SavedPrompt`, `PromptVersion`, `SpiderRun`, dan `CrawlSession` terikat ke `userId`.
-   - Record historis `legacy_default_user` (termasuk 2 record produksi asli) diproteksi secara permanen (*read-only* bagi sesi umum).
-
-4. **Aturan Kejujuran Metrik (*Honesty & Integrity Rule*)**:
-   - `criticalGatePassed`: Wajib bernilai `false` jika salah satu cabang keamanan atau edge-case kritis gagal (*FAIL*), mengalami error teknis (*ERROR*), atau menghasilkan evaluasi ambigu (*INDETERMINATE*).
-
-5. **Kill-Switch & Zero-Downtime Rollback**:
-   - Feature flags `NEXT_PUBLIC_ENABLE_CRAWLER=false` dan `NEXT_PUBLIC_ENABLE_SPIDER=false` memungkinkan isolasi insiden dalam hitungan detik tanpa memutus layanan optimasi v1.0.
-
----
-
-## 📄 6. Lisensi & Tata Kelola
-Proyek ini dikembangkan di bawah lisensi resmi PIEW. Untuk kontribusi dan pelaporan celah keamanan, silakan merujuk ke [CONTRIBUTING.md](CONTRIBUTING.md) dan [SECURITY.md](SECURITY.md).
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
