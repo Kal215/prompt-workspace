@@ -29,6 +29,10 @@ export function PiewLaunchModal({ isOpen, onClose, lang }: PiewLaunchModalProps)
 
   const workspaces = [
     {
+      name: "Playground",
+      href: "/playground",
+    },
+    {
       name: "Classic",
       href: "/classic",
     },
@@ -56,14 +60,14 @@ export function PiewLaunchModal({ isOpen, onClose, lang }: PiewLaunchModalProps)
             className="fixed inset-0 bg-black/75 backdrop-blur-md cursor-pointer"
           />
 
-          {/* Modal Container: 3 kotak bersih berdampingan */}
+          {/* Modal Container: 4 kotak bersih berdampingan */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-2xl bg-[#090a0d] border border-white/10 rounded-3xl p-5 sm:p-7 shadow-[0_30px_90px_rgba(0,0,0,0.9)] z-10"
+            className="relative w-full max-w-3xl bg-[#090a0d] border border-white/10 rounded-3xl p-5 sm:p-7 shadow-[0_30px_90px_rgba(0,0,0,0.9)] z-10"
           >
             {/* Close Button */}
             <button
@@ -75,8 +79,8 @@ export function PiewLaunchModal({ isOpen, onClose, lang }: PiewLaunchModalProps)
               <IconX className="w-4 h-4" />
             </button>
 
-            {/* 3 Columns: Classic | Pro | Agent */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+            {/* 4 Columns: Playground | Classic | Pro | Agent */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4">
               {workspaces.map((ws) => (
                 <Link
                   key={ws.name}

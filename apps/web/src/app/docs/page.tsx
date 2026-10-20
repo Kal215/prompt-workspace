@@ -42,6 +42,7 @@ export default function DocsPage() {
   const [activeSection, setActiveSection] = useState("get-started")
 
   const navItems = [
+    { name: "Playground", link: "/playground" },
     { name: "Classic", link: "/classic" },
     { name: "Pro", link: "/pro" },
     { name: "Agent", link: "/agent" },
@@ -225,11 +226,11 @@ export default function DocsPage() {
             {/* Quick Links */}
             <div className="space-y-1 pb-3 border-b border-white/[0.08]">
               <a
-                href="/classic"
+                href="/playground"
                 className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all"
               >
                 <IconPlayerPlay className="w-3.5 h-3.5 text-sky-400" />
-                <span>Playground Studio</span>
+                <span>Playground</span>
               </a>
               <a
                 href="https://github.com/Kal215/prompt-workspace"

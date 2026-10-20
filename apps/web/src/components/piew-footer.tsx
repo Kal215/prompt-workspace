@@ -15,6 +15,7 @@ export function PiewFooter({ lang }: { lang: 'en' | 'id' }) {
       desc: 'A minimal, unified workspace for structured prompt engineering and AI agent orchestration.',
       col1Title: 'Platform',
       col1: [
+        { title: 'Playground', href: '/playground' },
         { title: 'Classic Studio', href: '/classic' },
         { title: 'Pro Studio', href: '/pro' },
         { title: 'Agent Workspace', href: '/agent' },
@@ -49,6 +50,7 @@ export function PiewFooter({ lang }: { lang: 'en' | 'id' }) {
       desc: 'Workspace minimalis dan terpadu untuk alur kerja AI dan prompt engineering terstruktur.',
       col1Title: 'Platform',
       col1: [
+        { title: 'Playground', href: '/playground' },
         { title: 'Classic Studio', href: '/classic' },
         { title: 'Pro Studio', href: '/pro' },
         { title: 'Workspace Agen', href: '/agent' },

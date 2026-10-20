@@ -311,9 +311,9 @@ export function WorkspaceSidebar({
   );
 
   const primaryItems: { label: string; href: string; icon?: (props: IconProps) => ReactNode }[] = [
+    { label: "Playground", href: "/playground" },
     { label: "Classic", href: "/classic" },
     { label: "Pro", href: "/pro" },
-    { label: "Playground", href: "/playground" },
     { label: "Agent", href: "/agent" },
   ];
 
