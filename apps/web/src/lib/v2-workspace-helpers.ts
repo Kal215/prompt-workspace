@@ -21,6 +21,19 @@ import {
 export const ALLOWED_CRAWLER_HOSTS = [
   "github.com",
   "raw.githubusercontent.com",
+  "gist.githubusercontent.com",
+  "developer.mozilla.org",
+  "nextjs.org",
+  "react.dev",
+  "nodejs.org",
+  "www.typescriptlang.org",
+  "typescriptlang.org",
+  "docs.stripe.com",
+  "www.prisma.io",
+  "prisma.io",
+  "tailwindcss.com",
+  "orm.drizzle.team",
+  "zod.dev",
 ] as const;
 
 export interface CrawlerUrlValidationResult {

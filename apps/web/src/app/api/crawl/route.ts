@@ -12,7 +12,7 @@ import {
 } from "@prompt-workspace/prompt-crawler";
 import { CrawlRequestSchema } from "@prompt-workspace/prompt-contracts";
 import { isCrawlerFeatureEnabled, getV2FeatureFlags } from "../../../lib/feature-flags";
-import { resolveSession, getOrCreateSession } from "../../../lib/session";
+import { resolveSession, getOrCreateSession, clearSessionCookie } from "../../../lib/session";
 import { getCrawlRateLimiter, extractClientIP } from "../../../lib/rate-limiter";
 import { checkCsrf, csrfForbiddenResponse } from "../../../lib/csrf";
 import { validateCrawlerInputUrl } from "../../../lib/v2-workspace-helpers";
@@ -74,7 +74,12 @@ export async function POST(request: Request) {
           success: false,
           error: "Unauthorized: Token sesi tidak valid atau telah dimanipulasi.",
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: {
+            "Set-Cookie": clearSessionCookie(),
+          },
+        }
       );
     }
     const session = sessionRes.session || getOrCreateSession(request);
@@ -336,7 +341,12 @@ export async function GET(request: Request) {
           success: false,
           error: "Unauthorized: Token sesi tidak valid atau telah dimanipulasi.",
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: {
+            "Set-Cookie": clearSessionCookie(),
+          },
+        }
       );
     }
     const session = sessionRes.session || getOrCreateSession(request);

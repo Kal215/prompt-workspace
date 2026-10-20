@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkCsrf, csrfForbiddenResponse } from "../../../../lib/csrf";
-import { loadRawProvidersData } from "../../../../lib/providers-store";
+import { loadRawProvidersData, CLOUD_PROVIDERS_CATALOG } from "../../../../lib/providers-store";
 import {
   testProviderConnection,
   discoverEndpointModels,
@@ -37,19 +37,31 @@ export async function POST(request: Request) {
       );
     }
 
-    // Ambil apiKey yang di-input atau dari store jika sedang edit endpoint yang ada
-    let effectiveApiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
-    if (!effectiveApiKey && typeof body.endpointId === "string") {
-      const rawData = loadRawProvidersData();
-      const existing = rawData.customEndpoints.find((e) => e.id === body.endpointId);
-      if (existing?.apiKey) {
-        effectiveApiKey = existing.apiKey;
-      }
-    }
-
+    const providerIdParam = typeof body.providerId === "string" ? body.providerId : undefined;
     const apiModeParam = body.apiMode;
     const modelParam = typeof body.model === "string" ? body.model : undefined;
-    const providerIdParam = typeof body.providerId === "string" ? body.providerId : undefined;
+
+    // Ambil apiKey yang di-input atau dari store jika sedang edit endpoint yang ada atau provider tersimpan
+    let effectiveApiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
+    if (!effectiveApiKey) {
+      const rawData = loadRawProvidersData();
+      if (typeof body.endpointId === "string") {
+        const existing = rawData.customEndpoints.find((e) => e.id === body.endpointId);
+        if (existing?.apiKey) {
+          effectiveApiKey = existing.apiKey;
+        }
+      }
+      if (!effectiveApiKey && providerIdParam) {
+        if (rawData.cloudKeys[providerIdParam]) {
+          effectiveApiKey = rawData.cloudKeys[providerIdParam];
+        } else {
+          const cat = CLOUD_PROVIDERS_CATALOG.find((c) => c.providerId === providerIdParam);
+          if (cat && process.env[cat.envVarName]) {
+            effectiveApiKey = process.env[cat.envVarName] || "";
+          }
+        }
+      }
+    }
 
     // Normalisasi API mode ke enum ProviderApiMode
     let apiModeNormalized: any = "auto_detect";

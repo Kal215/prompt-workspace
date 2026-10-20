@@ -1,40 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Prompt Intelligence Workspace",
+  title: "PIEW - Prompt Intelligence Engineering Workspace",
   description:
-    "Audit semantik, perkuat batasan eksekusi (guardrails), dan validasi preserved intent sebelum model produksi.",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "PIEW v2.1",
+    "A unified engineering workspace for prompt calibration, architectural blueprint synthesis, and multi-agent workflow oversight with human-in-the-loop governance.",
+  icons: {
+    icon: [
+      {
+        url: "/icon.png",
+        type: "image/png",
+      },
+      {
+        url: "/favicon.ico",
+        sizes: "any",
+      },
+    ],
   },
 };
 
 export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#090d16" },
-  ],
+  colorScheme: "dark",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({
@@ -43,21 +31,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="id"
-      suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-300">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange={false}
-        >
-          {children}
-          <Toaster position="top-right" richColors />
-        </ThemeProvider>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col bg-[#000000] text-zinc-100 antialiased selection:bg-sky-500 selection:text-black">
+        {children}
+        <Toaster position="bottom-right" richColors theme="dark" />
       </body>
     </html>
   );

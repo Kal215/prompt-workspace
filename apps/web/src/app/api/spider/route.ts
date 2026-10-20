@@ -8,8 +8,13 @@ import {
   prisma,
 } from "@prompt-workspace/database";
 import { runPromptSpider } from "@prompt-workspace/prompt-spider";
+import {
+  createProviderAdapter,
+  resolveProviderAdapter,
+  type LLMProviderAdapter,
+} from "@prompt-workspace/provider-adapters";
 import { isSpiderFeatureEnabled } from "../../../lib/feature-flags";
-import { resolveSession, getOrCreateSession } from "../../../lib/session";
+import { resolveSession, getOrCreateSession, clearSessionCookie } from "../../../lib/session";
 import { getSpiderRateLimiter, extractClientIP } from "../../../lib/rate-limiter";
 import { checkCsrf, csrfForbiddenResponse } from "../../../lib/csrf";
 
@@ -70,7 +75,12 @@ export async function POST(request: Request) {
           success: false,
           error: "Unauthorized: Token sesi tidak valid atau telah dimanipulasi.",
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: {
+            "Set-Cookie": clearSessionCookie(),
+          },
+        }
       );
     }
     const session = sessionRes.session || getOrCreateSession(request);
@@ -192,13 +202,44 @@ export async function POST(request: Request) {
       );
     }
 
-    // 7. Panggil Use Case: Spider Engine Terpusat (@prompt-workspace/prompt-spider)
-    const spiderReport = await runPromptSpider({
-      promptContent,
-      promptVersionId: promptVersionId || "ephemeral-version",
-      testSuiteVersionId: testSuiteVersion,
-      runMode: "SINGLE",
-    });
+    // 7. Resolusi Adapter LLM Nyata & Panggil Spider Engine Terpusat (@prompt-workspace/prompt-spider)
+    let spiderAdapter: LLMProviderAdapter | undefined;
+    try {
+      if (targetProvider && targetProvider !== "groq") {
+        spiderAdapter = await resolveProviderAdapter(targetProvider, {
+          targetModel: targetModel || undefined,
+        });
+      } else {
+        spiderAdapter = createProviderAdapter({
+          providerId: "groq",
+          targetModel: targetModel || "llama-3.3-70b-versatile",
+          enableCascade: true,
+        });
+      }
+    } catch (adapterErr) {
+      console.warn("[SPIDER_ADAPTER_RESOLVE_WARN]", (adapterErr as Error).message);
+      try {
+        spiderAdapter = createProviderAdapter({
+          providerId: "groq",
+          targetModel: "llama-3.3-70b-versatile",
+          enableCascade: true,
+        });
+      } catch {}
+    }
+
+    const spiderReport = await runPromptSpider(
+      {
+        promptContent,
+        promptVersionId: promptVersionId || "ephemeral-version",
+        testSuiteVersionId: testSuiteVersion,
+        runMode: "SINGLE",
+      },
+      {
+        adapter: spiderAdapter,
+        concurrency: 2,
+        budgetMode: (body.budgetMode as any) || "balanced",
+      }
+    );
 
     const totalDurationMs = spiderReport.branches.reduce(
       (acc, b) => acc + (b.latencyMs || 0),
@@ -344,7 +385,12 @@ export async function GET(request: Request) {
           success: false,
           error: "Unauthorized: Token sesi tidak valid atau telah dimanipulasi.",
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: {
+            "Set-Cookie": clearSessionCookie(),
+          },
+        }
       );
     }
     const session = sessionRes.session || getOrCreateSession(request);

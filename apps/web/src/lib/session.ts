@@ -137,6 +137,13 @@ export function formatSessionCookie(token: string): string {
 }
 
 /**
+ * Membentuk string Set-Cookie untuk menghapus cookie sesi kadaluarsa/tidak valid.
+ */
+export function clearSessionCookie(): string {
+  return `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
+}
+
+/**
  * Mendapatkan sesi aktif atau membuat sesi baru jika tidak ada.
  */
 export function getOrCreateSession(request?: Request): SessionData {
