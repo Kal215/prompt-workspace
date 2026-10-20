@@ -854,24 +854,9 @@ export default function ProPage() {
         <div className="w-[520px] shrink-0 border-r border-stone-200/80 bg-white/70 backdrop-blur-md flex flex-col h-full overflow-hidden">
           {/* Header Panel Kiri */}
           <div className="px-5 py-3.5 border-b border-stone-200/80 shrink-0 flex items-center justify-between bg-white/90">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-stone-900 flex items-center justify-center text-white shadow-xs">
-                <Sparkles className="w-4 h-4 text-lime-400" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-sm font-bold text-stone-900 tracking-tight">PIEW Pro Studio</h1>
-                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-stone-900 text-white">
-                    PRO
-                  </span>
-                </div>
-                <p className="text-[11px] text-stone-500">
-                  {lang === "en" ? "Unified Prompt & System Architecture" : "Studio Prompt & Perancangan Sistem AI"}
-                </p>
-              </div>
-            </div>
-
-
+            <h1 className="text-sm font-bold text-stone-900 tracking-tight">
+              PRO
+            </h1>
           </div>
 
           {/* Form Input Scrollable */}

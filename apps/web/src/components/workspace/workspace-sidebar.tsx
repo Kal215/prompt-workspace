@@ -171,7 +171,7 @@ export function ExpandIcon({ className }: IconProps) {
 type NavItemProps = {
   active?: boolean;
   compact?: boolean;
-  icon: (props: IconProps) => ReactNode;
+  icon?: (props: IconProps) => ReactNode;
   label: string;
   onClick: () => void;
 };
@@ -186,8 +186,8 @@ function NavItem({
   return (
     <button
       aria-current={active ? "page" : undefined}
-      className={`nav-entry group relative flex w-full items-center rounded-xl py-2.5 text-left text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 ${
-        compact ? "justify-center px-2" : "gap-3 px-3"
+      className={`nav-entry group relative flex w-full items-center rounded-xl py-2.5 text-left text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 cursor-pointer ${
+        compact ? "justify-center px-2" : "gap-3 px-3.5"
       } ${
         active
           ? "bg-white text-stone-950 shadow-lg shadow-black/20"
@@ -197,21 +197,25 @@ function NavItem({
       title={compact ? label : undefined}
       type="button"
     >
-      <span
-        className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${
-          active
-            ? "bg-lime-300 text-stone-950"
-            : "bg-white/5 group-hover:bg-white/10"
-        }`}
-      >
-        <Icon className="size-4.5" />
+      {Icon ? (
+        <span
+          className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${
+            active
+              ? "bg-lime-300 text-stone-950"
+              : "bg-white/5 group-hover:bg-white/10"
+          }`}
+        >
+          <Icon className="size-4.5" />
+        </span>
+      ) : null}
+      <span className={compact ? (Icon ? "sr-only" : "font-mono text-xs font-bold text-center") : "truncate text-sm font-medium"}>
+        {compact && !Icon ? label.slice(0, 1) : label}
       </span>
-      <span className={compact ? "sr-only" : "truncate"}>{label}</span>
       {active && (
         <span
           className={
             compact
-              ? "absolute right-1 size-1 rounded-full bg-lime-400"
+              ? "absolute right-1.5 size-1 rounded-full bg-lime-400"
               : "ml-auto size-1.5 rounded-full bg-lime-400"
           }
         />
@@ -305,10 +309,10 @@ export function WorkspaceSidebar({
     pathname.startsWith("/docs") ? "Docs" : "Classic"
   );
 
-  const primaryItems = [
-    { label: "Classic", href: "/classic", icon: ClassicIcon },
-    { label: "Pro", href: "/pro", icon: ProIcon },
-    { label: "Agent", href: "/agent", icon: AgentIcon },
+  const primaryItems: { label: string; href: string; icon?: (props: IconProps) => ReactNode }[] = [
+    { label: "Classic", href: "/classic" },
+    { label: "Pro", href: "/pro" },
+    { label: "Agent", href: "/agent" },
   ];
 
   const secondaryItems = [
