@@ -2,9 +2,9 @@
 
 # PIEW: Prompt Intelligence & Engineering Workspace
 
-### Insinyur Pengawas Mutu Otonom, Pengarah Arsitektur & Runtime Model Context Protocol (MCP)
+### Alat Pengawas dan Pengarah Kode untuk AI Coding Agent
 
-**Menghilangkan halusinasi agen koding AI, perulangan tanpa henti (*infinite loop*), dan jebakan laporan palsu (*self-report trap*) melalui verifikasi fisik berbasis bukti nyata.**
+**Membantu memeriksa hasil koding AI (seperti Cursor, Claude Code, dan Windsurf) lewat git diff, tes kompilasi, dan unit test agar kodenya benar-benar jalan dan tidak berputar-putar.**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
@@ -14,27 +14,27 @@
 
 ---
 
-**[Mulai Cepat](#mulai-cepat)** · **[Mengapa PIEW](#mengapa-piew)** · **[Kemampuan Utama](#kemampuan-utama)** · **[Cara Kerja PIEW](#cara-kerja-piew)** · **[Integrasi IDE (MCP)](#integrasi-ide-ai-mcp-server)** · **[Referensi CLI](#referensi-cli-terminal)** · **[Peta Monorepo](#arsitektur-monorepo)**
+**[Mulai Cepat](#mulai-cepat)** · **[Kenapa Perlu PIEW](#kenapa-perlu-piew)** · **[Fitur Utama](#fitur-utama)** · **[Cara Kerja](#cara-kerja)** · **[Integrasi IDE (MCP)](#integrasi-ke-ide-ai-mcp)** · **[Penggunaan CLI](#penggunaan-lewat-terminal-cli)** · **[Struktur Folder](#arsitektur-monorepo)**
 
 ```bash
 npm run piew -- --help
 ```
 
-> [!IMPORTANT]
-> **Prinsip Bukti Fisik di Atas Klaim Teks (*Evidence Over Claims*)**: Agen koding AI kerap mengklaim sebuah tugas telah tuntas, padahal menyisakan galat kompilasi, impor yang rusak, unit test yang gagal, atau penghapusan skema kritis secara diam-diam. PIEW tidak pernah mempercayai klaim teks agen; sistem selalu memeriksa *git diff* nyata, kode keluar kompiler, dan runner pengujian sebelum mengizinkan kemajuan proyek.
+> [!NOTE]
+> **Cek Bukti Nyata, Bukan Sekadar Laporan**: Agen koding AI sering melaporkan bahwa tugas sudah selesai, padahal kodenya masih ada yang error, test-nya gagal, atau ada file yang tidak sengaja terhapus. PIEW tidak langsung percaya pada teks laporan AI, melainkan memeriksa perubahan file asli (`git diff`) dan menjalankan perintah tes di terminal sebelum menganggap pekerjaan selesai.
 
 ---
 
-## Mengapa PIEW?
+## Kenapa Perlu PIEW?
 
-Agen koding AI modern (Cursor, Claude Code, Windsurf, Aider) adalah eksekutor yang andal, namun mereka tidak memiliki pengawas arsitektural independen:
+AI coding agent seperti Cursor, Claude Code, atau Windsurf sangat cepat menulis kode, tetapi sering menghadapi kendala berikut:
 
-| Celah Kegagalan Agen AI | Dampak Nyata di Proyek | Solusi PIEW |
+| Masalah yang Sering Muncul | Dampak di Proyek | Solusi PIEW |
 |---|---|---|
-| **Jebakan Laporan Palsu (*Self-Report Trap*)** | Agen menyatakan *"Semua fitur sudah selesai dibuat!"* padahal kode gagal kompilasi. | **Audit Empiris Fisik**: Wajib membuktikan perubahan baris kode di `git diff` dan exit code 0 kompiler. |
-| **Perulangan Revisi Tanpa Henti (*Infinite Loop*)** | Agen berhalusinasi memperbaiki error yang sama, menghabiskan kuota token konteks. | **Sirkuit Pengaman 3x (*Circuit Breaker*)**: Batas revisi maksimal 3 kali sebelum eskalasi ke manusia. |
-| **Penyimpangan Batasan (*Negative Constraint Drift*)** | Agen membuat data tiruan (*dummy mock*) atau menghapus tabel transaksi penting. | **Penjaga Batasan Negatif**: Audit AST & regex untuk mencekal pola yang dilarang pengguna. |
-| **Tugas Monolitik Terlalu Luas (*Scope Creep*)** | Agen mencoba membuat DB, API, dan UI sekaligus dalam 1 putaran, menghasilkan kode rintisan yang rusak. | **Pemisahan Fase Bertahap (*Phasing*)**: Mendekonstruksi proyek menjadi tahapan linier (DB &rarr; API &rarr; UI). |
+| **AI Mengaku Selesai Padahal Error** | Aplikasi error saat dijalankan karena ada import yang rusak atau salah ketik. | Cek langsung apakah perintah build (`tsc`) dan tes bernilai sukses (exit code 0). |
+| **Muter-Muter Memperbaiki Error (Loop)** | AI berulang kali mencoba memperbaiki hal yang sama sampai kuota token habis. | Batasi maksimal 3 kali perbaikan. Jika masih gagal, sistem berhenti dan meminta arahan pengguna. |
+| **AI Memakai Data Tiruan (Dummy)** | AI memakai data tiruan padahal aplikasi butuh database sungguhan. | Pasang aturan larangan mutlak agar AI tidak memakai data palsu atau menghapus tabel penting. |
+| **Mengerjakan Terlalu Banyak Sekaligus** | AI mencoba membuat Database, API, dan UI sekaligus, sehingga kodenya banyak yang terpotong. | Bagi proyek ke beberapa tahap berurutan: selesaikan Database dulu, lalu API, baru buat UI. |
 
 ---
 
@@ -42,9 +42,9 @@ Agen koding AI modern (Cursor, Claude Code, Windsurf, Aider) adalah eksekutor ya
 
 ### 1. Hubungkan ke Cursor / Claude Desktop (Model Context Protocol)
 
-PIEW menyediakan server MCP standar industri yang mengekspos alat inspeksi fisik dan pengawasan otonom langsung ke IDE AI Anda.
+PIEW bisa dihubungkan langsung ke Cursor atau Claude Desktop lewat MCP agar AI di editor Anda bisa memakai alat pemeriksa milik PIEW.
 
-Tambahkan ke berkas konfigurasi MCP Anda (`cursor.json` atau `claude_desktop_config.json`):
+Tambahkan ke file konfigurasi MCP Anda (`cursor.json` atau `claude_desktop_config.json`):
 
 ```json
 {
@@ -57,179 +57,171 @@ Tambahkan ke berkas konfigurasi MCP Anda (`cursor.json` atau `claude_desktop_con
 }
 ```
 
-Agen di IDE Anda kini dapat memanggil alat pengawas PIEW secara otonom sebelum menandai suatu pekerjaan selesai.
+Setelah terpasang, AI di editor Anda bisa otomatis mengecek pekerjaannya sebelum memberi tahu Anda bahwa tugas selesai.
 
-### 2. Jalankan Mandiri via Terminal (PIEW CLI)
+### 2. Penggunaan Lewat Terminal (CLI)
 
-Jalankan audit mutu fisik secara langsung pada direktori kerja lokal Anda:
+Anda juga bisa menjalankan pengecekan langsung dari terminal:
 
 ```bash
-# Verifikasi direktori kerja aktif terhadap kompilasi TypeScript dan suite pengujian
+# Cek apakah kode di folder kerja sudah bebas error dan lulus tes
 npm run piew -- --audit --session=piew-proj-alpha --build-cmd="npm run typecheck" --test-cmd="npm test"
 
-# Sintesis Master Prompt berstruktur tinggi dengan penjaga batasan anti-scope-creep
-npm run piew -- "Buat sistem manajemen stok toko roti. DILARANG membuat modul POS fisik." --supervise
+# Buat instruksi kerja terstruktur yang melarang hal tertentu
+npm run piew -- "Buat sistem stok toko roti. DILARANG membuat modul POS fisik." --supervise
 ```
 
-### 3. Jalankan Antarmuka Web Mission Control (Next.js 15)
+### 3. Menjalankan Tampilan Web (Next.js 15)
 
 ```bash
-# Pasang seluruh dependensi pada 8 paket monorepo
+# Pasang dependensi
 npm install
 
-# Jalankan server pengembangan Next.js
+# Jalankan server lokal
 npm run dev --workspace=web
 ```
-Buka [http://localhost:3000](http://localhost:3000) untuk memantau grafik riwayat audit, transisi status fase, dan telemetri *circuit breaker* secara visual.
+Buka browser di [http://localhost:3000](http://localhost:3000) untuk melihat halaman dasbor pengawasan, status tahapan tugas, dan riwayat pemeriksaan.
 
 ---
 
-## Kemampuan Utama
+## Fitur Utama
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            MESIN PENGAWAS PIEW                              │
+│                            FITUR UTAMA PIEW                                 │
 ├───────────────────────┬──────────────────────────┬──────────────────────────┤
-│ 1. AUDIT EMPIRIS      │ 2. KOREKSI DETERMINISTIK │ 3. KONEKTOR ENTERPRISE   │
-│ • Git Diff Inspector  │ • Naskah 4-Komponen      │ • 10 Konektor Standar    │
-│ • Terminal Verifier   │ • Circuit Breaker 3x     │ • GitHub, Linear, Sentry │
-│ • Docker Health Check │ • Milestone Bertahap     │ • Figma, DB, Puppeteer   │
-│ • Penjaga Larangan    │ • Intervensi Manusia     │ • Filesystem Terisolasi  │
+│ 1. PEMERIKSAAN KODE   │ 2. PENGARAH REVISI       │ 3. ALAT INTEGRASI (MCP)  │
+│ • Cek perubahan file  │ • Tunjukkan letak salah  │ • 10 Konektor standar    │
+│ • Jalankan build/test │ • Batas 3 kali coba      │ • GitHub, Linear, Sentry │
+│ • Cek status Docker   │ • Pengerjaan bertahap    │ • Figma, DB, Puppeteer   │
+│ • Jaga aturan larangan│ • Kendali tangan manusia │ • Akses file yang aman   │
 └───────────────────────┴──────────────────────────┴──────────────────────────┘
 ```
 
-### 1. Pengawas Mutu Empiris Fisik (`packages/prompt-engine/src/supervisor/`)
-* **`gitDiffInspector`**: Memeriksa penambahan dan modifikasi baris kode fisik, serta mendeteksi peringatan jika terjadi penghapusan berkas sepihak.
-* **`terminalVerifier`**: Menjalankan perintah build dan test dengan *timeout guard* terisolasi (60 detik) serta parser galat baris kompiler (`file(line,col): error`).
-* **`dockerHealthChecker`**: Memvalidasi kesehatan kontainer Docker, pemetaan port, dan deteksi pola *crash-loop*.
-* **`negativeConstraintGuard`**: Menghentikan regresi terhadap larangan mutlak yang diberikan pengguna (seperti larangan data dummy atau mock API).
+### 1. Pemeriksaan Kode Asli (`packages/prompt-engine/src/supervisor/`)
+* **Pemeriksa Git Diff**: Membaca file mana saja yang ditambah, diubah, atau dihapus secara nyata.
+* **Pemeriksa Terminal**: Menjalankan tes dan kompilasi secara otomatis, lalu mencatat nama file dan nomor baris yang salah jika ada error.
+* **Pemeriksa Docker**: Mengecek apakah container aplikasi berjalan normal atau mengalami restart terus-menerus (*crash-loop*).
+* **Penjaga Aturan Larangan**: Memastikan AI tidak melanggar hal-hal yang dilarang pengguna (misalnya larangan memakai data dummy).
 
-### 2. Pengarah Koreksi Deterministik & Sirkuit Pengaman (*Circuit Breaker*)
-Saat audit mendeteksi kegagalan, PIEW tidak memberikan masukan ambigu. Sistem menerbitkan **Direktif Koreksi 4-Komponen**:
-1. **Diagnosis Empiris**: Cuplikan kegagalan kompiler atau runtime nyata dari stderr.
-2. **Lokasi Berkas & Baris Cacat**: Jalur berkas absolut, nomor baris, dan nomor kolom.
-3. **Tindakan Perbaikan Wajib**: Langkah terarah yang wajib dilakukan untuk menyelesaikan galat.
-4. **Batasan Toleransi Mutlak**: Larangan yang tidak boleh dilanggar selama perbaikan.
+### 2. Arahan Revisi yang Jelas & Batas 3 Kali Coba
+Saat menemukan kesalahan pada kode, PIEW tidak memberi saran yang membingungkan. PIEW memberikan arahan langsung:
+1. **Penyebab Error**: Teks pesan error asli dari terminal.
+2. **Lokasi File & Baris**: Nama file lengkap beserta nomor baris yang perlu diperbaiki.
+3. **Langkah Perbaikan**: Tindakan yang harus diambil untuk menyelesaikan error tersebut.
+4. **Hal yang Tetap Dilarang**: Batasan yang tidak boleh dilanggar selama perbaikan.
 
-*Jika agen pelaksana gagal memperbaiki kode selama 3 kali berturut-turut pada fase yang sama, PIEW memutus sirkuit (*`BLOCKED_CIRCUIT_BREAKER_TRIGGERED`*), menghentikan pemborosan token, dan meminta persetujuan manusia.*
+*Jika AI sudah mencoba 3 kali berturut-turut tapi kodenya masih error, PIEW akan menghentikan proses perbaikan otomatis agar token tidak terbuang percuma, lalu meminta bantuan pengguna.*
 
-### 3. 10 Konektor MCP Enterprise (`packages/provider-adapters/src/mcp-catalog.ts`)
-Integrasi native untuk alur rekayasa perangkat lunak produksi:
-* **GitHub**: Operasi branch, commit, dan telaah pull request.
-* **Linear**: Sinkronisasi tiket tugas dan pelacakan milestone issue.
-* **Sentry**: Penarikan jejak telemetri error dan stack trace aplikasi.
-* **Figma**: Ekstraksi token antarmuka visual dan spesifikasi layout.
-* **Docker Engine**: Diagnostik status kontainer lokal dan pembacaan log.
-* **Database**: Pengujian query dan inspeksi skema fisik PostgreSQL / SQLite.
-* **Brave / Firecrawl Search**: Penarikan dokumentasi teknis eksternal dengan proteksi SSRF.
-* **Sandboxed File System**: Manipulasi berkas workspace yang aman.
-* **Memory Bridge**: Penyimpanan dan pemanggilan memori semantik jangka panjang via Qdrant & Mem0.
-* **Puppeteer**: Browser headless untuk inspeksi DOM halaman web dan penangkapan layar.
+### 3. 10 Konektor Tambahan (MCP) (`packages/provider-adapters/src/mcp-catalog.ts`)
+Alat bantu siap pakai untuk alur kerja pengembangan aplikasi:
+* **GitHub**: Kelola branch, commit, dan review pull request.
+* **Linear**: Sinkronisasi tiket tugas dan status pekerjaan.
+* **Sentry**: Baca log error dan rekaman stack trace aplikasi.
+* **Figma**: Ambil spesifikasi warna dan tata letak desain UI.
+* **Docker**: Cek status container lokal dan baca log service.
+* **Database**: Tes query dan cek tabel di database PostgreSQL / SQLite.
+* **Brave / Firecrawl Search**: Cari dokumentasi teknis di web secara aman.
+* **File System**: Baca dan tulis file di folder proyek dengan aman.
+* **Memori**: Simpan dan panggil catatan penting AI agar tidak lupa.
+* **Puppeteer**: Buka browser tanpa tampilan untuk cek tampilan web dan ambil tangkapan layar.
 
 ---
 
-## Cara Kerja PIEW
+## Cara Kerja
 
 ```text
-Instruksi Pengguna / Target Proyek
-                 │
-                 ▼
-     ┌────────────────────────┐
-     │ Pemecahan Fase Proyek  │ ── Milestone Linier (DB ➔ API ➔ UI)
-     └────────────────────────┘
-                 │
-                 ▼
-     ┌────────────────────────┐
-     │ Agen Koding Bekerja    │ ── Cursor / Claude Code memodifikasi berkas lokal
-     └────────────────────────┘
-                 │
-                 ▼
-     ┌────────────────────────┐
-     │ Audit Empiris PIEW     │ ── Git Diff + Kompiler (tsc) + Test Runner + Docker
-     └────────────────────────┘
-                 │
-                 ├─────────────────────────────────┐
-                 ▼ [LULUS]                         ▼ [GAGAL]
-     ┌────────────────────────┐       ┌────────────────────────┐
-     │ Buka Kunci Fase Berikut│       │ Terbitkan Prompt Revisi│ ◄── Maksimal 3x
-     └────────────────────────┘       └────────────────────────┘
-                                                   │
-                                                   ▼ [Melebihi 3x]
-                                      ┌────────────────────────┐
-                                      │ PICU CIRCUIT BREAKER   │ ── Eskalasi ke Manusia
-                                      └────────────────────────┘
+Pengguna memberi tugas
+        │
+        ▼
+┌────────────────────────┐
+│  Bagi Tugas Bertahap   │ ── Mulai dari Database ➔ lalu API ➔ baru UI
+└────────────────────────┘
+        │
+        ▼
+┌────────────────────────┐
+│  AI Menulis Kode       │ ── Cursor / Claude Code mengubah file lokal
+└────────────────────────┘
+        │
+        ▼
+┌────────────────────────┐
+│  PIEW Memeriksa Kode   │ ── Cek git diff + coba build + jalankan tes
+└────────────────────────┘
+        │
+        ├─────────────────────────────────┐
+        ▼ [BERHASIL]                      ▼ [ADA ERROR]
+┌────────────────────────┐       ┌────────────────────────┐
+│ Lanjut ke Tahap Berikut│       │ Beri Tahu Letak Salah  │ ◄── Maksimal 3 kali
+└────────────────────────┘       └────────────────────────┘
+                                              │
+                                              ▼ [Masih gagal setelah 3x]
+                                 ┌────────────────────────┐
+                                 │ Minta Bantuan Pengguna │ ── Hindari buang-buang token
+                                 └────────────────────────┘
 ```
 
 ---
 
 ## Arsitektur Monorepo
 
-PIEW dirancang dengan arsitektur **Modular Monolith** berorientasi keamanan tipe berbasis `npm workspaces`:
+Struktur proyek dibagi menjadi paket-paket terpisah yang rapi:
 
 ```text
 prompt-workspace/
 ├── apps/
-│   └── web/                         # Next.js 15 (Turbopack, App Router, Tailwind CSS, Lucide)
-│       └── src/app/api/             # Route Handlers Next.js (/api/supervision, /api/agent-runs, /api/skills)
+│   └── web/                         # Tampilan web Next.js 15 (Tailwind CSS, Lucide)
+│       └── src/app/api/             # Jalur API (/api/supervision, /api/agent-runs, /api/skills)
 │
 ├── packages/
-│   ├── prompt-contracts/            # Kontrak data Zod & Single Source of Truth skema monorepo
-│   ├── prompt-engine/               # Core Engine & Runtime Supervisor Otonom
-│   │   ├── src/supervisor/          # Modul inspeksi fisik, Steering Director & Circuit Breaker
-│   │   └── scripts/                 # Suite pengujian otomatis supervisor empiris
-│   ├── provider-adapters/           # Router failover multi-provider & 10 Enterprise MCP Connectors
-│   ├── prompt-crawler/              # Scraper dokumentasi aman SSRF & penyensor rahasia otomatis
-│   ├── prompt-spider/               # Matriks uji stres adversarial 5-cabang
-│   ├── domain-rules/                # Paket aturan rekayasa prompt berstandar industri
-│   └── database/                    # Prisma ORM & mesin penyimpanan SQLite WAL
+│   ├── prompt-contracts/            # Format data Zod untuk memastikan struktur tetap konsisten
+│   ├── prompt-engine/               # Mesin utama dan modul pengawas kode
+│   │   ├── src/supervisor/          # Alat cek git diff, terminal, dan pengarah revisi
+│   │   └── scripts/                 # File pengujian otomatis
+│   ├── provider-adapters/           # Penghubung AI provider dan 10 alat MCP
+│   ├── prompt-crawler/              # Pengambil dokumentasi teknis dari website
+│   ├── prompt-spider/               # Alat uji ketahanan prompt
+│   ├── domain-rules/                # Kumpulan aturan penulisan prompt
+│   └── database/                    # Database SQLite dan Prisma ORM
 │
 ├── docs/
 │   ├── readme/                      # Dokumentasi multi-bahasa (README_id.md)
-│   ├── architecture/                # Architecture Decision Records (ADRs) & spesifikasi
-│   └── product/                     # Catatan rilis & panduan pengguna
+│   ├── architecture/                # Catatan keputusan teknis (ADR)
+│   └── product/                     # Catatan pembaruan versi
 │
 ├── scripts/
-│   ├── piew-cli.ts                  # Eksekutor baris perintah (CLI) supervisor
-│   └── piew-mcp-server.ts           # Server Model Context Protocol (MCP) standar
+│   ├── piew-cli.ts                  # Perintah terminal (CLI)
+│   └── piew-mcp-server.ts           # Server MCP untuk Cursor / Claude
 │
-├── SUPERVISOR_EXECUTION_STATE.md    # Berkas pelacak status runtime fisik permanen
-├── RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.pdf  # Dokumen spesifikasi arsitektur 8 halaman kanonis
-└── package.json                     # Konfigurasi workspace root monorepo
+├── SUPERVISOR_EXECUTION_STATE.md    # Catatan riwayat pemeriksaan yang tersimpan di disk
+├── RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.pdf  # Dokumen penjelasan teknis 8 halaman
+└── package.json                     # Pengaturan utama proyek
 ```
 
 ---
 
-## Perintah Kerja & Pengujian Mutu (Scripts)
+## Perintah Kerja di Terminal
 
-Seluruh paket menerapkan standar zero-regression yang ketat:
+Perintah yang sering digunakan untuk mengecek kode:
 
 ```bash
-# Verifikasi kompilasi TypeScript di seluruh 8 workspace
+# Cek apakah ada error di penulisan TypeScript
 npm run typecheck
 
-# Jalankan suite pengujian empiris pengawas otonom lengkap
+# Jalankan pengujian modul pengawas
 npx tsx packages/prompt-engine/scripts/test-empirical-supervisor.ts
 
-# Uji konektivitas katalog MCP enterprise & kepatuhan skema JSON-RPC
+# Tes koneksi perkakas MCP
 npm run test:mcp
 
-# Uji failover pool multi-provider dan cascade router
+# Cek koneksi provider AI
 npm run test:providers
 
-# Jalankan build produksi penuh monorepo
+# Build seluruh paket aplikasi
 npm run build
 ```
 
 ---
 
-## Kontribusi & Keamanan
-
-* **Panduan Kontribusi**: Silakan pelajari [CONTRIBUTING.md](../../CONTRIBUTING.md) untuk konvensi penamaan cabang, DoR (Definition of Ready), dan DoD (Definition of Done).
-* **Pelaporan Kerentanan & Keamanan**: Rujuk ke [SECURITY.md](../../SECURITY.md) untuk prosedur pengungkapan dan protokol rotasi kredensial.
-* **Aturan Batasan Wilayah Kerja**: Agen Backend memodifikasi `packages/*` dan `scripts/*`; Agen Frontend memodifikasi `apps/web/*`.
-
----
-
 ## Lisensi
 
-Didistribusikan di bawah Lisensi Resmi MIT. Lihat [LICENSE](../../LICENSE) untuk rincian lebih lanjut.
+Proyek ini menggunakan lisensi MIT. Silakan lihat file [LICENSE](../../LICENSE) untuk informasi lengkap.

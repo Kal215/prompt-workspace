@@ -2,9 +2,9 @@
 
 # PIEW: Prompt Intelligence & Engineering Workspace
 
-### Autonomous Lead Architect, Empirical Quality Gatekeeper & Model Context Protocol (MCP) Runtime
+### Quality Supervisor and Steering Tool for AI Coding Agents
 
-**Eliminate AI coding agent hallucinations, infinite loops, and the self-report trap with evidence-based physical verification.**
+**Check AI-generated code (Cursor, Claude Code, Windsurf) using git diffs, build checks, and test suites so tasks finish accurately without infinite loops or broken code.**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
@@ -14,27 +14,27 @@
 
 ---
 
-**[Quick Start](#quick-start)** · **[Why PIEW](#why-piew)** · **[Core Capabilities](#core-capabilities)** · **[How PIEW Works](#how-piew-works)** · **[MCP Integration](#ide-integration-mcp-server)** · **[CLI Reference](#cli-reference)** · **[Monorepo Map](#monorepo-architecture)**
+**[Quick Start](#quick-start)** · **[Why PIEW](#why-piew)** · **[Key Features](#key-features)** · **[How It Works](#how-it-works)** · **[IDE Integration (MCP)](#ide-integration-mcp-server)** · **[CLI Reference](#cli-reference)** · **[Monorepo Structure](#monorepo-architecture)**
 
 ```bash
 npm run piew -- --help
 ```
 
-> [!IMPORTANT]
-> **Evidence Over Claims**: AI coding agents frequently claim a feature is complete while leaving broken imports, failing unit tests, or silently violating architecture constraints. PIEW never trusts agent self-reports; it verifies physical code diffs, compiler exit codes, and test runners before greenlighting progress.
+> [!NOTE]
+> **Check Real Evidence, Not Just Text Reports**: AI coding agents often report that a task is complete even when there are syntax errors, failing tests, or accidentally deleted files. PIEW does not rely solely on the agent's text response; it checks the actual changes in `git diff` and runs build/test commands before considering the work done.
 
 ---
 
 ## Why PIEW?
 
-Modern AI coding agents (Cursor, Claude Code, Windsurf, Aider) are exceptional implementors, but they lack autonomous architectural governance:
+AI coding agents like Cursor, Claude Code, or Windsurf write code quickly, but they often run into common issues:
 
-| The AI Agent Failure Mode | The Real-World Impact | How PIEW Solves It |
+| Common AI Agent Issue | What Happens in Practice | How PIEW Solves It |
 |---|---|---|
-| **Self-Report Trap** | Agent claims *"Everything is built and working!"* despite syntax errors. | **Empirical Audit**: Requires physical `git diff` proof and compiler exit code 0. |
-| **Infinite Revision Loop** | Agent hallucinates repetitive fixes, burning tokens until context is exhausted. | **3x Circuit Breaker**: Hard limit of 3 revisions per milestone before escalating to a human. |
-| **Negative Constraint Drift** | Agent uses dummy mock data or deletes critical transaction schemas. | **Negative Constraint Guard**: AST & regex auditing to prevent forbidden patterns. |
-| **Scope Creep Monolith** | Agent tries to build DB, API, and UI in a single turn, resulting in broken stubs. | **Progressive Phasing**: Deconstructs projects into linear milestones (DB &rarr; API &rarr; UI). |
+| **Claims Complete Despite Errors** | The app breaks when run because of broken imports or typos. | Directly checks whether compiler (`tsc`) and test commands succeed (exit code 0). |
+| **Endless Fix Loops** | The AI tries to fix the same error repeatedly until token limits run out. | Limits automatic retries to 3 times per step, then stops and asks the user for guidance. |
+| **Using Fake (Dummy) Data** | The AI uses placeholder mock data instead of real database models. | Enforces strict negative constraints so the AI does not insert fake data or delete tables. |
+| **Doing Too Much at Once** | The AI attempts Database, API, and UI in one shot, leaving incomplete code stubs. | Splits work into clear sequential steps: finish Database first, then API, then UI. |
 
 ---
 
@@ -42,9 +42,9 @@ Modern AI coding agents (Cursor, Claude Code, Windsurf, Aider) are exceptional i
 
 ### 1. Connect to Cursor / Claude Desktop (Model Context Protocol)
 
-PIEW provides a native MCP server exposing physical code inspection and autonomous supervision tools to your IDE.
+PIEW includes an MCP server so your AI editor can use PIEW's checking tools directly.
 
-Add to your `cursor.json` or `claude_desktop_config.json`:
+Add this to your MCP configuration file (`cursor.json` or `claude_desktop_config.json`):
 
 ```json
 {
@@ -57,179 +57,171 @@ Add to your `cursor.json` or `claude_desktop_config.json`:
 }
 ```
 
-Now, your IDE agent can autonomously invoke PIEW's quality gatekeeper before marking any task as complete.
+Once connected, your AI editor can automatically verify its own changes before telling you that a task is done.
 
-### 2. Standalone Terminal CLI (PIEW CLI)
+### 2. Run Directly from Terminal (CLI)
 
-Run empirical quality audits directly on your local workspace:
+You can also run checks directly from the command line:
 
 ```bash
-# Verify active workspace against TypeScript compiler and test runners
+# Check if current workspace compiles cleanly and passes tests
 npm run piew -- --audit --session=piew-proj-alpha --build-cmd="npm run typecheck" --test-cmd="npm test"
 
-# Synthesize a high-structure Master Prompt with anti-scope-creep constraints
+# Create structured instructions with explicit prohibitions
 npm run piew -- "Build a bakery inventory management system. DO NOT use physical POS hardware." --supervise
 ```
 
-### 3. Launch Web Mission Control (Next.js 15)
+### 3. Start Web Dashboard (Next.js 15)
 
 ```bash
-# Install dependencies across all 8 monorepo workspaces
+# Install dependencies
 npm install
 
-# Start the web development server
+# Start local dev server
 npm run dev --workspace=web
 ```
-Open [http://localhost:3000](http://localhost:3000) to inspect real-time audit graphs, milestone transitions, and circuit breaker metrics.
+Open [http://localhost:3000](http://localhost:3000) to view the supervision dashboard, project phase progress, and recent audit logs.
 
 ---
 
-## Core Capabilities
+## Key Features
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           PIEW SUPERVISOR ENGINE                            │
+│                             CORE PIEW FEATURES                              │
 ├───────────────────────┬──────────────────────────┬──────────────────────────┤
-│ 1. EMPIRICAL AUDIT    │ 2. DETERMINISTIC STEER   │ 3. ENTERPRISE MCP        │
-│ • Git Diff Inspector  │ • 4-Component Directive  │ • 10 Standard Connectors │
-│ • Terminal Verifier   │ • 3x Retry Circuit Break │ • GitHub, Linear, Sentry │
-│ • Docker Health Check │ • Progressive Phasing    │ • Figma, DB, Puppeteer   │
-│ • Negative Guard      │ • Human-in-the-Loop Gate │ • Sandboxed File System  │
+│ 1. CODE VERIFICATION  │ 2. TARGETED FEEDBACK     │ 3. TOOL INTEGRATIONS     │
+│ • Inspect git changes │ • Pinpoint exact lines   │ • 10 Standard MCP tools  │
+│ • Run build & tests   │ • 3-try retry limit      │ • GitHub, Linear, Sentry │
+│ • Check Docker status │ • Step-by-step progress  │ • Figma, DB, Puppeteer   │
+│ • Enforce boundaries  │ • User intervention gate │ • Safe file operations   │
 └───────────────────────┴──────────────────────────┴──────────────────────────┘
 ```
 
-### 1. Empirical Quality Gatekeeper (`packages/prompt-engine/src/supervisor/`)
-* **`gitDiffInspector`**: Inspects physical additions, modifications, and flags unexpected file deletions.
-* **`terminalVerifier`**: Executes build and test commands with isolated 60s timeout guards and structured error line parsing (`file(line,col): error`).
-* **`dockerHealthChecker`**: Validates container runtime health, exposed ports, and crash-loop patterns.
-* **`negativeConstraintGuard`**: Blocks regressions against explicit user prohibitions (e.g., forbidding dummy data or mock APIs).
+### 1. Real Code Verification (`packages/prompt-engine/src/supervisor/`)
+* **Git Diff Inspector**: Checks files added, modified, or deleted in the workspace.
+* **Terminal Verifier**: Automatically runs build and test commands, parsing error messages down to file names and line numbers.
+* **Docker Checker**: Confirms local containers are running and flags repeating crash restarts.
+* **Constraint Guard**: Ensures the AI respects rules specified by the user (such as avoiding mock data).
 
-### 2. Deterministic Steering & Circuit Breaker
-When an audit fails, PIEW does not send vague feedback. It generates a **4-Component Steering Directive**:
-1. **Empirical Diagnosis**: Exact compiler or runtime failure extracted from stderr.
-2. **Defective Files & Lines**: Absolute file path, line number, and column.
-3. **Mandatory Action**: Deterministic steps required to resolve the failure.
-4. **Tolerance Boundaries**: Inviolable constraints and zero-tolerance regression rules.
+### 2. Clear Feedback & 3-Retry Safety Limit
+When code fails a check, PIEW provides clear, direct guidance:
+1. **Error Message**: The exact error output from the terminal.
+2. **File and Line Location**: Exact file path and line number that needs fixing.
+3. **Required Action**: Direct steps to resolve the issue.
+4. **Active Constraints**: Rules that must not be broken during the fix.
 
-*If an agent fails 3 consecutive repair attempts on the same milestone, PIEW trips the **Circuit Breaker** (`BLOCKED_CIRCUIT_BREAKER_TRIGGERED`), stopping token waste and requesting human intervention.*
+*If the AI attempts 3 fixes in a row and the check still fails, PIEW pauses automatic revisions to save tokens and asks the user for assistance.*
 
-### 3. 10 Enterprise MCP Connectors (`packages/provider-adapters/src/mcp-catalog.ts`)
-Native integrations for production engineering workflows:
-* **GitHub**: PR reviews, branch operations, and diff analysis.
-* **Linear**: Issue synchronization and milestone tracking.
-* **Sentry**: Crash telemetry and stack trace ingestion.
-* **Figma**: UI token extraction and layout specs.
-* **Docker Engine**: Local container diagnostics and log extraction.
-* **Database**: PostgreSQL / SQLite schema inspection and query testing.
-* **Brave / Firecrawl Search**: SSRF-protected technical documentation retrieval.
-* **Sandboxed File System**: Safe workspace file operations.
-* **Memory Bridge**: Semantic long-term retrieval via Qdrant & Mem0.
-* **Puppeteer**: Headless browser DOM and screenshot capture.
+### 3. 10 Standard MCP Tools (`packages/provider-adapters/src/mcp-catalog.ts`)
+Ready-to-use developer integrations:
+* **GitHub**: Manage branches, commits, and pull requests.
+* **Linear**: Sync issue tickets and track milestones.
+* **Sentry**: Pull application error logs and stack traces.
+* **Figma**: Read design specs and UI color tokens.
+* **Docker**: Inspect container status and view service logs.
+* **Database**: Test database queries and inspect tables in PostgreSQL / SQLite.
+* **Brave / Firecrawl Search**: Look up technical documentation safely.
+* **File System**: Read and write files safely within the workspace.
+* **Memory**: Store and retrieve key project notes across sessions.
+* **Puppeteer**: Run a headless browser to test web pages and take screenshots.
 
 ---
 
-## How PIEW Works
+## How It Works
 
 ```text
-User / Task Goal
-       │
-       ▼
+User provides project goal
+            │
+            ▼
 ┌────────────────────────┐
-│  Phase Decomposition   │ ── Linear Milestones (DB ➔ API ➔ UI)
+│  Split into Steps      │ ── Database first ➔ then API ➔ then UI
 └────────────────────────┘
-       │
-       ▼
+            │
+            ▼
 ┌────────────────────────┐
-│  Coding Agent Executes │ ── Cursor / Claude Code modifies local files
+│  AI Writes Code        │ ── Cursor / Claude Code edits local files
 └────────────────────────┘
-       │
-       ▼
+            │
+            ▼
 ┌────────────────────────┐
-│  PIEW Empirical Audit  │ ── Git Diff + Compiler (tsc) + Test Runner + Docker
+│  PIEW Verifies Code    │ ── Checks git diff + runs build + runs tests
 └────────────────────────┘
-       │
-       ├─────────────────────────────────┐
-       ▼ [PASS]                          ▼ [FAIL]
-┌────────────────────────┐      ┌────────────────────────┐
-│ Unlock Next Milestone  │      │ Issue Steering Prompt  │ ◄── Max 3 Retries
-└────────────────────────┘      └────────────────────────┘
-                                         │
-                                         ▼ [Exceeded 3x]
-                                ┌────────────────────────┐
-                                │ TRIP CIRCUIT BREAKER   │ ── Escalate to Human
-                                └────────────────────────┘
+            │
+            ├─────────────────────────────────┐
+            ▼ [SUCCESS]                       ▼ [HAS ERRORS]
+┌────────────────────────┐       ┌────────────────────────┐
+│ Move to Next Step      │       │ Report Error & Line    │ ◄── Up to 3 attempts
+└────────────────────────┘       └────────────────────────┘
+                                              │
+                                              ▼ [Still failing after 3 tries]
+                                 ┌────────────────────────┐
+                                 │ Ask User for Guidance  │ ── Prevents wasted tokens
+                                 └────────────────────────┘
 ```
 
 ---
 
 ## Monorepo Architecture
 
-PIEW is architected as an isolated, type-safe **Modular Monolith** using `npm workspaces`:
+The workspace is organized into modular packages:
 
 ```text
 prompt-workspace/
 ├── apps/
-│   └── web/                         # Next.js 15 (Turbopack, App Router, Tailwind CSS, Lucide)
-│       └── src/app/api/             # Next.js API Routes (/api/supervision, /api/agent-runs, /api/skills)
+│   └── web/                         # Web dashboard in Next.js 15 (Tailwind CSS, Lucide)
+│       └── src/app/api/             # API routes (/api/supervision, /api/agent-runs, /api/skills)
 │
 ├── packages/
-│   ├── prompt-contracts/            # Zod contracts & Single Source of Truth for schemas
-│   ├── prompt-engine/               # Core engine & Autonomous Supervisor runtime
-│   │   ├── src/supervisor/          # Physical audit tools, Steering Director & Circuit Breaker
-│   │   └── scripts/                 # Empirical supervisor test suites
-│   ├── provider-adapters/           # Multi-provider cascade router & 10 Enterprise MCP Connectors
-│   ├── prompt-crawler/              # SSRF-guarded documentation scraper & secret redactor
-│   ├── prompt-spider/               # 5-branch adversarial stress testing matrix
-│   ├── domain-rules/                # Versioned domain engineering rule packs
-│   └── database/                    # Prisma ORM & SQLite WAL storage engine
+│   ├── prompt-contracts/            # Zod schemas to keep data structures consistent
+│   ├── prompt-engine/               # Core engine and code supervision tools
+│   │   ├── src/supervisor/          # Git diff checker, terminal runner, and feedback director
+│   │   └── scripts/                 # Automated test suites
+│   ├── provider-adapters/           # AI provider connections and 10 MCP tools
+│   ├── prompt-crawler/              # Documentation fetcher with safety filters
+│   ├── prompt-spider/               # Prompt robustness testing tool
+│   ├── domain-rules/                # Prompt rule collections
+│   └── database/                    # SQLite database with Prisma ORM
 │
 ├── docs/
 │   ├── readme/                      # Multi-language documentation (README_id.md)
-│   ├── architecture/                # Architecture Decision Records (ADRs) & specs
-│   └── product/                     # Release notes & user guides
+│   ├── architecture/                # Architecture notes and design specs
+│   └── product/                     # Release notes and documentation
 │
 ├── scripts/
-│   ├── piew-cli.ts                  # Autonomous supervisor CLI runner
-│   └── piew-mcp-server.ts           # Standard Model Context Protocol (MCP) server
+│   ├── piew-cli.ts                  # Command line runner (CLI)
+│   └── piew-mcp-server.ts           # MCP server for Cursor and Claude
 │
-├── SUPERVISOR_EXECUTION_STATE.md    # Durable physical runtime checkpoint state
-├── RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.pdf  # Canonical 8-page architecture specification
-└── package.json                     # Monorepo root workspace configuration
+├── SUPERVISOR_EXECUTION_STATE.md    # Local log of supervision runs
+├── RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.pdf  # 8-page architecture reference document
+└── package.json                     # Monorepo configuration
 ```
 
 ---
 
-## Scripts & Quality Gates
+## Common Terminal Commands
 
-All packages enforce strict zero-regression standards:
+Useful commands when working in this project:
 
 ```bash
-# Verify TypeScript compilation across all 8 workspaces
+# Check TypeScript for errors
 npm run typecheck
 
-# Run the comprehensive autonomous supervisor empirical test suite
+# Run supervisor verification tests
 npx tsx packages/prompt-engine/scripts/test-empirical-supervisor.ts
 
-# Test enterprise MCP catalog connectivity & JSON-RPC schema compliance
+# Test MCP tool connections
 npm run test:mcp
 
-# Test multi-provider failover pool and cascade router
+# Test AI provider connections
 npm run test:providers
 
-# Run full monorepo production build
+# Build all packages
 npm run build
 ```
 
 ---
 
-## Contributing & Security
-
-* **Contributing Guidelines**: Please review [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming conventions, DoR (Definition of Ready), and DoD (Definition of Done).
-* **Security & Vulnerability Reporting**: Refer to [SECURITY.md](SECURITY.md) for disclosure policies and secret rotation protocols.
-* **Strict Boundary Rule**: Backend agents modify `packages/*` and `scripts/*`; Frontend agents modify `apps/web/*`.
-
----
-
 ## License
 
-Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
