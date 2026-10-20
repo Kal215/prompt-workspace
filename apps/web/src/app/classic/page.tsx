@@ -551,17 +551,10 @@ export default function ClassicWorkspacePage() {
         <main className="relative flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-7 space-y-6">
           {/* Workspace Utility Sub-header */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-stone-200/80 pb-5">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-stone-900 tracking-tight">
-                  {lang === "en" ? "Classic Prompt Synthesis" : "Sintesis Prompt Classic"}
-                </h1>
-              </div>
-              <p className="text-xs text-stone-600">
-                {lang === "en"
-                  ? "Operational master prompt generator with closed-loop grounding, multi-diagram blueprints, and Spider tests."
-                  : "Generator master prompt produksi dengan validasi grounding, diagram arsitektur multi-tampilan, dan uji Spider."}
-              </p>
+            <div>
+              <h1 className="text-xl font-bold text-stone-900 tracking-tight">
+                CLASSIC
+              </h1>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">

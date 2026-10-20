@@ -908,26 +908,10 @@ Silakan kerjakan tugas di atas langsung di dalam editor koding ini. Setelah sele
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Header Bar Bersih & Minimalis */}
         <header className="h-16 border-b border-stone-200 bg-white/80 backdrop-blur-sm px-6 flex items-center justify-between shrink-0 z-20">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-stone-900 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-semibold tracking-tight text-stone-900">
-                  {lang === "en" ? "AI Control Center" : "Pusat Kendali AI"}
-                </h1>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  {lang === "en" ? "Guard Active" : "Pengawas Aktif"}
-                </span>
-              </div>
-              <p className="text-[11px] text-stone-500">
-                {lang === "en"
-                  ? "Monitor code quality, run tasks, and manage AI memory."
-                  : "Pantau kualitas kode, jalankan tugas otomatis, dan kelola ingatan AI."}
-              </p>
-            </div>
+          <div>
+            <h1 className="text-sm font-semibold tracking-tight text-stone-900">
+              Agent
+            </h1>
           </div>
 
           {/* 4 Tab Sederhana Tanpa Istilah Aneh */}
