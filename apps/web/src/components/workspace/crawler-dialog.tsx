@@ -8,6 +8,7 @@ interface CrawlerDialogProps {
   onClose: () => void;
   onGroundingImported: (data: { sourceUrl: string; facts: string[]; combinedText: string }) => void;
   lang?: "en" | "id";
+  initialUrl?: string;
 }
 
 export function CrawlerDialog({
@@ -15,11 +16,18 @@ export function CrawlerDialog({
   onClose,
   onGroundingImported,
   lang = "en",
+  initialUrl = "",
 }: CrawlerDialogProps) {
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialUrl);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any | null>(null);
+
+  React.useEffect(() => {
+    if (initialUrl) {
+      setUrl(initialUrl);
+    }
+  }, [initialUrl, isOpen]);
 
   if (!isOpen) return null;
 

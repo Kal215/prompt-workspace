@@ -38,6 +38,7 @@ import {
   Boxes,
   HelpCircle,
   Zap,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/use-language";
@@ -317,9 +318,67 @@ export default function ProPage() {
   const [selectedModelB, setSelectedModelB] = useState("");
   const [isLoadingModels, setIsLoadingModels] = useState(true);
 
-  // Grounding Web Crawler
+  // Grounding Web Crawler & Auto-Detection
   const [isCrawlerOpen, setIsCrawlerOpen] = useState(false);
   const [groundingData, setGroundingData] = useState<GroundingState | null>(null);
+  const [isAutoCrawling, setIsAutoCrawling] = useState(false);
+
+  // Auto-detect URLs from prompt & systemInstruction
+  const detectedUrls = useMemo(() => {
+    const raw = `${prompt} ${systemInstruction || ""}`;
+    const regex = /https?:\/\/[^\s"'<>\)]+/gi;
+    const matches = raw.match(regex) || [];
+    return Array.from(new Set(matches.map((u) => u.replace(/[.,;:]$/, ""))));
+  }, [prompt, systemInstruction]);
+
+  const handleAutoCrawlDetectedUrl = async (targetUrl: string) => {
+    if (!targetUrl || isAutoCrawling) return;
+    setIsAutoCrawling(true);
+    try {
+      const payload = {
+        targetUrl: targetUrl.trim(),
+        mode: "EXTRACT_GROUNDING_CONTEXT",
+        sourceType: targetUrl.includes("github") ? "GITHUB_RAW_FILE" : "DOCUMENTATION_PAGE",
+      };
+
+      let res = await fetch("/api/crawl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.status === 401) {
+        res = await fetch("/api/crawl", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || (lang === "en" ? "Failed to extract content" : "Gagal mengekstrak fakta web"));
+      }
+
+      const facts = (data.data.items || []).map((it: any) => it.content || it.snippet || "");
+      const combinedText = facts.join("\n\n---\n\n");
+      setGroundingData({
+        sourceUrl: data.data.sourceUrl,
+        facts,
+        combinedText,
+      });
+
+      toast.success(
+        lang === "en"
+          ? `Auto-extracted ${facts.length} web facts from ${data.data.sourceUrl}!`
+          : `Berhasil menyedot ${facts.length} fakta web dari ${data.data.sourceUrl}!`
+      );
+    } catch (err: any) {
+      toast.error(err.message || (lang === "en" ? "Failed to crawl web URL" : "Gagal menyedot tautan web"));
+    } finally {
+      setIsAutoCrawling(false);
+    }
+  };
 
   // Execution & Synthesis States
   const [isSynthesizing, setIsSynthesizing] = useState(false);
@@ -814,13 +873,15 @@ export default function ProPage() {
               </div>
             </div>
 
-            {/* Quick Grounding Web Button */}
+            {/* Quick Grounding Web Button with Auto-Detect */}
             <button
               type="button"
               onClick={() => setIsCrawlerOpen(true)}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-all cursor-pointer ${
                 groundingData
                   ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs"
+                  : detectedUrls.length > 0
+                  ? "bg-sky-50 text-sky-800 border-sky-300 shadow-2xs animate-pulse"
                   : "bg-white text-stone-600 border-stone-200 hover:border-stone-300 hover:text-stone-900"
               }`}
               title={
@@ -833,9 +894,9 @@ export default function ProPage() {
               <span>
                 {groundingData
                   ? `${groundingData.facts.length} Fakta`
-                  : lang === "en"
-                  ? "Web Facts"
-                  : "Cari Fakta Web"}
+                  : detectedUrls.length > 0
+                  ? (lang === "en" ? "1 Link Detected" : "1 Link Terdeteksi")
+                  : (lang === "en" ? "Web Facts" : "Cari Fakta Web")}
               </span>
             </button>
           </div>
@@ -888,6 +949,63 @@ export default function ProPage() {
                   className="w-full bg-transparent border-0 p-0 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-0 resize-y leading-relaxed font-sans"
                 />
               </div>
+
+              {/* Status Fakta Web atau URL Terdeteksi Otomatis */}
+              {groundingData ? (
+                <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="font-medium text-[11px]">
+                      {lang === "en"
+                        ? `${groundingData.facts.length} Web Facts Active:`
+                        : `${groundingData.facts.length} Fakta Web Terpasang:`}
+                    </span>
+                    <span className="font-mono text-[10px] text-emerald-800 truncate max-w-[200px]">
+                      {groundingData.sourceUrl}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGroundingData(null)}
+                    className="p-1 rounded-md hover:bg-emerald-100 text-emerald-700 cursor-pointer"
+                    title={lang === "en" ? "Remove web facts" : "Hapus fakta web"}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : detectedUrls.length > 0 ? (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-xs text-sky-900">
+                  <div className="flex items-center gap-2 truncate">
+                    <Globe className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                    <div className="truncate">
+                      <span className="font-semibold text-[11px] block">
+                        {lang === "en" ? "Web Link Detected:" : "Link Web Terdeteksi:"}
+                      </span>
+                      <span className="font-mono text-[10px] text-sky-800 truncate block max-w-xs">
+                        {detectedUrls[0]}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAutoCrawlDetectedUrl(detectedUrls[0])}
+                    disabled={isAutoCrawling}
+                    className="px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-medium text-[11px] flex items-center gap-1 shrink-0 transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
+                  >
+                    {isAutoCrawling ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>{lang === "en" ? "Extracting..." : "Menyedot..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3" />
+                        <span>{lang === "en" ? "Auto-Extract Facts" : "Sedot Fakta Otomatis"}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             {/* 3 & 4. Kategori Tugas & Gaya Bahasa Jawaban (Side by Side) */}
@@ -1287,15 +1405,7 @@ export default function ProPage() {
               </p>
             </div>
 
-            {/* Link ke Halaman Classic */}
-            <div className="flex items-center gap-2">
-              <Link
-                href="/classic"
-                className="text-xs font-mono text-stone-500 hover:text-stone-900 px-2.5 py-1 rounded-lg border border-stone-200/80 hover:bg-stone-100 transition-colors"
-              >
-                {lang === "en" ? "Classic View →" : "Ke Halaman Classic →"}
-              </Link>
-            </div>
+
           </div>
 
           {/* ─────────────────────────────────────────────────────────────
@@ -2075,6 +2185,7 @@ export default function ProPage() {
       {isCrawlerOpen && (
         <CrawlerDialog
           isOpen={isCrawlerOpen}
+          initialUrl={detectedUrls[0] || ""}
           onClose={() => setIsCrawlerOpen(false)}
           onGroundingImported={(data: { sourceUrl: string; facts: string[]; combinedText: string }) => {
             setGroundingData(data);
