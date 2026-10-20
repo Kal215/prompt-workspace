@@ -130,34 +130,42 @@ Alat bantu siap pakai untuk alur kerja pengembangan aplikasi:
 
 ## Cara Kerja
 
-```text
-Pengguna memberi tugas
-        │
-        ▼
-┌────────────────────────┐
-│  Bagi Tugas Bertahap   │ ── Mulai dari Database ➔ lalu API ➔ baru UI
-└────────────────────────┘
-        │
-        ▼
-┌────────────────────────┐
-│  AI Menulis Kode       │ ── Cursor / Claude Code mengubah file lokal
-└────────────────────────┘
-        │
-        ▼
-┌────────────────────────┐
-│  PIEW Memeriksa Kode   │ ── Cek git diff + coba build + jalankan tes
-└────────────────────────┘
-        │
-        ├─────────────────────────────────┐
-        ▼ [BERHASIL]                      ▼ [ADA ERROR]
-┌────────────────────────┐       ┌────────────────────────┐
-│ Lanjut ke Tahap Berikut│       │ Beri Tahu Letak Salah  │ ◄── Maksimal 3 kali
-└────────────────────────┘       └────────────────────────┘
-                                              │
-                                              ▼ [Masih gagal setelah 3x]
-                                 ┌────────────────────────┐
-                                 │ Minta Bantuan Pengguna │ ── Hindari buang-buang token
-                                 └────────────────────────┘
+### 1. Alur Pengawasan Bertahap
+
+```mermaid
+flowchart TD
+    A[Pengguna Memberikan Tugas] --> B[Bagi Tugas Bertahap<br/>Database ➔ API ➔ Tampilan UI]
+    B --> C[AI Koding Mengubah File<br/>Cursor / Claude Code]
+    C --> D[PIEW Memeriksa Kode Asli<br/>Git Diff + Build + Unit Test]
+    
+    D -->|Semua Lulus| E[Lanjut ke Tahap Berikutnya]
+    D -->|Ada Error| F[Tunjukkan File & Baris yang Salah]
+    
+    F -->|Coba Perbaiki Maks 3x| C
+    F -->|Sudah 3x Masih Gagal| G[Minta Bantuan Pengguna<br/>Stop agar kuota token tidak terbuang]
+```
+
+### 2. Alur Interaksi IDE & PIEW (MCP)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Anda (Pengembang)
+    participant IDE as Cursor / Claude Code
+    participant PIEW as PIEW (MCP Server)
+    participant Work as File Proyek & Terminal
+
+    Dev->>IDE: Berikan instruksi tugas
+    IDE->>Work: Tulis / ubah file kode
+    IDE->>PIEW: Minta pemeriksaan kode
+    PIEW->>Work: Cek git diff & jalankan build / test
+    alt Kode Bersih & Lulus Tes
+        PIEW-->>IDE: Status Lolos (Semua tes hijau)
+        IDE-->>Dev: Tugas selesai dan terbukti jalan
+    else Ditemukan Error
+        PIEW-->>IDE: Kirim nama file, baris, dan pesan error
+        IDE->>Work: Perbaiki bagian yang salah (Maks 3 kali)
+    end
 ```
 
 ---

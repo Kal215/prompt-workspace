@@ -130,34 +130,42 @@ Ready-to-use developer integrations:
 
 ## How It Works
 
-```text
-User provides project goal
-            │
-            ▼
-┌────────────────────────┐
-│  Split into Steps      │ ── Database first ➔ then API ➔ then UI
-└────────────────────────┘
-            │
-            ▼
-┌────────────────────────┐
-│  AI Writes Code        │ ── Cursor / Claude Code edits local files
-└────────────────────────┘
-            │
-            ▼
-┌────────────────────────┐
-│  PIEW Verifies Code    │ ── Checks git diff + runs build + runs tests
-└────────────────────────┘
-            │
-            ├─────────────────────────────────┐
-            ▼ [SUCCESS]                       ▼ [HAS ERRORS]
-┌────────────────────────┐       ┌────────────────────────┐
-│ Move to Next Step      │       │ Report Error & Line    │ ◄── Up to 3 attempts
-└────────────────────────┘       └────────────────────────┘
-                                              │
-                                              ▼ [Still failing after 3 tries]
-                                 ┌────────────────────────┐
-                                 │ Ask User for Guidance  │ ── Prevents wasted tokens
-                                 └────────────────────────┘
+### 1. Step-by-Step Supervision Workflow
+
+```mermaid
+flowchart TD
+    A[User Provides Goal] --> B[Deconstruct Milestones<br/>Database ➔ API ➔ UI]
+    B --> C[AI Coding Agent Modifies Files<br/>Cursor / Claude Code]
+    C --> D[PIEW Verifies Real Code<br/>Git Diff + Build + Unit Tests]
+    
+    D -->|All Checks Pass| E[Unlock Next Milestone]
+    D -->|Errors Detected| F[Pinpoint File & Line Failure]
+    
+    F -->|Auto Retry Up to 3x| C
+    F -->|Fails 3 Times in a Row| G[Escalate to User<br/>Stop to prevent wasted tokens]
+```
+
+### 2. IDE & PIEW Interaction Sequence (MCP)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer (You)
+    participant IDE as Cursor / Claude Code
+    participant PIEW as PIEW (MCP Server)
+    participant Work as Project Files & Terminal
+
+    Dev->>IDE: Assign task prompt
+    IDE->>Work: Write / modify code files
+    IDE->>PIEW: Request code verification
+    PIEW->>Work: Check git diff & run build / test
+    alt Clean Build & Tests Pass
+        PIEW-->>IDE: Verification Passed (All green)
+        IDE-->>Dev: Milestone finished & proven working
+    else Errors Detected
+        PIEW-->>IDE: Return exact file, line, and compiler trace
+        IDE->>Work: Apply targeted fix (Max 3 attempts)
+    end
 ```
 
 ---
