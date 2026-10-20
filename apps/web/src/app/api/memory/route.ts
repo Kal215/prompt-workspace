@@ -204,6 +204,31 @@ export async function PUT(request: Request) {
       });
     }
 
+    if (action === "reject") {
+      const existing = store.getMemory(id, ownerId);
+      if (!existing) {
+        return NextResponse.json(
+          { success: false, error: "Memory tidak ditemukan atau pelanggaran hak akses (Anti-IDOR)." },
+          { status: 404 }
+        );
+      }
+      const rejected = store.validateMemoryRecord(id, {
+        passed: false,
+        validationMethod: (validationMethod as MemoryValidationMethod) || "human",
+      });
+      if (!rejected) {
+        return NextResponse.json(
+          { success: false, error: "Gagal menolak memory." },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: `Memory '${id}' berhasil ditolak.`,
+        memory: rejected,
+      });
+    }
+
     if (action === "correct") {
       if (!content || typeof content !== "string") {
         return NextResponse.json(
