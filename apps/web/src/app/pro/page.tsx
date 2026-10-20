@@ -46,6 +46,8 @@ import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
 import { SpiderMatrixCard } from "@/components/workspace/spider-matrix-card";
 import { MermaidViewer } from "@/components/ui/mermaid-viewer";
 import { MarkdownView } from "@/components/ui/markdown-view";
+import { ProHistorySheet } from "@/components/workspace/pro-history-sheet";
+import type { ProHistoryRecord } from "@/app/api/pro-history/route";
 
 // --- INTERFACES ---
 
@@ -404,6 +406,22 @@ export default function ProPage() {
   const [copiedA, setCopiedA] = useState(false);
   const [copiedB, setCopiedB] = useState(false);
 
+  // Pro Studio Dedicated History Drawer
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [proHistoryCount, setProHistoryCount] = useState(0);
+
+  // Load Pro history count
+  useEffect(() => {
+    fetch("/api/pro-history")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          setProHistoryCount(data.data.length);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Quick Starters
   const QUICK_STARTERS = useMemo(
     () => [
@@ -622,6 +640,9 @@ export default function ProPage() {
       setSelectedDiagramIndex(0);
       setActiveTab("master");
 
+      // Auto-save ke riwayat Pro Studio
+      handleSaveToProHistory(data);
+
       toast.success(
         lang === "en"
           ? "Complete prompt, diagrams & safety tests ready!"
@@ -632,6 +653,66 @@ export default function ProPage() {
     } finally {
       setIsSynthesizing(false);
     }
+  };
+
+  // Pro Studio History Management (Terisolasi Mandiri)
+  const handleSaveToProHistory = async (customSynthesisResult?: any) => {
+    const textPrompt = prompt.trim();
+    if (!textPrompt) {
+      toast.error(lang === "en" ? "Enter a prompt first" : "Tulis prompt terlebih dahulu");
+      return;
+    }
+
+    try {
+      const payload = {
+        prompt: textPrompt,
+        domain,
+        audienceLevel,
+        customConstraints,
+        activeMcpConnectors,
+        groundingData,
+        selectedModelA,
+        selectedModelB,
+        arenaMode,
+        synthesisResult: customSynthesisResult || synthesisResult,
+        resultA,
+        resultB,
+      };
+
+      const res = await fetch("/api/pro-history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setProHistoryCount((prev) => prev + 1);
+        toast.success(lang === "en" ? "Saved to Pro Studio history!" : "Tersimpan ke riwayat Pro Studio!");
+      }
+    } catch (e) {
+      console.warn("Failed to save Pro history:", e);
+    }
+  };
+
+  const handleSelectProHistoryRecord = (record: ProHistoryRecord) => {
+    if (!record) return;
+    setPrompt(record.prompt || "");
+    if (record.domain) setDomain(record.domain);
+    if (record.audienceLevel) setAudienceLevel(record.audienceLevel);
+    if (Array.isArray(record.customConstraints)) setCustomConstraints(record.customConstraints);
+    if (Array.isArray(record.activeMcpConnectors)) setActiveMcpConnectors(record.activeMcpConnectors);
+    if (record.groundingData !== undefined) setGroundingData(record.groundingData);
+    if (record.selectedModelA) setSelectedModelA(record.selectedModelA);
+    if (record.selectedModelB) setSelectedModelB(record.selectedModelB);
+    if (record.arenaMode) setArenaMode(record.arenaMode);
+    if (record.synthesisResult) {
+      setSynthesisResult(record.synthesisResult);
+      setActiveTab("master");
+    }
+    if (record.resultA !== undefined) setResultA(record.resultA);
+    if (record.resultB !== undefined) setResultB(record.resultB);
+    setIsHistoryOpen(false);
+    toast.info(lang === "en" ? "Pro session restored from history" : "Sesi Pro berhasil dimuat dari riwayat");
   };
 
   // 2. JALANKAN PERBANDINGAN MODEL LANGSUNG
@@ -1363,7 +1444,23 @@ export default function ProPage() {
               </p>
             </div>
 
-
+            {/* Riwayat Pro Studio Terpisah */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(true)}
+                className="px-3 py-1.5 rounded-xl border border-stone-200 hover:border-stone-300 text-stone-700 hover:text-stone-900 bg-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                title={lang === "en" ? "Open Pro Studio History" : "Buka Riwayat Pro Studio"}
+              >
+                <History className="w-3.5 h-3.5 text-stone-500" />
+                <span>{lang === "en" ? "History" : "Riwayat"}</span>
+                {proHistoryCount > 0 && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-stone-100 text-stone-700 border border-stone-200 font-semibold">
+                    {proHistoryCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* ─────────────────────────────────────────────────────────────
@@ -1572,6 +1669,17 @@ export default function ProPage() {
                         >
                           <Download className="w-3.5 h-3.5" />
                           <span>Unduh .md</span>
+                        </button>
+
+                        {/* Save to History Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleSaveToProHistory()}
+                          className="px-2.5 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-mono flex items-center gap-1 transition-colors cursor-pointer"
+                          title={lang === "en" ? "Save to Pro history" : "Simpan ke riwayat Pro"}
+                        >
+                          <History className="w-3.5 h-3.5" />
+                          <span>{lang === "en" ? "Save" : "Simpan"}</span>
                         </button>
                       </div>
                     </div>
@@ -2139,7 +2247,13 @@ export default function ProPage() {
         </div>
       </div>
 
-
+      {/* DRAWER RIWAYAT PRO STUDIO (TERISOLASI MANDIRI) */}
+      <ProHistorySheet
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        onSelectRecord={handleSelectProHistoryRecord}
+        lang={lang}
+      />
     </div>
   );
 }
