@@ -225,7 +225,7 @@ function NavItem({
 }
 
 interface WorkspaceSidebarProps {
-  activeMode?: "Classic" | "Pro" | "Agent" | "Setting" | "Docs";
+  activeMode?: "Classic" | "Pro" | "Playground" | "Agent" | "Setting" | "Docs";
   isOpen?: boolean;
   onToggle?: (open: boolean) => void;
 }
@@ -305,6 +305,7 @@ export function WorkspaceSidebar({
 
   const currentMode = controlledMode || (
     pathname.startsWith("/pro") ? "Pro" :
+    pathname.startsWith("/playground") ? "Playground" :
     pathname.startsWith("/agent") ? "Agent" :
     pathname.startsWith("/docs") ? "Docs" : "Classic"
   );
@@ -312,6 +313,7 @@ export function WorkspaceSidebar({
   const primaryItems: { label: string; href: string; icon?: (props: IconProps) => ReactNode }[] = [
     { label: "Classic", href: "/classic" },
     { label: "Pro", href: "/pro" },
+    { label: "Playground", href: "/playground" },
     { label: "Agent", href: "/agent" },
   ];
 
