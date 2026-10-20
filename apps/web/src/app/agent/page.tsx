@@ -43,6 +43,7 @@ import {
   CheckCheck,
   History,
   Trash2,
+  Plug,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
@@ -267,6 +268,10 @@ export default function AgentMissionControlPage() {
 
   // Sub-tab pada panel Alat & Aplikasi: "skills" (Aturan Prompt) vs "connectors" (Konektor MCP)
   const [skillsSubTab, setSkillsSubTab] = useState<"skills" | "connectors">("skills");
+
+  // Modal Hubungkan Editor Koding (MCP & API)
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [connectTab, setConnectTab] = useState<"cursor" | "claude" | "windsurf" | "api">("cursor");
 
   // 1. Data Supervisi / Kualitas
   const [sessions, setSessions] = useState<SupervisionSession[]>([]);
@@ -544,6 +549,45 @@ export default function AgentMissionControlPage() {
   // ──────────────────────────────────────────────
   // Aksi-aksi Pengguna
   // ──────────────────────────────────────────────
+
+  const handleCopyPhasePrompt = (phase: any, phaseIndex: number) => {
+    if (!phase) return;
+    const friendlyTitle = lang === "en"
+      ? (PHASE_TITLES_EN[phaseIndex] || phase.title)
+      : (PHASE_TITLES_ID[phaseIndex] || phase.title);
+
+    const criteriaList = (phase.acceptanceCriteria || [])
+      .map((c: string, i: number) => `  ${i + 1}. ${c}`)
+      .join("\n");
+
+    const deliverablesList = (phase.requiredDeliverables || [])
+      .map((d: string) => `  - ${d}`)
+      .join("\n");
+
+    const promptText = `[INSTRUKSI TUGAS TAHAP ${phaseIndex + 1}: ${friendlyTitle}]
+Proyek: ${activeSession?.originalPrompt || "Pengembangan Aplikasi PIEW"}
+Sasaran Tahap: ${phase.objective}
+
+Syarat Keberhasilan yang Harus Dipenuhi:
+${criteriaList || "  - Pastikan kode berjalan bebas error"}
+
+Berkas / Hasil yang Wajib Dihasilkan:
+${deliverablesList || "  - Kode sumber terverifikasi"}
+
+Batasan Mutlak (Larangan):
+- Jangan gunakan data palsu atau mock di luar pengujian
+- Pastikan perubahan kode tersimpan fisik di disk dan lolos verifikasi build (npm run typecheck / build)
+
+Silakan kerjakan tugas di atas langsung di dalam editor koding ini. Setelah selesai, beri tahu saya agar sistem PIEW dapat melakukan verifikasi kualitas empiris otomatis.`;
+
+    navigator.clipboard.writeText(promptText);
+    showToast(
+      lang === "en"
+        ? "Phase instruction copied! You can paste it into Cursor, Claude, or ChatGPT."
+        : "Instruksi tahap berhasil disalin! Anda dapat menempelkannya ke Cursor, Claude, atau ChatGPT.",
+      "success"
+    );
+  };
 
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -932,6 +976,17 @@ export default function AgentMissionControlPage() {
                 </span>
               </button>
             </div>
+
+            {/* Tombol Hubungkan Editor (MCP & API) */}
+            <button
+              type="button"
+              onClick={() => setIsConnectModalOpen(true)}
+              className="px-3 py-2 rounded-xl bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              title={lang === "en" ? "Connect Coding Agents (Cursor, Claude, Windsurf, API)" : "Hubungkan Editor Koding (Cursor, Claude, Windsurf, API)"}
+            >
+              <Plug className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{lang === "en" ? "Connect Editor (MCP)" : "Hubungkan Editor (MCP)"}</span>
+            </button>
 
             {/* Tombol Riwayat Khusus Halaman Agent */}
             <button
@@ -1545,6 +1600,33 @@ export default function AgentMissionControlPage() {
                             </ul>
                           </div>
                         </div>
+
+                        {/* Aksi Delegasi ke Agen Koding (Metode 2) */}
+                        <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPhasePrompt(currentPhase, selectedPhaseIndex)}
+                              className="px-3.5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>{lang === "en" ? "Copy Phase Prompt for AI Agent" : "Salin Instruksi Tahap Ini untuk AI"}</span>
+                            </button>
+                            
+                            <button
+                              type="button"
+                              onClick={() => setIsConnectModalOpen(true)}
+                              className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer border border-stone-200"
+                            >
+                              <Plug className="w-3.5 h-3.5 text-blue-600" />
+                              <span>{lang === "en" ? "Connect via MCP / IDE" : "Hubungkan via MCP / IDE"}</span>
+                            </button>
+                          </div>
+
+                          <span className="text-[11px] text-stone-500 font-medium">
+                            {lang === "en" ? "Paste into Cursor, Claude Code, or ChatGPT" : "Tempelkan ke Cursor, Claude Code, atau ChatGPT"}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Catatan Arahan AI (Steering Directive) Bersih Tanpa Banner Sertifikat ASCII */}
@@ -1951,6 +2033,28 @@ export default function AgentMissionControlPage() {
                   </span>
                 </div>
 
+                <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                      <Plug className="w-3.5 h-3.5 text-emerald-700" />
+                      {lang === "en" ? "Model Context Protocol (MCP) Bridge" : "Jembatan Model Context Protocol (MCP)"}
+                    </span>
+                    <p className="text-[11px] text-emerald-800 mt-0.5">
+                      {lang === "en"
+                        ? "Connect your IDE coding agent (Cursor, Claude, Windsurf) to let it call PIEW tools autonomously."
+                        : "Hubungkan agen koding di IDE Anda (Cursor, Claude, Windsurf) agar dapat memanggil alat PIEW secara mandiri."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsConnectModalOpen(true)}
+                    className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition-colors cursor-pointer shadow-xs shrink-0 flex items-center gap-1.5"
+                  >
+                    <Plug className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Setup MCP Config" : "Buka Panduan MCP"}</span>
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {mcpConnectors.map((c) => (
                     <div key={c.connectorId} className="p-3.5 rounded-xl border border-stone-200 bg-white space-y-2">
@@ -2291,6 +2395,276 @@ export default function AgentMissionControlPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ──────────────────────────────────────────────
+          MODAL: Hubungkan Editor Koding (MCP & API)
+         ────────────────────────────────────────────── */}
+      {isConnectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl border border-stone-200 p-6 max-w-xl w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold">
+                  <Plug className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-stone-900">
+                    {lang === "en" ? "Connect Coding Agents (MCP & API)" : "Hubungkan Agen Koding (MCP & API)"}
+                  </h3>
+                  <p className="text-[11px] text-stone-500">
+                    {lang === "en"
+                      ? "Integrate PIEW directly with Cursor, Claude, Windsurf, or custom scripts."
+                      : "Integrasikan PIEW langsung dengan Cursor, Claude, Windsurf, atau bot Anda."}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConnectModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Tab Selector Editor */}
+            <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl text-xs font-medium">
+              {[
+                { id: "cursor", label: "Cursor IDE" },
+                { id: "claude", label: "Claude Desktop" },
+                { id: "windsurf", label: "Windsurf" },
+                { id: "api", label: "REST API / Webhook" },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setConnectTab(t.id as any)}
+                  className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer text-center ${
+                    connectTab === t.id
+                      ? "bg-white text-stone-900 font-semibold shadow-xs"
+                      : "text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab 1: Cursor IDE */}
+            {connectTab === "cursor" && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60 space-y-1.5 text-stone-700">
+                  <span className="font-semibold text-stone-900 block flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {lang === "en" ? "Cursor Setup Steps:" : "Langkah Pengaturan di Cursor:"}
+                  </span>
+                  <ol className="list-decimal list-inside space-y-1 text-stone-600 leading-relaxed text-[11px]">
+                    <li>{lang === "en" ? "Open Cursor Settings (Gear Icon) -> Features -> MCP Servers." : "Buka Pengaturan Cursor (Ikon Gear) -> Features -> MCP Servers."}</li>
+                    <li>{lang === "en" ? "Click 'Add New MCP Server'." : "Klik tombol 'Add New MCP Server'."}</li>
+                    <li>{lang === "en" ? "Name: 'piew-supervisor' | Type: 'command' | Command: 'npx tsx scripts/piew-mcp-server.ts'" : "Nama: 'piew-supervisor' | Tipe: 'command' | Perintah: 'npx tsx scripts/piew-mcp-server.ts'"}</li>
+                  </ol>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-stone-700">
+                      {lang === "en" ? "MCP Configuration JSON:" : "Konfigurasi JSON untuk Cursor:"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const jsonStr = JSON.stringify({
+                          mcpServers: {
+                            "piew-supervisor": {
+                              command: "npx",
+                              args: ["tsx", "scripts/piew-mcp-server.ts"]
+                            }
+                          }
+                        }, null, 2);
+                        navigator.clipboard.writeText(jsonStr);
+                        showToast(lang === "en" ? "Cursor config copied!" : "Konfigurasi Cursor disalin!", "success");
+                      }}
+                      className="text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{lang === "en" ? "Copy JSON" : "Salin JSON"}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] overflow-x-auto leading-relaxed">
+{`{
+  "mcpServers": {
+    "piew-supervisor": {
+      "command": "npx",
+      "args": ["tsx", "scripts/piew-mcp-server.ts"]
+    }
+  }
+}`}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Claude Desktop */}
+            {connectTab === "claude" && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60 space-y-1.5 text-stone-700">
+                  <span className="font-semibold text-stone-900 block flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                    {lang === "en" ? "Claude Desktop Setup Steps:" : "Langkah Pengaturan di Claude Desktop:"}
+                  </span>
+                  <p className="text-[11px] text-stone-600 leading-relaxed">
+                    {lang === "en"
+                      ? "Open claude_desktop_config.json (%APPDATA%\\Claude\\claude_desktop_config.json on Windows) and paste the server configuration."
+                      : "Buka berkas claude_desktop_config.json (%APPDATA%\\Claude\\claude_desktop_config.json di Windows) dan tambahkan server berikut."}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-stone-700">
+                      {lang === "en" ? "Claude Desktop JSON:" : "Konfigurasi Claude Desktop:"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const jsonStr = JSON.stringify({
+                          mcpServers: {
+                            "piew-supervisor": {
+                              command: "npx",
+                              args: ["tsx", "scripts/piew-mcp-server.ts"]
+                            }
+                          }
+                        }, null, 2);
+                        navigator.clipboard.writeText(jsonStr);
+                        showToast(lang === "en" ? "Claude config copied!" : "Konfigurasi Claude disalin!", "success");
+                      }}
+                      className="text-[11px] text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{lang === "en" ? "Copy JSON" : "Salin JSON"}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] overflow-x-auto leading-relaxed">
+{`{
+  "mcpServers": {
+    "piew-supervisor": {
+      "command": "npx",
+      "args": ["tsx", "scripts/piew-mcp-server.ts"]
+    }
+  }
+}`}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: Windsurf */}
+            {connectTab === "windsurf" && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60 space-y-1.5 text-stone-700">
+                  <span className="font-semibold text-stone-900 block flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                    {lang === "en" ? "Windsurf Cascade Setup:" : "Langkah Pengaturan di Windsurf:"}
+                  </span>
+                  <p className="text-[11px] text-stone-600 leading-relaxed">
+                    {lang === "en"
+                      ? "In Windsurf, open Cascade MCP Configuration and register piew-supervisor with the command below."
+                      : "Di Windsurf, buka menu MCP pada Cascade dan daftarkan server piew-supervisor dengan perintah berikut."}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-stone-700">
+                      {lang === "en" ? "CLI Command:" : "Perintah Terminal:"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText("npx tsx scripts/piew-mcp-server.ts");
+                        showToast(lang === "en" ? "Command copied!" : "Perintah disalin!", "success");
+                      }}
+                      className="text-[11px] text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{lang === "en" ? "Copy Command" : "Salin Perintah"}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] overflow-x-auto">
+npx tsx scripts/piew-mcp-server.ts
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: REST API / Webhook */}
+            {connectTab === "api" && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60 space-y-1 text-stone-700">
+                  <span className="font-semibold text-stone-900 block">
+                    {lang === "en" ? "Programmatic Endpoint for Scripts & Bots:" : "Endpoint Programatik untuk Bot & Script:"}
+                  </span>
+                  <p className="text-[11px] text-stone-600 leading-relaxed">
+                    POST http://localhost:3000/api/supervision
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-stone-700">
+                      {lang === "en" ? "cURL Example:" : "Contoh Pemanggilan cURL:"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const curlCmd = `curl -X POST http://localhost:3000/api/supervision \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "action": "audit_and_advance",
+    "sessionId": "${activeSession?.sessionId || "piew-session-id"}",
+    "options": {
+      "phaseIndex": ${selectedPhaseIndex},
+      "summaryOfWork": "Pekerjaan kode selesai oleh agen koding",
+      "verificationCommand": "npm run typecheck --workspace=web"
+    }
+  }'`;
+                        navigator.clipboard.writeText(curlCmd);
+                        showToast(lang === "en" ? "cURL snippet copied!" : "Cuplikan cURL disalin!", "success");
+                      }}
+                      className="text-[11px] text-stone-600 hover:text-stone-900 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{lang === "en" ? "Copy cURL" : "Salin cURL"}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] overflow-x-auto leading-relaxed">
+{`curl -X POST http://localhost:3000/api/supervision \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "action": "audit_and_advance",
+    "sessionId": "${activeSession?.sessionId || "piew-session-id"}",
+    "options": {
+      "phaseIndex": ${selectedPhaseIndex},
+      "summaryOfWork": "Pekerjaan kode selesai oleh agen koding",
+      "verificationCommand": "npm run typecheck --workspace=web"
+    }
+  }'`}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setIsConnectModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs transition-colors cursor-pointer shadow-xs"
+              >
+                {lang === "en" ? "Close" : "Tutup"}
+              </button>
+            </div>
           </div>
         </div>
       )}
