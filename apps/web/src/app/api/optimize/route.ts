@@ -67,13 +67,16 @@ export async function POST(request: Request) {
         typeof body.context === "string"
           ? body.context.trim() || null
           : body.context ?? null,
-      taskType: body.taskType ?? null,
+      taskType: body.taskType ?? (body.domain || null),
       constraints: Array.isArray(body.constraints) ? body.constraints : [],
       requestId: body.requestId || crypto.randomUUID(),
-      providerId: ["groq", "gemini", "openrouter", "ollama"].includes(body.providerId)
-        ? body.providerId
-        : null,
-      targetModel: body.targetModel ?? null,
+      providerId: ["groq", "gemini", "openrouter", "ollama"].includes(body.providerId || body.provider)
+        ? (body.providerId || body.provider)
+        : "groq",
+      targetModel: body.targetModel ?? (body.model || null),
+      budgetMode: body.budgetMode || undefined,
+      stylePreset: body.stylePreset || undefined,
+      referenceUrls: Array.isArray(body.referenceUrls) ? body.referenceUrls : undefined,
     };
 
     const validationResult = PromptOptimizationRequestSchema.safeParse(payload);
@@ -111,13 +114,13 @@ export async function POST(request: Request) {
       console.warn("[OPTIMIZE_MCP_CONTEXT_WARN]", (mcpErr as Error).message);
     }
 
-    // Resolusi provider aktif atau custom endpoint dari registry
+    // Resolusi provider aktif atau custom endpoint dari registry (default: Groq round-robin)
     let customAdapter: LLMProviderAdapter | undefined;
-    const requestedProvider = body.providerId || loadRawProvidersData().activeEndpointId;
-    if (requestedProvider) {
+    const requestedProvider = body.providerId || body.provider || "groq";
+    if (requestedProvider && requestedProvider !== "groq") {
       try {
         customAdapter = await resolveProviderAdapter(requestedProvider, {
-          targetModel: body.targetModel || undefined,
+          targetModel: body.targetModel || body.model || undefined,
         });
       } catch {
         // Fallback otomatis ke internal factory adapter jika provider berupa string builtin standar
@@ -137,6 +140,9 @@ export async function POST(request: Request) {
         prompt: validatedData.prompt,
         context: validatedData.context,
         domain: validatedData.taskType || undefined,
+        providerId: validatedData.providerId || undefined,
+        targetModel: validatedData.targetModel || undefined,
+        adapter: customAdapter,
       });
       if (blueprintRes?.blueprint) {
         universalBlueprint = blueprintRes.blueprint;
@@ -149,6 +155,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
+        success: true,
         ...engineResult,
         universalBlueprint,
         mermaidDiagrams,
@@ -192,6 +199,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: safeMessage,
+        details: (error as Error)?.message || String(error),
+        stack: (error as Error)?.stack,
       },
       { status: httpStatus }
     );

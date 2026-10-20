@@ -8,7 +8,7 @@ import {
   deletePrompt,
   type SavePromptInput,
 } from "@prompt-workspace/database";
-import { getOrCreateSession, resolveSession } from "../../../lib/session";
+import { getOrCreateSession, resolveSession, clearSessionCookie } from "../../../lib/session";
 import {
   getHistoryRateLimiter,
   extractClientIP,
@@ -128,7 +128,12 @@ export async function POST(request: Request) {
           success: false,
           error: "Unauthorized: Token sesi tidak valid atau telah dimanipulasi.",
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: {
+            "Set-Cookie": clearSessionCookie(),
+          },
+        }
       );
     }
     const session = sessionRes.session || getOrCreateSession(request);
@@ -412,7 +417,10 @@ export async function DELETE(request: Request) {
             ? `Unauthorized: ${sessionRes.error}`
             : "Unauthorized: Operasi DELETE memerlukan sesi aktif yang valid.",
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: sessionRes.status === "invalid" ? { "Set-Cookie": clearSessionCookie() } : {},
+        }
       );
     }
     const session = sessionRes.session;
