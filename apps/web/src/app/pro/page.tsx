@@ -43,7 +43,6 @@ import {
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/use-language";
 import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
-import { CrawlerDialog } from "@/components/workspace/crawler-dialog";
 import { SpiderMatrixCard } from "@/components/workspace/spider-matrix-card";
 import { MermaidViewer } from "@/components/ui/mermaid-viewer";
 import { MarkdownView } from "@/components/ui/markdown-view";
@@ -319,7 +318,6 @@ export default function ProPage() {
   const [isLoadingModels, setIsLoadingModels] = useState(true);
 
   // Grounding Web Crawler & Auto-Detection
-  const [isCrawlerOpen, setIsCrawlerOpen] = useState(false);
   const [groundingData, setGroundingData] = useState<GroundingState | null>(null);
   const [isAutoCrawling, setIsAutoCrawling] = useState(false);
 
@@ -873,32 +871,7 @@ export default function ProPage() {
               </div>
             </div>
 
-            {/* Quick Grounding Web Button with Auto-Detect */}
-            <button
-              type="button"
-              onClick={() => setIsCrawlerOpen(true)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-all cursor-pointer ${
-                groundingData
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs"
-                  : detectedUrls.length > 0
-                  ? "bg-sky-50 text-sky-800 border-sky-300 shadow-2xs animate-pulse"
-                  : "bg-white text-stone-600 border-stone-200 hover:border-stone-300 hover:text-stone-900"
-              }`}
-              title={
-                lang === "en"
-                  ? "Crawl and inject facts from real websites or documentation"
-                  : "Ambil informasi dari website/link dokumentasi asli agar jawaban AI akurat"
-              }
-            >
-              <Globe className="w-3.5 h-3.5" />
-              <span>
-                {groundingData
-                  ? `${groundingData.facts.length} Fakta`
-                  : detectedUrls.length > 0
-                  ? (lang === "en" ? "1 Link Detected" : "1 Link Terdeteksi")
-                  : (lang === "en" ? "Web Facts" : "Cari Fakta Web")}
-              </span>
-            </button>
+
           </div>
 
           {/* Form Input Scrollable */}
@@ -2181,24 +2154,7 @@ export default function ProPage() {
         </div>
       </div>
 
-      {/* MODAL CRAWLER UNTUK GROUNDING DATA */}
-      {isCrawlerOpen && (
-        <CrawlerDialog
-          isOpen={isCrawlerOpen}
-          initialUrl={detectedUrls[0] || ""}
-          onClose={() => setIsCrawlerOpen(false)}
-          onGroundingImported={(data: { sourceUrl: string; facts: string[]; combinedText: string }) => {
-            setGroundingData(data);
-            setIsCrawlerOpen(false);
-            toast.success(
-              lang === "en"
-                ? `Extracted ${data.facts.length} web facts!`
-                : `Berhasil mengambil ${data.facts.length} fakta web!`
-            );
-          }}
-          lang={lang}
-        />
-      )}
+
     </div>
   );
 }
