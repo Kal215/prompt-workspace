@@ -347,8 +347,21 @@ export default function AgentMissionControlPage() {
     });
   };
 
-  const deleteAgentHistoryItem = (id: string, e?: React.MouseEvent) => {
+  const deleteAgentHistoryItem = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    try {
+      const res = await fetch(`/api/agent-runs?runId=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => null);
+      if (data && !data.success) {
+        showToast(data.error || "Gagal menghapus tugas dari server", "error");
+        return;
+      }
+    } catch (err) {
+      console.error("Gagal menghapus tugas dari server:", err);
+    }
+
     setAgentHistory((prev) => {
       const updated = prev.filter((h) => h.id !== id);
       try {
@@ -356,15 +369,40 @@ export default function AgentMissionControlPage() {
       } catch {}
       return updated;
     });
-    showToast(lang === "en" ? "Task removed from history" : "Tugas dihapus dari riwayat", "info");
+
+    setAgentRuns((prev) => {
+      const updated = prev.filter((r) => r.runId !== id);
+      if (selectedRunId === id) {
+        setSelectedRunId(updated.length > 0 ? updated[0].runId : "");
+      }
+      return updated;
+    });
+
+    showToast(lang === "en" ? "Task permanently deleted" : "Tugas berhasil dihapus permanen", "info");
   };
 
-  const clearAllAgentHistory = () => {
+  const clearAllAgentHistory = async () => {
+    try {
+      const res = await fetch("/api/agent-runs?all=true", {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => null);
+      if (data && !data.success) {
+        showToast(data.error || "Gagal membersihkan tugas di server", "error");
+        return;
+      }
+    } catch (err) {
+      console.error("Gagal membersihkan tugas di server:", err);
+    }
+
     setAgentHistory([]);
+    setAgentRuns([]);
+    setSelectedRunId("");
     try {
       localStorage.removeItem("piew_agent_task_history");
     } catch {}
-    showToast(lang === "en" ? "Agent history cleared" : "Riwayat tugas agent dibersihkan", "info");
+
+    showToast(lang === "en" ? "All task history cleared" : "Semua riwayat tugas berhasil dibersihkan", "info");
   };
 
   // ──────────────────────────────────────────────
@@ -397,22 +435,38 @@ export default function AgentMissionControlPage() {
       const data = await res.json();
       if (data.success && Array.isArray(data.runs)) {
         setAgentRuns(data.runs);
-        if (data.runs.length > 0 && !selectedRunId) {
-          setSelectedRunId(data.runs[0].runId);
+        if (data.runs.length > 0) {
+          if (!selectedRunId || !data.runs.some((r: AgentRun) => r.runId === selectedRunId)) {
+            setSelectedRunId(data.runs[0].runId);
+          }
+        } else {
+          setSelectedRunId("");
         }
 
-        // Sinkronkan ke riwayat lokal agent
-        data.runs.forEach((r: AgentRun) => {
+        // Sinkronkan langsung dengan data server aktif
+        const mappedHistory: AgentHistoryItem[] = data.runs.map((r: AgentRun) => {
           const title = r.intent?.goal || r.intent?.task || r.initialPrompt || "Tugas Otonom";
-          saveAgentHistoryItem({
+          return {
             id: r.runId,
             title,
             createdAt: r.createdAt || new Date().toISOString(),
             status: r.status,
             score: r.finalScore,
             currentPrompt: r.currentPrompt,
-          });
+          };
         });
+
+        setAgentHistory(mappedHistory);
+        try {
+          localStorage.setItem("piew_agent_task_history", JSON.stringify(mappedHistory.slice(0, 50)));
+        } catch {}
+      } else {
+        setAgentRuns([]);
+        setAgentHistory([]);
+        setSelectedRunId("");
+        try {
+          localStorage.removeItem("piew_agent_task_history");
+        } catch {}
       }
     } catch (err) {
       console.error("Gagal mengambil riwayat tugas:", err);
