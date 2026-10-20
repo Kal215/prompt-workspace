@@ -29,6 +29,7 @@ import {
   Check,
   X,
   ChevronRight,
+  ChevronDown,
   Info,
   ExternalLink,
   Zap,
@@ -38,12 +39,14 @@ import {
   Tag,
   UserCheck,
   RotateCcw,
+  Sparkles,
+  CheckCheck,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
 
 // ──────────────────────────────────────────────
-// Tipe & Antarmuka Data Selaras Backend PIEW
+// Tipe Data Selaras Backend PIEW
 // ──────────────────────────────────────────────
 
 type AgentModule = "supervision" | "runtime" | "memory" | "skills";
@@ -194,13 +197,35 @@ interface McpConnectorItem {
   transportType: string;
 }
 
+// ──────────────────────────────────────────────
+// Pemetaan Nama Tahapan Ramah Orang Awam
+// ──────────────────────────────────────────────
+
+const PHASE_TITLES_ID: Record<number, string> = {
+  0: "Rencana & Kebutuhan",
+  1: "Struktur & Database",
+  2: "Desain Tampilan",
+  3: "Pembuatan Halaman & Fitur",
+  4: "Uji Coba & Perbaikan",
+  5: "Penyelesaian & Rilis",
+};
+
+const PHASE_TITLES_EN: Record<number, string> = {
+  0: "Discovery & Planning",
+  1: "Architecture & Database",
+  2: "Design & Styling",
+  3: "Pages & Features",
+  4: "Testing & Verification",
+  5: "Completion & Release",
+};
+
 export default function AgentMissionControlPage() {
   const { lang } = useLanguage();
 
-  // Active top-level module
+  // Modul aktif utama
   const [activeModule, setActiveModule] = useState<AgentModule>("supervision");
 
-  // 1. Data Supervisi
+  // 1. Data Supervisi / Kualitas
   const [sessions, setSessions] = useState<SupervisionSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [selectedPhaseIndex, setSelectedPhaseIndex] = useState<number>(0);
@@ -210,13 +235,14 @@ export default function AgentMissionControlPage() {
   const [newDomain, setNewDomain] = useState("software");
   const [newNegativeConstraints, setNewNegativeConstraints] = useState("");
 
-  // Audit and submission input
+  // Audit input & toggle detail teknis
   const [submissionSummary, setSubmissionSummary] = useState("");
   const [verificationOutput, setVerificationOutput] = useState("");
   const [verificationCommand, setVerificationCommand] = useState("npm run typecheck --workspace=web");
   const [submittingAudit, setSubmittingAudit] = useState(false);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
 
-  // 2. Data Runtime Agen
+  // 2. Data Tugas AI / Runtime
   const [agentRuns, setAgentRuns] = useState<AgentRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string>("");
   const [loadingRuns, setLoadingRuns] = useState(false);
@@ -225,8 +251,9 @@ export default function AgentMissionControlPage() {
   const [autonomyLevel, setAutonomyLevel] = useState<string>("L2_bounded_autonomy");
   const [hardConstraints, setHardConstraints] = useState("");
   const [startingRun, setStartingRun] = useState(false);
+  const [showRunTechnicalDetails, setShowRunTechnicalDetails] = useState(false);
 
-  // 3. Data Memori
+  // 3. Data Ingatan AI (Memory)
   const [memories, setMemories] = useState<MemoryRecord[]>([]);
   const [memoryTypeFilter, setMemoryTypeFilter] = useState<string>("all");
   const [memorySearchQuery, setMemorySearchQuery] = useState("");
@@ -237,21 +264,21 @@ export default function AgentMissionControlPage() {
   const [newMemoryScope, setNewMemoryScope] = useState<string>("project");
   const [newConfidence, setNewConfidence] = useState(95);
 
-  // 4. Data Keahlian & MCP
+  // 4. Data Keahlian & Konektor Aplikasi (Skills & MCP)
   const [skills, setSkills] = useState<SkillItem[]>([]);
   const [mcpConnectors, setMcpConnectors] = useState<McpConnectorItem[]>([]);
   const [loadingSkills, setLoadingSkills] = useState(false);
 
-  // Status notifikasi toast ringkas
-  const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
+  // Toast Notifikasi Sederhana
+  const [toast, setToast] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
 
   const showToast = (text: string, type: "success" | "error" | "info" = "info") => {
-    setStatusMessage({ text, type });
-    setTimeout(() => setStatusMessage(null), 4000);
+    setToast({ text, type });
+    setTimeout(() => setToast(null), 3500);
   };
 
   // ──────────────────────────────────────────────
-  // Fetch Functions
+  // Pengambilan Data Backend
   // ──────────────────────────────────────────────
 
   const fetchSupervisionSessions = async () => {
@@ -267,7 +294,7 @@ export default function AgentMissionControlPage() {
         }
       }
     } catch (err) {
-      console.error("Gagal mengambil sesi supervisi:", err);
+      console.error("Gagal mengambil sesi:", err);
     } finally {
       setLoadingSupervision(false);
     }
@@ -285,7 +312,7 @@ export default function AgentMissionControlPage() {
         }
       }
     } catch (err) {
-      console.error("Gagal mengambil riwayat run agen:", err);
+      console.error("Gagal mengambil riwayat tugas:", err);
     } finally {
       setLoadingRuns(false);
     }
@@ -302,7 +329,7 @@ export default function AgentMissionControlPage() {
         setMemories(data.memories);
       }
     } catch (err) {
-      console.error("Gagal mengambil memori:", err);
+      console.error("Gagal mengambil ingatan:", err);
     } finally {
       setLoadingMemory(false);
     }
@@ -325,7 +352,7 @@ export default function AgentMissionControlPage() {
         setMcpConnectors(mcpData.connectors);
       }
     } catch (err) {
-      console.error("Gagal mengambil skill / MCP:", err);
+      console.error("Gagal mengambil alat:", err);
     } finally {
       setLoadingSkills(false);
     }
@@ -338,34 +365,29 @@ export default function AgentMissionControlPage() {
     fetchSkillsAndMcp();
   }, []);
 
-  // Sesi aktif saat ini
   const activeSession = useMemo(() => {
     return sessions.find((s) => s.sessionId === selectedSessionId) || sessions[0] || null;
   }, [sessions, selectedSessionId]);
 
-  // Fase aktif saat ini dalam sesi
   const currentPhase = useMemo(() => {
     if (!activeSession || !activeSession.phases) return null;
     return activeSession.phases[selectedPhaseIndex] || activeSession.phases[0] || null;
   }, [activeSession, selectedPhaseIndex]);
 
-  // Riwayat audit terakhir untuk fase terpilih
   const latestAuditForPhase = useMemo(() => {
     if (!activeSession || !activeSession.auditHistory) return null;
     const matches = activeSession.auditHistory.filter((a) => a.phaseIndex === selectedPhaseIndex);
     return matches.length > 0 ? matches[matches.length - 1] : null;
   }, [activeSession, selectedPhaseIndex]);
 
-  // Run aktif terpilih
   const activeRun = useMemo(() => {
     return agentRuns.find((r) => r.runId === selectedRunId) || agentRuns[0] || null;
   }, [agentRuns, selectedRunId]);
 
   // ──────────────────────────────────────────────
-  // Action Handlers
+  // Aksi-aksi Pengguna
   // ──────────────────────────────────────────────
 
-  // 1. Buat sesi proyek supervisi baru
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGoalPrompt.trim()) return;
@@ -389,10 +411,7 @@ export default function AgentMissionControlPage() {
       });
       const data = await res.json();
       if (data.success && data.session) {
-        showToast(
-          lang === "en" ? "Project session successfully initiated!" : "Sesi proyek berhasil dibuat!",
-          "success"
-        );
+        showToast(lang === "en" ? "New project created!" : "Proyek baru berhasil dibuat!", "success");
         setIsNewSessionModalOpen(false);
         setNewGoalPrompt("");
         setNewNegativeConstraints("");
@@ -400,14 +419,13 @@ export default function AgentMissionControlPage() {
         setSelectedSessionId(data.session.sessionId);
         setSelectedPhaseIndex(0);
       } else {
-        showToast(data.error || "Gagal membuat sesi proyek", "error");
+        showToast(data.error || "Gagal membuat proyek", "error");
       }
     } catch (err: any) {
-      showToast(err.message || "Gagal menghubungi server", "error");
+      showToast("Gagal menghubungi server", "error");
     }
   };
 
-  // 2. Kirim audit fase (Submit & Audit)
   const handleSubmitPhaseAudit = async () => {
     if (!activeSession) return;
     setSubmittingAudit(true);
@@ -421,9 +439,9 @@ export default function AgentMissionControlPage() {
           sessionId: activeSession.sessionId,
           options: {
             phaseIndex: selectedPhaseIndex,
-            summaryOfWork: submissionSummary || (lang === "en" ? "Phase completed according to criteria." : "Pekerjaan fase telah diselesaikan sesuai kriteria."),
+            summaryOfWork: submissionSummary || (lang === "en" ? "Work completed according to criteria." : "Pekerjaan tahap ini telah selesai."),
             deliveredArtifacts: [{ name: `Artifact-Phase-${selectedPhaseIndex}`, type: "code" }],
-            verificationOutput: verificationOutput || "Audit pass: Zero TypeScript compile errors.",
+            verificationOutput: verificationOutput || "Audit pass: Zero compile errors.",
             verificationCommand: verificationCommand || "npm run typecheck --workspace=web",
           },
         }),
@@ -431,22 +449,18 @@ export default function AgentMissionControlPage() {
 
       const data = await res.json();
       if (data.success) {
-        showToast(
-          lang === "en" ? "Audit executed! Status updated." : "Audit berhasil dieksekusi! Status diperbarui.",
-          "success"
-        );
+        showToast(lang === "en" ? "Quality check completed!" : "Pemeriksaan kualitas selesai!", "success");
         await fetchSupervisionSessions();
       } else {
-        showToast(data.error || "Audit gagal atau ditolak", "error");
+        showToast(data.error || "Pemeriksaan menemukan kendala", "error");
       }
     } catch (err: any) {
-      showToast(err.message || "Gagal mengeksekusi audit", "error");
+      showToast("Gagal melakukan pemeriksaan", "error");
     } finally {
       setSubmittingAudit(false);
     }
   };
 
-  // 3. Human override / Setujui paksa
   const handleHumanOverride = async (actionType: "approve" | "reject" | "force") => {
     if (!activeSession) return;
 
@@ -459,28 +473,31 @@ export default function AgentMissionControlPage() {
           sessionId: activeSession.sessionId,
           phase: selectedPhaseIndex,
           rationale: actionType === "approve"
-            ? "Operator manual approval (Empirical gate verified)"
+            ? "Disetujui oleh pengguna"
             : actionType === "reject"
-            ? "Operator requested revision for code quality"
-            : "Emergency force advance by human operator",
+            ? "Pengguna meminta perbaikan"
+            : "Dilewati langsung oleh pengguna",
         }),
       });
       const data = await res.json();
       if (data.success) {
         showToast(
-          lang === "en" ? `Action ${actionType} applied successfully!` : `Tindakan ${actionType} berhasil diterapkan!`,
+          actionType === "approve"
+            ? (lang === "en" ? "Phase approved!" : "Tahap berhasil disetujui!")
+            : actionType === "reject"
+            ? (lang === "en" ? "Revision requested." : "Permintaan perbaikan dikirim ke AI.")
+            : (lang === "en" ? "Phase bypassed." : "Tahap berhasil dilewati."),
           "success"
         );
         await fetchSupervisionSessions();
       } else {
-        showToast(data.error || "Gagal menerapkan tindakan operator", "error");
+        showToast(data.error || "Gagal menerapkan keputusan", "error");
       }
     } catch (err: any) {
-      showToast(err.message || "Gagal menghubungi API", "error");
+      showToast("Gagal menghubungi server", "error");
     }
   };
 
-  // 4. Ekspor bundel handover JSON
   const handleExportBundle = async () => {
     if (!activeSession) return;
     try {
@@ -498,17 +515,16 @@ export default function AgentMissionControlPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `piew-handover-${activeSession.sessionId}.json`;
+        a.download = `piew-laporan-proyek-${activeSession.sessionId}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        showToast(lang === "en" ? "Handover bundle downloaded!" : "Bundel serah terima berhasil diunduh!", "success");
+        showToast(lang === "en" ? "Report downloaded!" : "Laporan proyek berhasil diunduh!", "success");
       }
     } catch (err: any) {
-      showToast("Gagal mengunduh bundel", "error");
+      showToast("Gagal mengunduh laporan", "error");
     }
   };
 
-  // 5. Luncurkan run agen baru
   const handleStartAgentRun = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!taskPrompt.trim()) return;
@@ -528,21 +544,20 @@ export default function AgentMissionControlPage() {
       });
       const data = await res.json();
       if (data.success && data.run) {
-        showToast(lang === "en" ? "Agent run initiated!" : "Eksekusi agen berhasil dimulai!", "success");
+        showToast(lang === "en" ? "AI started working on the task!" : "AI mulai mengerjakan tugas!", "success");
         setTaskPrompt("");
         await fetchAgentRuns();
         setSelectedRunId(data.run.runId);
       } else {
-        showToast(data.error || "Gagal memulai run agen", "error");
+        showToast(data.error || "Gagal memulai tugas", "error");
       }
     } catch (err: any) {
-      showToast(err.message || "Gagal menghubungi runtime", "error");
+      showToast("Gagal memulai tugas", "error");
     } finally {
       setStartingRun(false);
     }
   };
 
-  // 6. Batalkan run agen aktif (Kill-Switch)
   const handleCancelRun = async (runId: string) => {
     try {
       const res = await fetch("/api/agent-runs", {
@@ -555,15 +570,14 @@ export default function AgentMissionControlPage() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(lang === "en" ? "Run cancelled safely!" : "Eksekusi agen berhasil dihentikan!", "info");
+        showToast(lang === "en" ? "Task stopped." : "Tugas dihentikan.", "info");
         await fetchAgentRuns();
       }
     } catch (err: any) {
-      showToast("Gagal membatalkan run", "error");
+      showToast("Gagal menghentikan tugas", "error");
     }
   };
 
-  // 7. Tambah memori manual
   const handleAddMemory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMemoryContent.trim()) return;
@@ -583,19 +597,18 @@ export default function AgentMissionControlPage() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(lang === "en" ? "Memory record stored!" : "Catatan memori berhasil disimpan!", "success");
+        showToast(lang === "en" ? "New memory saved!" : "Ingatan baru berhasil disimpan!", "success");
         setIsAddMemoryModalOpen(false);
         setNewMemoryContent("");
         await fetchMemories();
       } else {
-        showToast(data.error || "Gagal menambahkan memori", "error");
+        showToast(data.error || "Gagal menyimpan ingatan", "error");
       }
     } catch (err: any) {
-      showToast(err.message || "Gagal menyimpan memori", "error");
+      showToast("Gagal menyimpan ingatan", "error");
     }
   };
 
-  // 8. Validasi memori
   const handleValidateMemory = async (memoryId: string, isValid: boolean) => {
     try {
       const res = await fetch("/api/memory", {
@@ -612,48 +625,49 @@ export default function AgentMissionControlPage() {
       if (data.success) {
         showToast(
           isValid
-            ? (lang === "en" ? "Memory validated!" : "Memori divalidasi!")
-            : (lang === "en" ? "Memory rejected!" : "Memori ditolak!"),
+            ? (lang === "en" ? "Memory approved!" : "Ingatan disetujui!")
+            : (lang === "en" ? "Memory removed." : "Ingatan ditolak."),
           "success"
         );
         await fetchMemories();
       }
     } catch (err: any) {
-      showToast("Gagal memvalidasi memori", "error");
+      showToast("Gagal memproses ingatan", "error");
     }
   };
 
   return (
     <div className="flex h-screen w-full bg-[#faf9f6] text-stone-900 overflow-hidden font-sans antialiased selection:bg-stone-200">
-      {/* 1. Global Navbar Samping (WorkspaceSidebar) */}
+      {/* 1. Global Workspace Sidebar */}
       <WorkspaceSidebar activeMode="Agent" />
 
       {/* 2. Main Content Viewport */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {/* Header Bar Mission Control */}
-        <header className="h-14 border-b border-stone-200 bg-white/80 backdrop-blur-sm px-6 flex items-center justify-between shrink-0 z-20">
+        {/* Header Bar Bersih & Minimalis */}
+        <header className="h-16 border-b border-stone-200 bg-white/80 backdrop-blur-sm px-6 flex items-center justify-between shrink-0 z-20">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-stone-900 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-              AI
+              <Sparkles className="w-4 h-4 text-emerald-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-sm font-semibold tracking-tight text-stone-900">
-                  {lang === "en" ? "Mission Control: Autonomous Agent & Supervision" : "Mission Control: Orkestrasi & Supervisi Agen Otonom"}
+                  {lang === "en" ? "AI Control Center" : "Pusat Kendali AI"}
                 </h1>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
-                  {lang === "en" ? "RFC-008 Quality Gate Active" : "Pengawas Kualitas Aktif"}
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {lang === "en" ? "Guard Active" : "Pengawas Aktif"}
                 </span>
               </div>
               <p className="text-[11px] text-stone-500">
                 {lang === "en"
-                  ? "Empirical Evidence Over Claims • Zero-Trust Active Gates • Bounded Agent Runtime"
-                  : "Bukti Fisik Nyata di Atas Klaim • Sirkuit Pengaman • Brankas Memori Hibrida"}
+                  ? "Monitor code quality, run tasks, and manage AI memory."
+                  : "Pantau kualitas kode, jalankan tugas otomatis, dan kelola ingatan AI."}
               </p>
             </div>
           </div>
 
-          {/* Module Switcher Tabs (4 Modul Inti) */}
+          {/* 4 Tab Sederhana Tanpa Istilah Aneh */}
           <div className="flex items-center gap-1 p-1 rounded-xl bg-stone-100 border border-stone-200 text-xs">
             <button
               type="button"
@@ -665,7 +679,7 @@ export default function AgentMissionControlPage() {
               }`}
             >
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{lang === "en" ? "Supervision Console" : "Supervisi Otonom"}</span>
+              <span>{lang === "en" ? "Quality Checks" : "Pemeriksaan Kualitas"}</span>
             </button>
 
             <button
@@ -678,7 +692,7 @@ export default function AgentMissionControlPage() {
               }`}
             >
               <Cpu className="w-3.5 h-3.5 text-blue-600" />
-              <span>{lang === "en" ? "Agent Runtime" : "Runtime Agen"}</span>
+              <span>{lang === "en" ? "AI Tasks" : "Tugas AI"}</span>
               {agentRuns.filter((r) => r.status === "running").length > 0 && (
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse ml-0.5" />
               )}
@@ -694,7 +708,7 @@ export default function AgentMissionControlPage() {
               }`}
             >
               <Database className="w-3.5 h-3.5 text-purple-600" />
-              <span>{lang === "en" ? "Memory Vault" : "Brankas Memori"}</span>
+              <span>{lang === "en" ? "AI Memory" : "Ingatan AI"}</span>
               <span className="text-[10px] font-mono px-1 rounded bg-stone-200 text-stone-600">
                 {memories.length}
               </span>
@@ -710,7 +724,7 @@ export default function AgentMissionControlPage() {
               }`}
             >
               <Wrench className="w-3.5 h-3.5 text-amber-600" />
-              <span>{lang === "en" ? "Skills & Tools" : "Katalog Keahlian"}</span>
+              <span>{lang === "en" ? "Tools & Apps" : "Alat & Aplikasi"}</span>
               <span className="text-[10px] font-mono px-1 rounded bg-stone-200 text-stone-600">
                 {skills.length}
               </span>
@@ -719,25 +733,25 @@ export default function AgentMissionControlPage() {
         </header>
 
         {/* Notifikasi Toast */}
-        {statusMessage && (
+        {toast && (
           <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg border border-stone-800 bg-stone-900 text-white text-xs font-medium animate-in fade-in slide-in-from-bottom-2">
-            {statusMessage.type === "success" && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-            {statusMessage.type === "error" && <AlertTriangle className="w-4 h-4 text-rose-400" />}
-            {statusMessage.type === "info" && <Info className="w-4 h-4 text-sky-400" />}
-            <span>{statusMessage.text}</span>
+            {toast.type === "success" && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+            {toast.type === "error" && <AlertTriangle className="w-4 h-4 text-rose-400" />}
+            {toast.type === "info" && <Info className="w-4 h-4 text-sky-400" />}
+            <span>{toast.text}</span>
           </div>
         )}
 
         {/* ──────────────────────────────────────────────
-            MODUL 1: SUPERVISI OTONOM (QUALITY GATEKEEPER)
+            MODUL 1: PEMERIKSAAN KUALITAS (SUPERVISION)
            ────────────────────────────────────────────── */}
         {activeModule === "supervision" && (
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-6">
-            {/* Sesi Proyek Toolbar */}
+            {/* Toolbar Proyek */}
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-semibold text-stone-600">
-                  {lang === "en" ? "Project Session:" : "Sesi Proyek:"}
+                  {lang === "en" ? "Active Project:" : "Proyek Saat Ini:"}
                 </span>
                 <select
                   value={selectedSessionId}
@@ -746,19 +760,19 @@ export default function AgentMissionControlPage() {
                     const found = sessions.find((s) => s.sessionId === e.target.value);
                     if (found) setSelectedPhaseIndex(found.currentPhaseIndex || 0);
                   }}
-                  className="text-xs font-mono font-medium bg-stone-100 border border-stone-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-stone-400 max-w-xs"
+                  className="text-xs font-medium bg-stone-100 border border-stone-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-stone-400 max-w-sm truncate"
                 >
-                  {sessions.length === 0 && <option value="">(Belum ada sesi)</option>}
+                  {sessions.length === 0 && <option value="">(Belum ada proyek)</option>}
                   {sessions.map((s) => (
                     <option key={s.sessionId} value={s.sessionId}>
-                      {s.sessionId} — {s.originalPrompt ? s.originalPrompt.slice(0, 38) : "Sesi Proyek"}...
+                      {s.originalPrompt ? s.originalPrompt.slice(0, 45) : s.sessionId}...
                     </option>
                   ))}
                 </select>
 
                 {activeSession && (
                   <span
-                    className={`text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-full ${
+                    className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
                       activeSession.overallStatus === "ACTIVE"
                         ? "bg-emerald-100 text-emerald-800"
                         : activeSession.overallStatus === "COMPLETED"
@@ -766,7 +780,11 @@ export default function AgentMissionControlPage() {
                         : "bg-rose-100 text-rose-800"
                     }`}
                   >
-                    {activeSession.overallStatus}
+                    {activeSession.overallStatus === "ACTIVE"
+                      ? (lang === "en" ? "In Progress" : "Sedang Berjalan")
+                      : activeSession.overallStatus === "COMPLETED"
+                      ? (lang === "en" ? "Completed" : "Selesai")
+                      : (lang === "en" ? "Paused" : "Perlu Perhatian")}
                   </span>
                 )}
               </div>
@@ -775,10 +793,10 @@ export default function AgentMissionControlPage() {
                 <button
                   type="button"
                   onClick={() => setIsNewSessionModalOpen(true)}
-                  className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                  className="px-3.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>{lang === "en" ? "New Project Session" : "Mulai Sesi Baru"}</span>
+                  <span>{lang === "en" ? "New Project" : "Buat Proyek Baru"}</span>
                 </button>
 
                 {activeSession && (
@@ -788,7 +806,7 @@ export default function AgentMissionControlPage() {
                     className="px-3 py-1.5 rounded-lg bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>{lang === "en" ? "Export Handover Bundle" : "Ekspor Serah Terima"}</span>
+                    <span>{lang === "en" ? "Download Report" : "Unduh Laporan"}</span>
                   </button>
                 )}
 
@@ -796,7 +814,7 @@ export default function AgentMissionControlPage() {
                   type="button"
                   onClick={fetchSupervisionSessions}
                   className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 hover:text-stone-800 transition-colors cursor-pointer"
-                  title="Muat Ulang"
+                  title="Segarkan"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingSupervision ? "animate-spin" : ""}`} />
                 </button>
@@ -808,12 +826,12 @@ export default function AgentMissionControlPage() {
               <div className="text-center py-16 bg-white border border-dashed border-stone-300 rounded-3xl p-8">
                 <ShieldCheck className="w-10 h-10 text-stone-400 mx-auto mb-3" />
                 <h3 className="text-sm font-semibold text-stone-800">
-                  {lang === "en" ? "No Active Supervision Session" : "Belum Ada Sesi Supervisi Proyek"}
+                  {lang === "en" ? "No Active Project" : "Belum Ada Proyek yang Dijalankan"}
                 </h3>
                 <p className="text-xs text-stone-500 max-w-md mx-auto mt-1 mb-4">
                   {lang === "en"
-                    ? "Start a new autonomous project to enable multi-phase physical audit and quality verification."
-                    : "Mulai sesi proyek baru untuk mengaktifkan audit fisik berlapis dan verifikasi mutu otomatis."}
+                    ? "Start a new project to let AI build and verify each phase automatically."
+                    : "Mulai proyek baru agar AI mengerjakan dan memeriksa kualitas setiap tahapan secara otomatis."}
                 </p>
                 <button
                   type="button"
@@ -821,37 +839,40 @@ export default function AgentMissionControlPage() {
                   className="px-4 py-2 rounded-xl bg-stone-900 text-white text-xs font-semibold inline-flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>{lang === "en" ? "Create First Session" : "Buat Sesi Pertama"}</span>
+                  <span>{lang === "en" ? "Create First Project" : "Buat Proyek Pertama"}</span>
                 </button>
               </div>
             )}
 
-            {/* Konten Sesi Aktif */}
             {activeSession && (
               <>
-                {/* 1. Milestone Phasing Stepper (Tahapan Linier) */}
+                {/* 1. Tahapan Kerja (Phasing Stepper) yang Bersih */}
                 <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                        {lang === "en" ? "MILESTONE PHASING STEPPER" : "TAHAPAN PENGERJAAN PROYEK"}
+                      <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                        {lang === "en" ? "PROJECT PROGRESS" : "TAHAPAN PENGERJAAN"}
                       </span>
                       <h2 className="text-sm font-semibold text-stone-900">
-                        {lang === "en" ? "Execution & Quality Gate Lifecycle" : "Siklus Verifikasi Mutu & Gerbang Proyek"}
+                        {lang === "en" ? "Development Lifecycle" : "Perjalanan Proyek dari Awal hingga Selesai"}
                       </h2>
                     </div>
-                    <div className="text-xs font-mono text-stone-500">
-                      {lang === "en" ? "Current Active Phase:" : "Fase Aktif:"} Phase {activeSession.currentPhaseIndex} of {activeSession.phases ? activeSession.phases.length - 1 : 0}
+                    <div className="text-xs text-stone-500 font-medium">
+                      {lang === "en" ? "Current Step:" : "Tahap Saat Ini:"} {selectedPhaseIndex + 1} / {activeSession.phases ? activeSession.phases.length : 6}
                     </div>
                   </div>
 
                   {/* Horizontal Stepper Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-2">
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-1">
                     {activeSession.phases && activeSession.phases.map((ph, idx) => {
                       const isSelected = selectedPhaseIndex === idx;
                       const isCurrent = activeSession.currentPhaseIndex === idx;
                       const isVerified = ph.status === "VERIFIED";
                       const isRejected = ph.status === "REJECTED_NEEDS_REPAIR";
+
+                      const friendlyTitle = lang === "en"
+                        ? (PHASE_TITLES_EN[idx] || ph.title)
+                        : (PHASE_TITLES_ID[idx] || ph.title);
 
                       return (
                         <button
@@ -862,16 +883,16 @@ export default function AgentMissionControlPage() {
                             isSelected
                               ? "bg-stone-900 text-white border-stone-900 shadow-sm"
                               : isVerified
-                              ? "bg-emerald-50/60 border-emerald-200 text-stone-800 hover:bg-emerald-100/50"
+                              ? "bg-emerald-50/70 border-emerald-200 text-stone-800 hover:bg-emerald-100/50"
                               : isRejected
-                              ? "bg-rose-50/60 border-rose-200 text-stone-800 hover:bg-rose-100/50"
+                              ? "bg-rose-50/70 border-rose-200 text-stone-800 hover:bg-rose-100/50"
                               : isCurrent
-                              ? "bg-amber-50/60 border-amber-300 text-stone-800 hover:bg-amber-100/50"
+                              ? "bg-amber-50/70 border-amber-300 text-stone-800 hover:bg-amber-100/50"
                               : "bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100"
                           }`}
                         >
-                          <div className="flex items-center justify-between text-[10px] font-mono font-semibold mb-1">
-                            <span>FASE {idx}</span>
+                          <div className="flex items-center justify-between text-[11px] font-semibold mb-1">
+                            <span>{lang === "en" ? `Phase ${idx + 1}` : `Tahap ${idx + 1}`}</span>
                             {isVerified && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
                             {isRejected && <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />}
                             {!isVerified && !isRejected && isCurrent && (
@@ -879,17 +900,26 @@ export default function AgentMissionControlPage() {
                             )}
                           </div>
                           <p className={`text-xs font-medium truncate ${isSelected ? "text-stone-100" : "text-stone-800"}`}>
-                            {ph.title}
+                            {friendlyTitle}
                           </p>
-                          <div className="mt-2 flex items-center justify-between text-[10px]">
-                            <span className={`px-1.5 py-0.2 rounded font-mono ${isSelected ? "bg-stone-800 text-stone-300" : "bg-stone-200/80 text-stone-600"}`}>
-                              {ph.status}
+                          <div className="mt-2 text-[10px]">
+                            <span className={`px-1.5 py-0.5 rounded font-medium ${
+                              isSelected
+                                ? "bg-stone-800 text-stone-300"
+                                : isVerified
+                                ? "bg-emerald-100 text-emerald-800"
+                                : isRejected
+                                ? "bg-rose-100 text-rose-800"
+                                : "bg-stone-200/80 text-stone-600"
+                            }`}>
+                              {isVerified
+                                ? (lang === "en" ? "Passed" : "Lolos")
+                                : isRejected
+                                ? (lang === "en" ? "Needs Fix" : "Perlu Perbaikan")
+                                : isCurrent
+                                ? (lang === "en" ? "Active" : "Aktif")
+                                : (lang === "en" ? "Pending" : "Menunggu")}
                             </span>
-                            {ph.attemptCount !== undefined && ph.attemptCount > 0 && (
-                              <span className="font-mono text-stone-400">
-                                {ph.attemptCount}/3
-                              </span>
-                            )}
                           </div>
                         </button>
                       );
@@ -897,191 +927,206 @@ export default function AgentMissionControlPage() {
                   </div>
                 </div>
 
-                {/* 2. Panel Inspeksi Empiris Fisik (Physical Audit Dashboard) - Top Banner */}
+                {/* 2. Ringkasan Pemeriksaan Kualitas Nyata (4 Kartu Jelas) */}
                 <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                        EMPIRICAL EVIDENCE DASHBOARD (PHYSICAL VERIFICATION)
+                      <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                        {lang === "en" ? "AUTOMATIC QUALITY VERIFICATION" : "PEMERIKSAAN KUALITAS OTOMATIS"}
                       </span>
                       <h3 className="text-xs font-semibold text-stone-900">
-                        {lang === "en" ? "Evidence Over Claims • Hardware & Git Ground Truth" : "Bukti Fisik Nyata di Atas Klaim • Ground Truth Git & Terminal"}
+                        {lang === "en"
+                          ? "Factual Proof: Code is tested and verified directly on the system"
+                          : "Bukti Nyata: Kode diuji dan dipastikan benar-benar berjalan di komputer Anda"}
                       </h3>
                     </div>
                     {latestAuditForPhase && (
-                      <span className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-full ${
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
                         latestAuditForPhase.auditResult.verdict === "VERIFIED_PROCEED"
                           ? "bg-emerald-100 text-emerald-800"
                           : "bg-rose-100 text-rose-800"
                       }`}>
-                        Skor: {latestAuditForPhase.auditResult.score}/100 • {latestAuditForPhase.auditResult.verdict}
+                        {lang === "en" ? "Quality Score:" : "Skor Kualitas:"} {latestAuditForPhase.auditResult.score}/100
                       </span>
                     )}
                   </div>
 
-                  {/* 4 Kartu Inspeksi Fisik Berjejer Rapi */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                    {/* 1. Git Diff Inspector */}
+                    {/* Kartu 1: Kode */}
                     <div className="p-3 rounded-xl border border-stone-200 bg-stone-50/70 space-y-1">
                       <div className="flex items-center justify-between font-semibold text-stone-800">
                         <span className="flex items-center gap-1.5">
                           <GitBranch className="w-3.5 h-3.5 text-amber-600" />
-                          Git Diff Inspector
+                          {lang === "en" ? "Code Changes" : "Perubahan Kode"}
                         </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">
-                          Verified
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">
+                          {lang === "en" ? "Saved" : "Tersimpan"}
                         </span>
                       </div>
                       <p className="text-[11px] text-stone-500">
-                        {lang === "en" ? "Physical lines verified on disk; prevents unilateral claims." : "Verifikasi baris kode fisik; cegah klaim sepihak."}
+                        {lang === "en" ? "Physical files verified on disk; no empty claims." : "Berkas fisik dipastikan tersimpan rapi di Git."}
                       </p>
                     </div>
 
-                    {/* 2. Terminal Verifier */}
+                    {/* Kartu 2: Bebas Error */}
                     <div className="p-3 rounded-xl border border-stone-200 bg-stone-50/70 space-y-1">
                       <div className="flex items-center justify-between font-semibold text-stone-800">
                         <span className="flex items-center gap-1.5">
                           <Terminal className="w-3.5 h-3.5 text-blue-600" />
-                          Terminal Verifier
+                          {lang === "en" ? "Error Check" : "Pemeriksaan Galat"}
                         </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-stone-200 text-stone-700 font-medium">
-                          Exit: 0
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">
+                          {lang === "en" ? "Zero Errors" : "0 Galat"}
                         </span>
                       </div>
                       <p className="text-[11px] text-stone-500">
-                        {lang === "en" ? "Zero compiler errors (tsc / npm test verified)." : "Nol galat kompilasi tsc dan lolos uji terminal."}
+                        {lang === "en" ? "Code compiled cleanly with no TypeScript breaks." : "Program lolos uji dan bebas dari error kompilasi."}
                       </p>
                     </div>
 
-                    {/* 3. Docker Health */}
+                    {/* Kartu 3: Kondisi Server */}
                     <div className="p-3 rounded-xl border border-stone-200 bg-stone-50/70 space-y-1">
                       <div className="flex items-center justify-between font-semibold text-stone-800">
                         <span className="flex items-center gap-1.5">
                           <Box className="w-3.5 h-3.5 text-purple-600" />
-                          Docker Health
+                          {lang === "en" ? "Server Health" : "Kondisi Server"}
                         </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-stone-200 text-stone-700 font-medium">
-                          Isolated
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-200 text-stone-700 font-medium">
+                          {lang === "en" ? "Normal" : "Normal"}
                         </span>
                       </div>
                       <p className="text-[11px] text-stone-500">
-                        {lang === "en" ? "Isolated container sandbox, zero crash-loops." : "Sandbox kontainer terisolasi, bebas crash-loop."}
+                        {lang === "en" ? "Container sandbox running safely without crash." : "Lingkungan server aman dan tidak mengalami crash."}
                       </p>
                     </div>
 
-                    {/* 4. Negative Constraint Guard */}
+                    {/* Kartu 4: Kepatuhan Aturan */}
                     <div className="p-3 rounded-xl border border-stone-200 bg-stone-50/70 space-y-1">
                       <div className="flex items-center justify-between font-semibold text-stone-800">
                         <span className="flex items-center gap-1.5">
                           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                          Constraint Guard
+                          {lang === "en" ? "Rule Compliance" : "Kepatuhan Aturan"}
                         </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">
-                          0 Violations
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">
+                          {lang === "en" ? "Honored" : "Terpenuhi"}
                         </span>
                       </div>
                       <p className="text-[11px] text-stone-500">
-                        {lang === "en" ? "Negative constraints & mock data bans enforced." : "Batasan larangan dan larangan mock ditaati."}
+                        {lang === "en" ? "All user prohibitions and constraints respected." : "Semua batasan dan larangan pengguna ditaati."}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* 3. Detail Fase Terpilih & Panel Kendali */}
+                {/* 3. Detail Tahap Terpilih & Panel Kendali Manusia */}
                 {currentPhase && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Kolom Kiri: Sasaran Fase & Steering Directive */}
+                    {/* Kolom Kiri: Yang Dikerjakan & Catatan Arahan */}
                     <div className="lg:col-span-2 space-y-6">
-                      {/* Sasaran Fase & Kriteria Penerimaan */}
+                      {/* Kartu Sasaran & Yang Harus Diselesaikan */}
                       <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
                         <div className="flex items-center justify-between border-b border-stone-100 pb-3">
                           <div>
-                            <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                              FASE {currentPhase.phaseIndex} • {currentPhase.phaseId}
+                            <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                              {lang === "en" ? `PHASE ${selectedPhaseIndex + 1}` : `TAHAP ${selectedPhaseIndex + 1}`}
                             </span>
                             <h3 className="text-base font-bold text-stone-900">
-                              {currentPhase.title}
+                              {lang === "en"
+                                ? (PHASE_TITLES_EN[selectedPhaseIndex] || currentPhase.title)
+                                : (PHASE_TITLES_ID[selectedPhaseIndex] || currentPhase.title)}
                             </h3>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-stone-100 text-stone-700 font-semibold border border-stone-200">
-                              Status: {currentPhase.status}
-                            </span>
-                          </div>
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-stone-100 text-stone-700 font-medium border border-stone-200">
+                            {currentPhase.status === "VERIFIED"
+                              ? (lang === "en" ? "Status: Passed" : "Status: Sudah Lolos")
+                              : (lang === "en" ? "Status: In Progress" : "Status: Sedang Dikerjakan")}
+                          </span>
                         </div>
 
                         <div>
                           <span className="text-xs font-semibold text-stone-700 block mb-1">
-                            {lang === "en" ? "Main Objective:" : "Sasaran Utama Fase:"}
+                            {lang === "en" ? "What AI is doing in this step:" : "Apa yang dikerjakan AI pada tahap ini:"}
                           </span>
-                          <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200/60 font-mono">
+                          <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200/60">
                             {currentPhase.objective}
                           </p>
                         </div>
 
-                        {/* Kriteria Penerimaan & Deliverables */}
+                        {/* Yang Harus Diselesaikan (Checklist Sederhana) */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                           <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60">
                             <span className="font-semibold text-stone-700 block mb-1.5 flex items-center gap-1.5">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              {lang === "en" ? "Acceptance Criteria:" : "Kriteria Penerimaan:"}
+                              {lang === "en" ? "Checklist Requirements:" : "Syarat yang Harus Terpenuhi:"}
                             </span>
                             <ul className="space-y-1 text-stone-600 list-disc list-inside">
                               {currentPhase.acceptanceCriteria?.map((c, i) => (
                                 <li key={i}>{c}</li>
-                              )) || <li>Belum ada kriteria terdaftar</li>}
+                              )) || <li>Belum ada syarat tambahan</li>}
                             </ul>
                           </div>
 
                           <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/60">
                             <span className="font-semibold text-stone-700 block mb-1.5 flex items-center gap-1.5">
                               <Box className="w-3.5 h-3.5 text-blue-600" />
-                              {lang === "en" ? "Required Deliverables:" : "Artefak Wajib Dihasilkan:"}
+                              {lang === "en" ? "Deliverables / Results:" : "Hasil yang Diserahkan:"}
                             </span>
                             <ul className="space-y-1 text-stone-600 list-disc list-inside">
                               {currentPhase.requiredDeliverables?.map((d, i) => (
                                 <li key={i}>{d}</li>
-                              )) || <li>Belum ada artefak terdaftar</li>}
+                              )) || <li>Hasil otomatis dari kode</li>}
                             </ul>
                           </div>
                         </div>
                       </div>
 
-                      {/* Hasil Audit Terakhir / Steering Directive */}
+                      {/* Catatan Arahan AI (Steering Directive) yang Bersih */}
                       {latestAuditForPhase && (
-                        <div className="p-5 rounded-2xl bg-stone-900 text-stone-100 shadow-xs space-y-3">
-                          <div className="flex items-center justify-between text-xs border-b border-stone-800 pb-2">
-                            <span className="font-semibold flex items-center gap-1.5 text-amber-400">
-                              <Sliders className="w-3.5 h-3.5" />
-                              {lang === "en" ? "Steering Directive & Next Action" : "Arahan Perbaikan (Steering Directive)"}
+                        <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-3">
+                          <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                            <span className="text-xs font-semibold flex items-center gap-1.5 text-stone-800">
+                              <Sliders className="w-3.5 h-3.5 text-amber-600" />
+                              {lang === "en" ? "AI Guidance & Next Action" : "Catatan Arahan untuk Langkah Selanjutnya"}
                             </span>
-                            <span className="font-mono text-[10px] text-stone-400">
-                              {new Date(latestAuditForPhase.timestamp).toLocaleTimeString()}
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                              className="text-[11px] text-stone-500 hover:text-stone-800 font-medium flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>{showTechnicalDetails ? (lang === "en" ? "Hide Technical Log" : "Sembunyikan Log") : (lang === "en" ? "View Raw Log" : "Lihat Log Teknis")}</span>
+                              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showTechnicalDetails ? "rotate-180" : ""}`} />
+                            </button>
                           </div>
-                          <div className="font-mono text-xs text-stone-300 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-                            {latestAuditForPhase.auditResult.nextActionPrompt}
-                          </div>
+
+                          <p className="text-xs text-stone-700 leading-relaxed bg-amber-50/50 p-3 rounded-xl border border-amber-200/60">
+                            {latestAuditForPhase.auditResult.nextActionPrompt.slice(0, 300)}...
+                          </p>
+
+                          {showTechnicalDetails && (
+                            <div className="mt-3 p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-[11px] max-h-48 overflow-y-auto whitespace-pre-wrap">
+                              {latestAuditForPhase.auditResult.nextActionPrompt}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
 
-                    {/* Kolom Kanan: Circuit Breaker, Human-in-the-Loop, & Form Eksekusi Audit */}
+                    {/* Kolom Kanan: Persetujuan Anda & Tombol Periksa Kualitas */}
                     <div className="space-y-6">
-                      {/* Sirkuit Pengaman & Kendali Operator Manusia (Integrated Governance Card) */}
+                      {/* Kartu Keputusan Pengguna (Persetujuan Anda) */}
                       <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                            GOVERNANCE & CIRCUIT BREAKER
+                          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                            {lang === "en" ? "YOUR APPROVAL" : "PERSETUJUAN ANDA"}
                           </span>
-                          <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-stone-100 text-stone-700">
-                            {currentPhase.attemptCount || 0}/3 Revisi
+                          <span className="text-xs font-medium px-2 py-0.5 rounded bg-stone-100 text-stone-700">
+                            {lang === "en" ? `Revisions: ${currentPhase.attemptCount || 0} / 3` : `Revisi: ${currentPhase.attemptCount || 0} / 3`}
                           </span>
                         </div>
                         <p className="text-xs text-stone-600">
                           {lang === "en"
-                            ? "Capped at 3 automated revisions per phase to prevent budget loops."
-                            : "Dibatasi 3 kali revisi otomatis sebelum membutuhkan intervensi manusia."}
+                            ? "AI is limited to 3 automated attempts before asking for your decision."
+                            : "AI dibatasi maksimal 3x mencoba perbaikan otomatis sebelum meminta keputusan Anda."}
                         </p>
                         <div className="w-full bg-stone-100 rounded-full h-2 overflow-hidden border border-stone-200">
                           <div
@@ -1096,89 +1141,58 @@ export default function AgentMissionControlPage() {
                           />
                         </div>
 
-                        {/* Human-in-the-Loop Buttons */}
+                        {/* 3 Tombol Keputusan Sederhana */}
                         <div className="pt-2 border-t border-stone-100 space-y-2">
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                            HUMAN-IN-THE-LOOP OVERRIDE
-                          </span>
-                          <div className="grid grid-cols-1 gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleHumanOverride("approve")}
-                              className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>{lang === "en" ? "Approve & Advance Phase" : "Setujui & Lanjutkan Fase"}</span>
-                            </button>
+                          <button
+                            type="button"
+                            onClick={() => handleHumanOverride("approve")}
+                            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>{lang === "en" ? "Approve & Go to Next Step" : "Setujui & Lanjutkan Tahap"}</span>
+                          </button>
 
-                            <button
-                              type="button"
-                              onClick={() => handleHumanOverride("reject")}
-                              className="w-full py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              <span>{lang === "en" ? "Reject & Send Steering" : "Tolak & Minta Revisi"}</span>
-                            </button>
+                          <button
+                            type="button"
+                            onClick={() => handleHumanOverride("reject")}
+                            className="w-full py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>{lang === "en" ? "Request Revision from AI" : "Minta AI Perbaiki Kembali"}</span>
+                          </button>
 
-                            <button
-                              type="button"
-                              onClick={() => handleHumanOverride("force")}
-                              className="w-full py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                            >
-                              <AlertOctagon className="w-3.5 h-3.5" />
-                              <span>{lang === "en" ? "Manual Force Proceed" : "Tindakan Paksa / Force Proceed"}</span>
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleHumanOverride("force")}
+                            className="w-full py-1.5 rounded-xl text-stone-500 hover:text-stone-800 text-[11px] font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <span>{lang === "en" ? "Skip / Force Advance" : "Lewati Tahap Ini"}</span>
+                          </button>
                         </div>
                       </div>
 
-                      {/* Form Pengajuan Audit Fase */}
+                      {/* Kartu Uji Kualitas Tahap Ini */}
                       <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-3">
                         <div>
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                            {lang === "en" ? "EXECUTE PHASE AUDIT" : "UJI MUTU FASE INI"}
+                          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                            {lang === "en" ? "TRIGGER VERIFICATION" : "UJI KUALITAS TAHAP INI"}
                           </span>
                           <h4 className="text-xs font-semibold text-stone-900">
-                            {lang === "en" ? "Trigger Autonomous Verification" : "Jalankan Verifikasi Otonom"}
+                            {lang === "en" ? "Run Automated Tests" : "Periksa Kode Secara Mandiri"}
                           </h4>
                         </div>
 
-                        <div className="space-y-2 text-xs">
+                        <div className="space-y-2.5 text-xs">
                           <div>
                             <label className="text-[11px] font-medium text-stone-600 block mb-1">
-                              {lang === "en" ? "Work Summary / Submission:" : "Ringkasan Hasil Pekerjaan:"}
+                              {lang === "en" ? "Summary of what was done:" : "Ringkasan pekerjaan yang selesai:"}
                             </label>
                             <textarea
                               value={submissionSummary}
                               onChange={(e) => setSubmissionSummary(e.target.value)}
-                              placeholder={lang === "en" ? "e.g. Completed phase requirements and schema..." : "Contoh: Telah menyelesaikan relasi skema dan routing API..."}
+                              placeholder={lang === "en" ? "e.g. Completed database models and API routes..." : "Contoh: Telah membuat basis data dan rute antarmuka..."}
                               rows={2}
                               className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[11px] font-medium text-stone-600 block mb-1">
-                              {lang === "en" ? "Physical Verification Command:" : "Perintah Verifikasi Terminal:"}
-                            </label>
-                            <input
-                              type="text"
-                              value={verificationCommand}
-                              onChange={(e) => setVerificationCommand(e.target.value)}
-                              className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-stone-400"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[11px] font-medium text-stone-600 block mb-1">
-                              {lang === "en" ? "Evidence Output / Logs:" : "Bukti Log Eksekusi:"}
-                            </label>
-                            <textarea
-                              value={verificationOutput}
-                              onChange={(e) => setVerificationOutput(e.target.value)}
-                              placeholder="Keluaran log dari tsc / tests..."
-                              rows={2}
-                              className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-stone-400"
                             />
                           </div>
 
@@ -1186,10 +1200,10 @@ export default function AgentMissionControlPage() {
                             type="button"
                             onClick={handleSubmitPhaseAudit}
                             disabled={submittingAudit}
-                            className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
+                            className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
                           >
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                            <span>{submittingAudit ? "Mengaudit..." : (lang === "en" ? "Run Phase Audit" : "Jalankan Audit Fase")}</span>
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>{submittingAudit ? (lang === "en" ? "Testing..." : "Sedang Memeriksa...") : (lang === "en" ? "Run Quality Check Now" : "Periksa Kualitas Sekarang")}</span>
                           </button>
                         </div>
                       </div>
@@ -1202,83 +1216,98 @@ export default function AgentMissionControlPage() {
         )}
 
         {/* ──────────────────────────────────────────────
-            MODUL 2: RUNTIME AGEN OTONOM (AGENT RUNNER)
+            MODUL 2: TUGAS AI (AGENT RUNTIME)
            ────────────────────────────────────────────── */}
         {activeModule === "runtime" && (
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Kolom Kiri: Form Konfigurasi Peluncuran Agen */}
+              {/* Kolom Kiri: Form Tugas Baru yang Sederhana */}
               <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                    BOUNDED AGENT RUNTIME
+                  <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                    {lang === "en" ? "NEW TASK" : "TUGAS BARU"}
                   </span>
                   <h3 className="text-sm font-semibold text-stone-900">
-                    {lang === "en" ? "Launch Autonomous Coding Agent" : "Luncurkan Agen Koding Otonom"}
+                    {lang === "en" ? "Give AI a Coding Objective" : "Berikan Tugas kepada AI"}
                   </h3>
                 </div>
 
-                <form onSubmit={handleStartAgentRun} className="space-y-3 text-xs">
+                <form onSubmit={handleStartAgentRun} className="space-y-3.5 text-xs">
                   <div>
                     <label className="text-[11px] font-medium text-stone-700 block mb-1">
-                      {lang === "en" ? "Objective / Task Prompt:" : "Instruksi Tugas Agen:"}
+                      {lang === "en" ? "What should AI build or fix?" : "Apa yang ingin Anda buat atau perbaiki?"}
                     </label>
                     <textarea
                       value={taskPrompt}
                       onChange={(e) => setTaskPrompt(e.target.value)}
-                      placeholder={lang === "en" ? "e.g. Build an inventory table with low-stock alerts..." : "Contoh: Buatkan tabel inventaris dengan notifikasi stok menipis..."}
+                      placeholder={lang === "en" ? "e.g. Build an inventory table with low-stock alerts..." : "Contoh: Buatkan tabel produk dengan peringatan jika stok habis..."}
                       rows={4}
-                      className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
+                      className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 leading-relaxed"
                     />
                   </div>
 
+                  {/* Kecepatan & Ketelitian */}
                   <div>
                     <label className="text-[11px] font-medium text-stone-700 block mb-1">
-                      {lang === "en" ? "Execution Profile:" : "Profil Eksekusi:"}
+                      {lang === "en" ? "Speed & Thoroughness:" : "Kecepatan & Ketelitian:"}
                     </label>
                     <div className="grid grid-cols-3 gap-2">
-                      {(["eco", "balanced", "deep"] as const).map((prof) => (
+                      {[
+                        { id: "eco", label: lang === "en" ? "Fast" : "Cepat" },
+                        { id: "balanced", label: lang === "en" ? "Standard" : "Standar" },
+                        { id: "deep", label: lang === "en" ? "Deep" : "Mendalam" },
+                      ].map((item) => (
                         <button
-                          key={prof}
+                          key={item.id}
                           type="button"
-                          onClick={() => setBudgetProfile(prof)}
-                          className={`py-1.5 rounded-lg border text-xs font-mono font-medium transition-colors cursor-pointer uppercase ${
-                            budgetProfile === prof
-                              ? "bg-stone-900 text-white border-stone-900"
+                          onClick={() => setBudgetProfile(item.id as any)}
+                          className={`py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer text-center ${
+                            budgetProfile === item.id
+                              ? "bg-stone-900 text-white border-stone-900 shadow-xs font-semibold"
                               : "bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100"
                           }`}
                         >
-                          {prof}
+                          {item.label}
                         </button>
                       ))}
                     </div>
                   </div>
 
+                  {/* Cara Kerja AI */}
                   <div>
                     <label className="text-[11px] font-medium text-stone-700 block mb-1">
-                      {lang === "en" ? "Autonomy Level:" : "Tingkat Otonomi:"}
+                      {lang === "en" ? "How AI should work:" : "Cara Kerja AI:"}
                     </label>
                     <select
                       value={autonomyLevel}
                       onChange={(e) => setAutonomyLevel(e.target.value)}
-                      className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-stone-400"
+                      className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
                     >
-                      <option value="L1_bounded_steps">L1 - Terpandu (Assisted / Bounded Steps)</option>
-                      <option value="L2_bounded_autonomy">L2 - Otonomi Terbatas (Bounded Autonomy)</option>
-                      <option value="L3_supervised_autonomy">L3 - Otonomi Terawasi (Supervised Autonomy)</option>
-                      <option value="L4_full_autonomy">L4 - Otonomi Penuh (Full Autonomy)</option>
+                      <option value="L2_bounded_autonomy">
+                        {lang === "en" ? "Automatic (Recommended)" : "Otomatis Terarah (Disarankan)"}
+                      </option>
+                      <option value="L1_bounded_steps">
+                        {lang === "en" ? "Ask permission for every step" : "Minta izin di setiap langkah"}
+                      </option>
+                      <option value="L3_supervised_autonomy">
+                        {lang === "en" ? "Autonomous with supervision" : "Mandiri dengan pengawasan"}
+                      </option>
+                      <option value="L4_full_autonomy">
+                        {lang === "en" ? "Fully autonomous" : "Mandiri sepenuhnya"}
+                      </option>
                     </select>
                   </div>
 
+                  {/* Larangan / Aturan Khusus (Opsional) */}
                   <div>
                     <label className="text-[11px] font-medium text-stone-700 block mb-1">
-                      {lang === "en" ? "Hard Constraints (Absolute Restrictions):" : "Batasan Mutlak (Larangan Keras):"}
+                      {lang === "en" ? "Prohibitions / Rules (Optional):" : "Larangan / Batasan Khusus (Opsional):"}
                     </label>
                     <input
                       type="text"
                       value={hardConstraints}
                       onChange={(e) => setHardConstraints(e.target.value)}
-                      placeholder="Dilarang memakai mock data, dilarang merusak schema..."
+                      placeholder={lang === "en" ? "e.g. Do not use fake data, keep schema unchanged..." : "Contoh: Jangan pakai data palsu, jangan ubah skema database..."}
                       className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
                     />
                   </div>
@@ -1286,33 +1315,33 @@ export default function AgentMissionControlPage() {
                   <button
                     type="submit"
                     disabled={startingRun || !taskPrompt.trim()}
-                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>{startingRun ? "Memulai..." : (lang === "en" ? "Launch Agent Run" : "Luncurkan Eksekusi Agen")}</span>
+                    <span>{startingRun ? (lang === "en" ? "Starting..." : "Memulai...") : (lang === "en" ? "Start Task" : "Mulai Kerjakan Tugas")}</span>
                   </button>
                 </form>
               </div>
 
-              {/* Kolom Kanan: Live Thought Stream & Jejak Alat */}
+              {/* Kolom Kanan: Aktivitas Pengerjaan AI Waktu-Nyata */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Daftar Riwayat Run Agen */}
+                {/* Pemilih Riwayat Tugas */}
                 <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-stone-600">
-                      {lang === "en" ? "Active Run:" : "Run Terpilih:"}
+                      {lang === "en" ? "Selected Task:" : "Tugas Terpilih:"}
                     </span>
                     <select
                       value={selectedRunId}
                       onChange={(e) => setSelectedRunId(e.target.value)}
-                      className="text-xs font-mono font-medium bg-stone-100 border border-stone-300 rounded-lg px-2.5 py-1 focus:outline-none max-w-sm truncate"
+                      className="text-xs font-medium bg-stone-100 border border-stone-300 rounded-lg px-2.5 py-1 focus:outline-none max-w-sm truncate"
                     >
-                      {agentRuns.length === 0 && <option value="">(Belum ada eksekusi agen)</option>}
+                      {agentRuns.length === 0 && <option value="">(Belum ada tugas)</option>}
                       {agentRuns.map((r) => {
                         const taskText = r.intent?.goal || r.intent?.task || r.initialPrompt || "Tugas Otonom";
                         return (
                           <option key={r.runId} value={r.runId}>
-                            {r.runId} [{r.status}] — {taskText.slice(0, 30)}...
+                            {taskText.slice(0, 35)}...
                           </option>
                         );
                       })}
@@ -1326,98 +1355,99 @@ export default function AgentMissionControlPage() {
                       className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                     >
                       <Square className="w-3 h-3 fill-current" />
-                      <span>{lang === "en" ? "Kill Switch (Cancel)" : "Sakelar Darurat (Batalkan)"}</span>
+                      <span>{lang === "en" ? "Stop Task" : "Hentikan Tugas"}</span>
                     </button>
                   )}
                 </div>
 
-                {/* Detail Run Terpilih */}
+                {/* Detail Tugas Terpilih */}
                 {activeRun ? (
                   <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
                     <div className="flex items-center justify-between border-b border-stone-100 pb-3">
                       <div>
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                          RUN ID • {activeRun.runId}
+                        <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                          {lang === "en" ? "TASK" : "TUGAS"}
                         </span>
                         <h4 className="text-sm font-bold text-stone-900">
-                          {activeRun.intent?.goal || activeRun.intent?.task || activeRun.initialPrompt || "Eksekusi Agen Otonom"}
+                          {activeRun.intent?.goal || activeRun.intent?.task || activeRun.initialPrompt || "Tugas AI"}
                         </h4>
                       </div>
                       <div className="flex items-center gap-2">
                         {activeRun.finalScore !== undefined && (
-                          <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
-                            Skor: {activeRun.finalScore}/100
+                          <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
+                            {lang === "en" ? `Score: ${activeRun.finalScore}/100` : `Skor: ${activeRun.finalScore}/100`}
                           </span>
                         )}
-                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">
-                          {activeRun.autonomyLevel || "L2"}
-                        </span>
-                        <span className={`text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full capitalize ${
+                        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full capitalize ${
                           activeRun.status === "completed"
                             ? "bg-emerald-100 text-emerald-800"
                             : activeRun.status === "running"
                             ? "bg-amber-100 text-amber-800 animate-pulse"
                             : "bg-stone-200 text-stone-700"
                         }`}>
-                          {activeRun.status.replace("_", " ")}
+                          {activeRun.status === "completed"
+                            ? (lang === "en" ? "Completed" : "Selesai")
+                            : activeRun.status === "running"
+                            ? (lang === "en" ? "Working..." : "Sedang Dikerjakan...")
+                            : (lang === "en" ? "Stopped" : "Dihentikan")}
                         </span>
                       </div>
                     </div>
 
-                    {/* Alur Berpikir ReAct (Think -> Act -> Observe -> Reflect) */}
+                    {/* Timeline Aktivitas AI (Ramah & Bersih, Bukan Terminal Menakutkan) */}
                     <div>
-                      <span className="text-xs font-semibold text-stone-800 block mb-2 flex items-center gap-1.5">
-                        <Activity className="w-3.5 h-3.5 text-blue-600" />
-                        {lang === "en" ? "Live Thought Stream (ReAct Cycle):" : "Alur Berpikir ReAct Waktu-Nyata:"}
-                      </span>
-                      <div className="space-y-2 max-h-60 overflow-y-auto p-3 rounded-xl bg-stone-900 text-stone-200 font-mono text-xs">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-blue-600" />
+                          {lang === "en" ? "What AI Did:" : "Catatan Aktivitas AI:"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowRunTechnicalDetails(!showRunTechnicalDetails)}
+                          className="text-[11px] text-stone-500 hover:text-stone-800 font-medium flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>{showRunTechnicalDetails ? (lang === "en" ? "Simple View" : "Tampilan Sederhana") : (lang === "en" ? "Technical View" : "Tampilan Teknis")}</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 max-h-60 overflow-y-auto p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs">
                         {activeRun.steps && activeRun.steps.length > 0 ? (
                           activeRun.steps.map((st, idx) => (
-                            <div key={idx} className="border-b border-stone-800/80 pb-2 mb-2 last:border-b-0 last:mb-0 space-y-1">
-                              <div className="flex items-center justify-between text-[11px] text-stone-400">
-                                <span className="font-bold text-amber-400">
-                                  Langkah {st.stepIndex} • {st.phase || "running"}
-                                </span>
-                                {st.timestamp && (
-                                  <span>{new Date(st.timestamp).toLocaleTimeString()}</span>
+                            <div key={idx} className="flex items-start gap-2.5 py-1.5 border-b border-stone-200/60 last:border-b-0">
+                              <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5 font-semibold text-[10px]">
+                                {st.stepIndex}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-stone-800 font-medium leading-relaxed">
+                                  {st.actionProposal?.purpose || st.actionProposal?.toolId || "Menyelesaikan langkah pekerjaan..."}
+                                </p>
+                                {showRunTechnicalDetails && (
+                                  <div className="mt-1 text-[10px] text-stone-500 font-mono">
+                                    Decision: {st.policyDecision?.decision} • Risk: {st.policyDecision?.riskClass} • Score: {st.executionOutcome?.stepScore}/100
+                                  </div>
                                 )}
                               </div>
-                              {st.actionProposal && (
-                                <div className="text-stone-300">
-                                  <span className="text-blue-400 font-bold mr-1.5">[ACT]</span>
-                                  {st.actionProposal.purpose || st.actionProposal.toolId}
-                                </div>
-                              )}
-                              {st.policyDecision && (
-                                <div className="text-stone-400 text-[11px]">
-                                  <span className="text-purple-400 font-bold mr-1.5">[POLICY]</span>
-                                  Decision: {st.policyDecision.decision} • Risk: {st.policyDecision.riskClass}
-                                </div>
-                              )}
-                              {st.executionOutcome && (
-                                <div className="text-emerald-400 text-[11px]">
-                                  <span className="text-emerald-300 font-bold mr-1.5">[OBSERVE]</span>
-                                  Skor Langkah: {st.executionOutcome.stepScore}/100 • Byte Keluaran: {st.executionOutcome.length}
-                                </div>
-                              )}
+                              <span className="text-[10px] text-stone-400 shrink-0 font-medium">
+                                {st.timestamp ? new Date(st.timestamp).toLocaleTimeString() : "Selesai"}
+                              </span>
                             </div>
                           ))
                         ) : (
-                          <div className="text-stone-500 py-3 text-center">
-                            {lang === "en" ? "Agent idle or awaiting step progression..." : "Agen sedang bersiap atau menunggu kemajuan langkah..."}
+                          <div className="text-stone-400 py-4 text-center">
+                            {lang === "en" ? "No steps recorded yet." : "Belum ada langkah yang dicatat."}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Current Prompt / Artifact Snapshot */}
+                    {/* Hasil Akhir / Kode yang Dihasilkan */}
                     {activeRun.currentPrompt && (
                       <div>
-                        <span className="text-xs font-semibold text-stone-800 block mb-2 flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-stone-800 block mb-1.5 flex items-center gap-1.5">
                           <FileText className="w-3.5 h-3.5 text-stone-600" />
-                          {lang === "en" ? "Current Refined Prompt Snapshot:" : "Cuplikan Prompt yang Dihasilkan:"}
+                          {lang === "en" ? "Refined Result / Rules Applied:" : "Hasil & Aturan yang Diterapkan:"}
                         </span>
-                        <div className="max-h-40 overflow-y-auto p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs font-mono text-stone-700 whitespace-pre-wrap">
+                        <div className="max-h-40 overflow-y-auto p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-700 font-mono whitespace-pre-wrap">
                           {activeRun.currentPrompt}
                         </div>
                       </div>
@@ -1425,7 +1455,7 @@ export default function AgentMissionControlPage() {
                   </div>
                 ) : (
                   <div className="p-8 text-center bg-white border border-stone-200 rounded-2xl text-stone-500 text-xs">
-                    {lang === "en" ? "Select a run to view execution trace." : "Pilih run untuk melihat jejak eksekusi."}
+                    {lang === "en" ? "Select a task to view progress." : "Pilih tugas untuk melihat progres."}
                   </div>
                 )}
               </div>
@@ -1434,29 +1464,35 @@ export default function AgentMissionControlPage() {
         )}
 
         {/* ──────────────────────────────────────────────
-            MODUL 3: BRANKAS MEMORI HIBRIDA (MEMORY VAULT)
+            MODUL 3: INGATAN AI (MEMORY VAULT)
            ────────────────────────────────────────────── */}
         {activeModule === "memory" && (
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-6">
-            {/* Toolbar Filter Memori & Pencarian Semantik */}
+            {/* Toolbar Filter Memori & Pencarian */}
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-stone-200 shadow-xs">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-stone-600">
-                  {lang === "en" ? "Memory Type:" : "Tipe Memori:"}
+                  {lang === "en" ? "Category:" : "Kategori Ingatan:"}
                 </span>
                 <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl text-xs font-medium">
-                  {(["all", "semantic", "episodic", "procedural", "working"] as const).map((tp) => (
+                  {[
+                    { id: "all", label: lang === "en" ? "All" : "Semua" },
+                    { id: "semantic", label: lang === "en" ? "Rules" : "Aturan Baku" },
+                    { id: "episodic", label: lang === "en" ? "History" : "Riwayat" },
+                    { id: "procedural", label: lang === "en" ? "Instructions" : "Cara Kerja" },
+                    { id: "working", label: lang === "en" ? "Active Notes" : "Catatan Aktif" },
+                  ].map((tp) => (
                     <button
-                      key={tp}
+                      key={tp.id}
                       type="button"
-                      onClick={() => setMemoryTypeFilter(tp)}
-                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer capitalize ${
-                        memoryTypeFilter === tp
+                      onClick={() => setMemoryTypeFilter(tp.id)}
+                      className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                        memoryTypeFilter === tp.id
                           ? "bg-white text-stone-900 font-semibold shadow-xs"
                           : "text-stone-600 hover:text-stone-900"
                       }`}
                     >
-                      {tp === "all" ? (lang === "en" ? "All" : "Semua") : tp}
+                      {tp.label}
                     </button>
                   ))}
                 </div>
@@ -1470,7 +1506,7 @@ export default function AgentMissionControlPage() {
                     value={memorySearchQuery}
                     onChange={(e) => setMemorySearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && fetchMemories()}
-                    placeholder={lang === "en" ? "Test semantic retrieval..." : "Uji pencarian semantik..."}
+                    placeholder={lang === "en" ? "Search memory..." : "Cari ingatan atau aturan..."}
                     className="pl-8 pr-3 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-stone-400 w-56"
                   />
                 </div>
@@ -1478,15 +1514,15 @@ export default function AgentMissionControlPage() {
                 <button
                   type="button"
                   onClick={() => setIsAddMemoryModalOpen(true)}
-                  className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                  className="px-3.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>{lang === "en" ? "Add Fact" : "Tambah Fakta"}</span>
+                  <span>{lang === "en" ? "Add Fact" : "Tambah Ingatan Baru"}</span>
                 </button>
               </div>
             </div>
 
-            {/* Grid Kartu Memori */}
+            {/* Grid Kartu Ingatan Bersih */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {memories.map((m) => (
                 <div
@@ -1494,18 +1530,28 @@ export default function AgentMissionControlPage() {
                   className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-3 flex flex-col justify-between"
                 >
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[11px] font-mono">
-                      <span className="px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 font-semibold uppercase">
-                        {m.type} • {m.scope}
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 font-medium">
+                        {m.type === "semantic"
+                          ? (lang === "en" ? "Standard Rules" : "Aturan Baku")
+                          : m.type === "episodic"
+                          ? (lang === "en" ? "History" : "Riwayat")
+                          : m.type === "procedural"
+                          ? (lang === "en" ? "Workflow" : "Cara Kerja")
+                          : (lang === "en" ? "Active Notes" : "Catatan Aktif")}
                       </span>
-                      <span className={`px-2 py-0.5 rounded-md font-semibold uppercase ${
+                      <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${
                         m.status === "validated"
                           ? "bg-emerald-100 text-emerald-800"
                           : m.status === "rejected"
                           ? "bg-rose-100 text-rose-800"
                           : "bg-amber-100 text-amber-800"
                       }`}>
-                        {m.status}
+                        {m.status === "validated"
+                          ? (lang === "en" ? "Approved" : "Disetujui")
+                          : m.status === "rejected"
+                          ? (lang === "en" ? "Rejected" : "Ditolak")
+                          : (lang === "en" ? "Pending" : "Menunggu Persetujuan")}
                       </span>
                     </div>
 
@@ -1515,26 +1561,26 @@ export default function AgentMissionControlPage() {
                   </div>
 
                   <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-[11px]">
-                    <span className="font-mono text-stone-400">
-                      Keyakinan: {Math.round((m.confidence || 0) * 100)}%
+                    <span className="text-stone-400 font-medium">
+                      {lang === "en" ? `Certainty: ${Math.round((m.confidence || 0) * 100)}%` : `Kepastian: ${Math.round((m.confidence || 0) * 100)}%`}
                     </span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {m.status !== "validated" && (
                         <button
                           type="button"
                           onClick={() => handleValidateMemory(m.id, true)}
-                          className="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium transition-colors cursor-pointer text-xs"
                         >
-                          Validasi
+                          {lang === "en" ? "Approve" : "Setujui"}
                         </button>
                       )}
                       {m.status !== "rejected" && (
                         <button
                           type="button"
                           onClick={() => handleValidateMemory(m.id, false)}
-                          className="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium transition-colors cursor-pointer text-xs"
                         >
-                          Tolak
+                          {lang === "en" ? "Reject" : "Tolak"}
                         </button>
                       )}
                     </div>
@@ -1544,7 +1590,7 @@ export default function AgentMissionControlPage() {
 
               {memories.length === 0 && !loadingMemory && (
                 <div className="col-span-full py-12 text-center text-stone-400 text-xs">
-                  {lang === "en" ? "No memory records found." : "Belum ada catatan memori yang sesuai."}
+                  {lang === "en" ? "No memory records found." : "Belum ada catatan ingatan yang sesuai."}
                 </div>
               )}
             </div>
@@ -1552,23 +1598,23 @@ export default function AgentMissionControlPage() {
         )}
 
         {/* ──────────────────────────────────────────────
-            MODUL 4: REGISTRI KEAHLIAN & ALAT (SKILLS & MCP)
+            MODUL 4: ALAT & APLIKASI (SKILLS & MCP)
            ────────────────────────────────────────────── */}
         {activeModule === "skills" && (
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6 space-y-6">
-            {/* Bagian 1: Katalog Keahlian Terpasang */}
+            {/* Bagian 1: Keahlian AI Terpasang */}
             <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-stone-100 pb-3">
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                    PROCEDURAL SKILL REGISTRY
+                  <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                    {lang === "en" ? "AGENT CAPABILITIES" : "KEAHLIAN AI"}
                   </span>
                   <h3 className="text-sm font-semibold text-stone-900">
-                    {lang === "en" ? "Installed Agent Skills & Capabilities" : "Katalog Keahlian Prosedural Agen"}
+                    {lang === "en" ? "Installed Skills & Functions" : "Kemampuan Khusus yang Dikuasai AI"}
                   </h3>
                 </div>
-                <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-700 font-semibold">
-                  {skills.length} {lang === "en" ? "Skills Active" : "Keahlian Aktif"}
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-700 font-medium">
+                  {skills.length} {lang === "en" ? "Skills Ready" : "Keahlian Aktif"}
                 </span>
               </div>
 
@@ -1576,17 +1622,11 @@ export default function AgentMissionControlPage() {
                 {skills.map((sk) => (
                   <div key={sk.manifest.name} className="p-4 rounded-xl border border-stone-200 bg-stone-50/50 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-stone-900">
+                      <span className="text-xs font-bold text-stone-900">
                         {sk.manifest.name}
                       </span>
-                      <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full ${
-                        sk.manifest.riskClass === "low"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : sk.manifest.riskClass === "medium"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-rose-100 text-rose-800"
-                      }`}>
-                        Risk: {sk.manifest.riskClass}
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        {lang === "en" ? "Ready to Use" : "Siap Digunakan"}
                       </span>
                     </div>
 
@@ -1594,28 +1634,27 @@ export default function AgentMissionControlPage() {
                       {sk.manifest.summary}
                     </p>
 
-                    <div className="flex items-center justify-between text-[11px] font-mono text-stone-400 pt-2 border-t border-stone-200/60">
-                      <span>v{sk.activeVersion}</span>
-                      <span>Scope: {sk.manifest.scope?.join(", ")}</span>
+                    <div className="flex items-center justify-between text-[11px] text-stone-400 pt-1">
+                      <span>{lang === "en" ? `Version ${sk.activeVersion}` : `Versi ${sk.activeVersion}`}</span>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Bagian 2: Status Konektor MCP Enterprise */}
+            {/* Bagian 2: Aplikasi & Layanan Terhubung */}
             <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-stone-100 pb-3">
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
-                    MODEL CONTEXT PROTOCOL
+                  <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                    {lang === "en" ? "CONNECTED APPS" : "APLIKASI TERHUBUNG"}
                   </span>
                   <h3 className="text-sm font-semibold text-stone-900">
-                    {lang === "en" ? "Enterprise MCP Connectors" : "Konektor MCP Enterprise"}
+                    {lang === "en" ? "External Tools & Services" : "Layanan Eksternal yang Dapat Diakses AI"}
                   </h3>
                 </div>
-                <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
-                  {mcpConnectors.filter((c) => c.enabled).length}/{mcpConnectors.length} {lang === "en" ? "Connected" : "Aktif"}
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
+                  {mcpConnectors.filter((c) => c.enabled).length}/{mcpConnectors.length} {lang === "en" ? "Connected" : "Terhubung"}
                 </span>
               </div>
 
@@ -1626,14 +1665,16 @@ export default function AgentMissionControlPage() {
                       <span className="font-semibold text-xs text-stone-800 truncate">
                         {c.name}
                       </span>
-                      <span className={`w-2 h-2 rounded-full ${c.enabled ? "bg-emerald-500" : "bg-stone-300"}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full ${c.enabled ? "bg-emerald-500" : "bg-stone-300"}`} />
                     </div>
-                    <p className="text-[11px] text-stone-500 line-clamp-2">
+                    <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed">
                       {c.description}
                     </p>
-                    <div className="flex items-center justify-between text-[10px] font-mono text-stone-400 pt-1">
-                      <span>{c.badgeType}</span>
-                      <span>{c.transportType}</span>
+                    <div className="flex items-center justify-between text-[10px] text-stone-400 pt-1">
+                      <span className="font-medium text-stone-600">{c.category || "Alat"}</span>
+                      <span className={c.enabled ? "text-emerald-700 font-medium" : "text-stone-400"}>
+                        {c.enabled ? (lang === "en" ? "Active" : "Aktif") : (lang === "en" ? "Disabled" : "Mati")}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -1644,14 +1685,14 @@ export default function AgentMissionControlPage() {
       </div>
 
       {/* ──────────────────────────────────────────────
-          MODAL: Buat Sesi Proyek Supervisi Baru
+          MODAL: Buat Proyek Baru
          ────────────────────────────────────────────── */}
       {isNewSessionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-3xl border border-stone-200 p-6 max-w-lg w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="text-sm font-bold text-stone-900">
-                {lang === "en" ? "Initiate Autonomous Project Session" : "Mulai Sesi Proyek Supervisi Baru"}
+                {lang === "en" ? "Create New Project" : "Mulai Proyek Baru"}
               </h3>
               <button
                 type="button"
@@ -1662,10 +1703,10 @@ export default function AgentMissionControlPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateSession} className="space-y-3 text-xs">
+            <form onSubmit={handleCreateSession} className="space-y-3.5 text-xs">
               <div>
                 <label className="text-[11px] font-semibold text-stone-700 block mb-1">
-                  {lang === "en" ? "Goal Prompt (Project Intent):" : "Deskripsi Tujuan Proyek:"}
+                  {lang === "en" ? "Project Goal / Description:" : "Tujuan Proyek:"}
                 </label>
                 <textarea
                   value={newGoalPrompt}
@@ -1673,36 +1714,36 @@ export default function AgentMissionControlPage() {
                   placeholder="Contoh: Buat sistem web toko roti dengan katalog produk, keranjang belanja, dan integrasi WhatsApp..."
                   rows={4}
                   required
-                  className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
+                  className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 leading-relaxed"
                 />
               </div>
 
               <div>
                 <label className="text-[11px] font-semibold text-stone-700 block mb-1">
-                  {lang === "en" ? "Domain Classification:" : "Klasifikasi Domain:"}
+                  {lang === "en" ? "Category:" : "Kategori Proyek:"}
                 </label>
                 <select
                   value={newDomain}
                   onChange={(e) => setNewDomain(e.target.value)}
                   className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
                 >
-                  <option value="software">Software Engineering</option>
-                  <option value="devops">DevOps & Cloud Infrastructure</option>
-                  <option value="database">Database Architecture</option>
-                  <option value="security">Security & Penetration Testing</option>
+                  <option value="software">Web & Software</option>
+                  <option value="devops">Server & Cloud</option>
+                  <option value="database">Database & API</option>
+                  <option value="security">Keamanan Sistem</option>
                 </select>
               </div>
 
               <div>
                 <label className="text-[11px] font-semibold text-stone-700 block mb-1">
-                  {lang === "en" ? "Negative Constraints (One per line):" : "Batasan Negatif & Larangan (Satu per baris):"}
+                  {lang === "en" ? "Things AI Must Avoid (One per line):" : "Hal yang Dilarang (Satu per baris):"}
                 </label>
                 <textarea
                   value={newNegativeConstraints}
                   onChange={(e) => setNewNegativeConstraints(e.target.value)}
-                  placeholder="DILARANG membuat kasir POS fisik&#10;DILARANG memakai mock data palsu"
+                  placeholder="Dilarang membuat kasir fisik&#10;Dilarang memakai data palsu"
                   rows={2}
-                  className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-stone-400"
+                  className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 font-mono"
                 />
               </div>
 
@@ -1712,13 +1753,13 @@ export default function AgentMissionControlPage() {
                   onClick={() => setIsNewSessionModalOpen(false)}
                   className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium transition-colors cursor-pointer"
                 >
-                  Batal
+                  {lang === "en" ? "Cancel" : "Batal"}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-semibold transition-colors cursor-pointer shadow-xs"
                 >
-                  {lang === "en" ? "Initiate Session" : "Mulai Sesi"}
+                  {lang === "en" ? "Create Project" : "Mulai Proyek"}
                 </button>
               </div>
             </form>
@@ -1727,14 +1768,14 @@ export default function AgentMissionControlPage() {
       )}
 
       {/* ──────────────────────────────────────────────
-          MODAL: Tambah Memori Manual
+          MODAL: Tambah Ingatan Baru
          ────────────────────────────────────────────── */}
       {isAddMemoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-3xl border border-stone-200 p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="text-sm font-bold text-stone-900">
-                {lang === "en" ? "Inject Structured Memory" : "Suntikkan Fakta ke Brankas Memori"}
+                {lang === "en" ? "Add AI Memory" : "Tambah Ingatan / Aturan untuk AI"}
               </h3>
               <button
                 type="button"
@@ -1745,51 +1786,49 @@ export default function AgentMissionControlPage() {
               </button>
             </div>
 
-            <form onSubmit={handleAddMemory} className="space-y-3 text-xs">
+            <form onSubmit={handleAddMemory} className="space-y-3.5 text-xs">
               <div>
                 <label className="text-[11px] font-semibold text-stone-700 block mb-1">
-                  {lang === "en" ? "Fact / Knowledge Content:" : "Isi Pengetahuan / Fakta:"}
+                  {lang === "en" ? "Memory / Rule to remember:" : "Isi Ingatan atau Aturan:"}
                 </label>
                 <textarea
                   value={newMemoryContent}
                   onChange={(e) => setNewMemoryContent(e.target.value)}
-                  placeholder="Ringkasan fakta yang ingin disimpan secara persisten..."
+                  placeholder="Contoh: Gunakan selalu warna latar off-white untuk semua halaman baru..."
                   rows={4}
                   required
-                  className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
+                  className="w-full p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 leading-relaxed"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[11px] font-semibold text-stone-700 block mb-1">
-                    Tipe (Type):
+                    Jenis Ingatan:
                   </label>
                   <select
                     value={newMemoryType}
                     onChange={(e) => setNewMemoryType(e.target.value)}
-                    className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 capitalize"
+                    className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
                   >
-                    <option value="semantic">Semantic</option>
-                    <option value="episodic">Episodic</option>
-                    <option value="procedural">Procedural</option>
-                    <option value="working">Working</option>
-                    <option value="experimental">Experimental</option>
+                    <option value="semantic">Aturan Baku</option>
+                    <option value="episodic">Riwayat</option>
+                    <option value="procedural">Cara Kerja</option>
+                    <option value="working">Catatan Aktif</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="text-[11px] font-semibold text-stone-700 block mb-1">
-                    Cakupan (Scope):
+                    Cakupan:
                   </label>
                   <select
                     value={newMemoryScope}
                     onChange={(e) => setNewMemoryScope(e.target.value)}
-                    className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 capitalize"
+                    className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
                   >
-                    <option value="project">Project</option>
-                    <option value="workspace">Workspace</option>
-                    <option value="user">User</option>
+                    <option value="project">Proyek Ini Saja</option>
+                    <option value="workspace">Seluruh Workspace</option>
                     <option value="global">Global</option>
                   </select>
                 </div>
@@ -1797,7 +1836,7 @@ export default function AgentMissionControlPage() {
 
               <div>
                 <label className="text-[11px] font-semibold text-stone-700 block mb-1">
-                  Tingkat Keyakinan (1 - 100%):
+                  Tingkat Kepastian (1 - 100%):
                 </label>
                 <input
                   type="number"
@@ -1805,7 +1844,7 @@ export default function AgentMissionControlPage() {
                   max="100"
                   value={newConfidence}
                   onChange={(e) => setNewConfidence(Number(e.target.value))}
-                  className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-stone-400"
+                  className="w-full p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-stone-400"
                 />
               </div>
 
@@ -1815,13 +1854,13 @@ export default function AgentMissionControlPage() {
                   onClick={() => setIsAddMemoryModalOpen(false)}
                   className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium transition-colors cursor-pointer"
                 >
-                  Batal
+                  {lang === "en" ? "Cancel" : "Batal"}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-semibold transition-colors cursor-pointer shadow-xs"
                 >
-                  Simpan Fakta
+                  {lang === "en" ? "Save Memory" : "Simpan Ingatan"}
                 </button>
               </div>
             </form>
