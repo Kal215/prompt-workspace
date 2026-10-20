@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
+import os from "os";
 import { getBoundedAgentRuntime } from "../../../lib/agent-engine-bridge";
 import { checkCsrf, csrfForbiddenResponse } from "../../../lib/csrf";
 import {
@@ -155,6 +158,70 @@ export async function POST(request: Request) {
         success: false,
         error: (err as Error).message || "Gagal memproses eksekusi agent run.",
       },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/agent-runs
+ * Menghapus run tertentu (?runId=...) atau seluruh riwayat (?all=true) secara fisik dari disk (~/.piew/agent-runs)
+ */
+export async function DELETE(request: Request) {
+  try {
+    const csrf = checkCsrf(request);
+    if (!csrf.allowed) {
+      return csrfForbiddenResponse(csrf.reason || "CSRF validation failed.");
+    }
+
+    const url = new URL(request.url);
+    const runId = url.searchParams.get("runId");
+    const clearAll = url.searchParams.get("all") === "true";
+    const baseRunsDir = path.join(os.homedir(), ".piew", "agent-runs");
+
+    if (clearAll) {
+      if (fs.existsSync(baseRunsDir)) {
+        const files = fs.readdirSync(baseRunsDir).filter((f) => f.endsWith(".json"));
+        for (const file of files) {
+          try {
+            fs.unlinkSync(path.join(baseRunsDir, file));
+          } catch (e) {
+            console.warn(`Gagal menghapus file ${file}:`, e);
+          }
+        }
+      }
+      return NextResponse.json({
+        success: true,
+        message: "Seluruh riwayat tugas agent berhasil dibersihkan dari disk.",
+      });
+    }
+
+    if (!runId || typeof runId !== "string") {
+      return NextResponse.json(
+        { success: false, error: "Parameter runId atau all=true wajib disertakan." },
+        { status: 400 }
+      );
+    }
+
+    const safeRunId = path.basename(runId).replace(/[^a-zA-Z0-9_-]/g, "");
+    const targetFile = path.join(baseRunsDir, `${safeRunId}.json`);
+
+    if (fs.existsSync(targetFile)) {
+      fs.unlinkSync(targetFile);
+      return NextResponse.json({
+        success: true,
+        message: `Riwayat tugas '${safeRunId}' berhasil dihapus permanen.`,
+      });
+    } else {
+      return NextResponse.json(
+        { success: false, error: `Tugas '${safeRunId}' tidak ditemukan di disk.` },
+        { status: 404 }
+      );
+    }
+  } catch (err: unknown) {
+    console.error("[API_AGENT_RUNS_DELETE_ERROR]", (err as Error).message);
+    return NextResponse.json(
+      { success: false, error: (err as Error).message || "Gagal menghapus riwayat tugas agent." },
       { status: 500 }
     );
   }
