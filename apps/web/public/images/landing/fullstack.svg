@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" width="100%" height="100%">
+  <defs>
+    <pattern id="grid-fs" width="25" height="25" patternUnits="userSpaceOnUse">
+      <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#27272a" stroke-width="0.6" stroke-opacity="0.6"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="500" fill="#09090b" rx="12"/>
+  <rect width="600" height="500" fill="url(#grid-fs)" rx="12"/>
+  
+  <!-- Window Header -->
+  <rect x="20" y="16" width="560" height="38" rx="8" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <circle cx="40" cy="35" r="4.5" fill="#ef4444"/>
+  <circle cx="55" cy="35" r="4.5" fill="#f59e0b"/>
+  <circle cx="70" cy="35" r="4.5" fill="#10b981"/>
+  <text x="95" y="39" fill="#a1a1aa" font-family="monospace" font-size="11" font-weight="600">packages/database/prisma/schema.prisma</text>
+  <text x="560" y="39" fill="#38bdf8" font-family="monospace" font-size="10" text-anchor="end">SQLITE WAL</text>
+
+  <!-- Code Editor Body -->
+  <rect x="20" y="64" width="560" height="415" rx="8" fill="#121316" stroke="#27272a" stroke-width="1"/>
+
+  <g font-family="monospace" font-size="12" line-height="1.7">
+    <!-- Line 1 -->
+    <text x="40" y="96" fill="#52525b">01</text>
+    <text x="75" y="96" fill="#c084fc">model</text>
+    <text x="120" y="96" fill="#f8fafc" font-weight="bold">SavedPrompt</text>
+    <text x="215" y="96" fill="#f8fafc">{</text>
+
+    <!-- Line 2 -->
+    <text x="40" y="122" fill="#52525b">02</text>
+    <text x="90" y="122" fill="#38bdf8">id</text>
+    <text x="210" y="122" fill="#34d399">String</text>
+    <text x="280" y="122" fill="#e2e8f0">@id @default(uuid())</text>
+
+    <!-- Line 3 -->
+    <text x="40" y="148" fill="#52525b">03</text>
+    <text x="90" y="148" fill="#38bdf8">originalPrompt</text>
+    <text x="210" y="148" fill="#34d399">String</text>
+
+    <!-- Line 4 -->
+    <text x="40" y="174" fill="#52525b">04</text>
+    <text x="90" y="174" fill="#38bdf8">score</text>
+    <text x="210" y="174" fill="#34d399">Float</text>
+    <text x="280" y="174" fill="#71717a">// Canonical 0..100 Quality</text>
+
+    <!-- Line 5 -->
+    <text x="40" y="200" fill="#52525b">05</text>
+    <text x="90" y="200" fill="#38bdf8">domain</text>
+    <text x="210" y="200" fill="#34d399">String</text>
+    <text x="280" y="200" fill="#e2e8f0">@default(&quot;Fullstack&quot;)</text>
+
+    <!-- Line 6 -->
+    <text x="40" y="226" fill="#52525b">06</text>
+    <text x="90" y="226" fill="#38bdf8">versions</text>
+    <text x="210" y="226" fill="#34d399">PromptVersion[]</text>
+
+    <!-- Line 7 -->
+    <text x="40" y="252" fill="#52525b">07</text>
+    <text x="90" y="252" fill="#38bdf8">spiderRuns</text>
+    <text x="210" y="252" fill="#34d399">SpiderRun[]</text>
+
+    <!-- Line 8 -->
+    <text x="40" y="278" fill="#52525b">08</text>
+    <text x="90" y="278" fill="#38bdf8">createdAt</text>
+    <text x="210" y="278" fill="#34d399">DateTime</text>
+    <text x="280" y="278" fill="#e2e8f0">@default(now())</text>
+
+    <!-- Line 9 -->
+    <text x="40" y="304" fill="#52525b">09</text>
+    <text x="75" y="304" fill="#f8fafc">}</text>
+  </g>
+
+  <!-- Bottom Badge: Type Safety -->
+  <rect x="40" y="340" width="520" height="115" rx="6" fill="#18181b" stroke="#27272a"/>
+  <text x="60" y="368" fill="#38bdf8" font-family="monospace" font-size="11" font-weight="bold">TYPESCRIPT 5.9 // ZERO RUNTIME ANOMALIES</text>
+  <text x="60" y="392" fill="#a1a1aa" font-family="sans-serif" font-size="12">• Strict null-checks &amp; Zod contract validation</text>
+  <text x="60" y="414" fill="#a1a1aa" font-family="sans-serif" font-size="12">• Modular monorepo with 7 verified internal packages</text>
+  <text x="60" y="436" fill="#10b981" font-family="monospace" font-size="10">✓ Typecheck Status: 0 errors across all workspaces</text>
+</svg>

@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
+  <defs>
+    <pattern id="grid-arch" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#27272a" stroke-width="0.75" stroke-opacity="0.6"/>
+    </pattern>
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="emerald-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="#09090b" rx="12"/>
+  <rect width="800" height="450" fill="url(#grid-arch)" rx="12"/>
+  
+  <!-- Header Bar -->
+  <rect x="24" y="24" width="752" height="40" rx="8" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <circle cx="46" cy="44" r="5" fill="#ef4444"/>
+  <circle cx="62" cy="44" r="5" fill="#f59e0b"/>
+  <circle cx="78" cy="44" r="5" fill="#10b981"/>
+  <text x="102" y="48" fill="#a1a1aa" font-family="monospace" font-size="12" font-weight="600">ARCHITECTURE // Webhook &amp; Idempotency Ledger Flow</text>
+  <text x="720" y="48" fill="#34d399" font-family="monospace" font-size="11" text-anchor="end">LIVE PIPELINE</text>
+
+  <!-- Flow Boxes -->
+  <!-- Box 1: Webhook Ingress -->
+  <rect x="36" y="110" width="140" height="180" rx="8" fill="url(#cyan-glow)" stroke="#06b6d4" stroke-width="1.5"/>
+  <text x="50" y="136" fill="#22d3ee" font-family="monospace" font-size="11" font-weight="bold">01 // INGRESS</text>
+  <text x="50" y="160" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold">Stripe Webhook</text>
+  <text x="50" y="182" fill="#71717a" font-family="monospace" font-size="10">POST /v1/events</text>
+  <rect x="50" y="205" width="112" height="24" rx="4" fill="#164e63"/>
+  <text x="60" y="221" fill="#67e8f9" font-family="monospace" font-size="10">HMAC Verified</text>
+  <text x="50" y="260" fill="#a1a1aa" font-family="sans-serif" font-size="10">TLS 1.3 • MTLS Auth</text>
+
+  <!-- Arrow 1 -->
+  <path d="M 176 200 L 216 200" stroke="#06b6d4" stroke-width="2" stroke-dasharray="4,4"/>
+  <polygon points="216,196 224,200 216,204" fill="#06b6d4"/>
+
+  <!-- Box 2: Redis Cache -->
+  <rect x="224" y="110" width="150" height="180" rx="8" fill="#18181b" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="238" y="136" fill="#c084fc" font-family="monospace" font-size="11" font-weight="bold">02 // IDEMPOTENCY</text>
+  <text x="238" y="160" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold">Redis Sentinel</text>
+  <text x="238" y="182" fill="#71717a" font-family="monospace" font-size="10">Key: evt_idempotent</text>
+  <rect x="238" y="205" width="122" height="24" rx="4" fill="#581c87"/>
+  <text x="248" y="221" fill="#e9d5ff" font-family="monospace" font-size="10">Atomic SetNX (30s)</text>
+  <text x="238" y="260" fill="#a1a1aa" font-family="sans-serif" font-size="10">Duplicate Drop: 100%</text>
+
+  <!-- Arrow 2 -->
+  <path d="M 374 200 L 414 200" stroke="#a855f7" stroke-width="2" stroke-dasharray="4,4"/>
+  <polygon points="414,196 422,200 414,204" fill="#a855f7"/>
+
+  <!-- Box 3: Worker Engine -->
+  <rect x="422" y="110" width="150" height="180" rx="8" fill="#18181b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="436" y="136" fill="#fbbf24" font-family="monospace" font-size="11" font-weight="bold">03 // DISPATCHER</text>
+  <text x="436" y="160" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold">PIEW Consumer</text>
+  <text x="436" y="182" fill="#71717a" font-family="monospace" font-size="10">BullMQ Cluster</text>
+  <rect x="436" y="205" width="122" height="24" rx="4" fill="#78350f"/>
+  <text x="446" y="221" fill="#fef3c7" font-family="monospace" font-size="10">Concurrency: 8</text>
+  <text x="436" y="260" fill="#a1a1aa" font-family="sans-serif" font-size="10">Backoff Exponential</text>
+
+  <!-- Arrow 3 -->
+  <path d="M 572 200 L 612 200" stroke="#10b981" stroke-width="2" stroke-dasharray="4,4"/>
+  <polygon points="612,196 620,200 612,204" fill="#10b981"/>
+
+  <!-- Box 4: Postgres Ledger -->
+  <rect x="620" y="110" width="144" height="180" rx="8" fill="url(#emerald-glow)" stroke="#10b981" stroke-width="1.5"/>
+  <text x="634" y="136" fill="#34d399" font-family="monospace" font-size="11" font-weight="bold">04 // LEDGER DB</text>
+  <text x="634" y="160" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold">PostgreSQL</text>
+  <text x="634" y="182" fill="#71717a" font-family="monospace" font-size="10">Audit Journal</text>
+  <rect x="634" y="205" width="116" height="24" rx="4" fill="#064e3b"/>
+  <text x="644" y="221" fill="#a7f3d0" font-family="monospace" font-size="10">ACID Committed</text>
+  <text x="634" y="260" fill="#a1a1aa" font-family="sans-serif" font-size="10">Append-Only WAL</text>
+
+  <!-- Bottom Telemetry Banner -->
+  <rect x="36" y="320" width="728" height="95" rx="8" fill="#121316" stroke="#27272a" stroke-width="1"/>
+  <text x="54" y="350" fill="#71717a" font-family="monospace" font-size="10">PIPELINE TELEMETRY</text>
+  <text x="54" y="382" fill="#ffffff" font-family="sans-serif" font-size="18" font-weight="bold">18.4 ms</text>
+  <text x="54" y="400" fill="#10b981" font-family="sans-serif" font-size="11">p99 End-to-End Latency</text>
+
+  <line x1="230" y1="335" x2="230" y2="400" stroke="#27272a" stroke-width="1"/>
+  <text x="250" y="350" fill="#71717a" font-family="monospace" font-size="10">THROUGHPUT</text>
+  <text x="250" y="382" fill="#ffffff" font-family="sans-serif" font-size="18" font-weight="bold">1,250 req/s</text>
+  <text x="250" y="400" fill="#a1a1aa" font-family="sans-serif" font-size="11">Zero dropped events</text>
+
+  <line x1="430" y1="335" x2="430" y2="400" stroke="#27272a" stroke-width="1"/>
+  <text x="450" y="350" fill="#71717a" font-family="monospace" font-size="10">INTEGRITY GUARANTEE</text>
+  <text x="450" y="382" fill="#10b981" font-family="sans-serif" font-size="18" font-weight="bold">100.0%</text>
+  <text x="450" y="400" fill="#a1a1aa" font-family="sans-serif" font-size="11">Strict Idempotence Verified</text>
+
+  <line x1="630" y1="335" x2="630" y2="400" stroke="#27272a" stroke-width="1"/>
+  <text x="650" y="350" fill="#71717a" font-family="monospace" font-size="10">STATUS</text>
+  <text x="650" y="382" fill="#38bdf8" font-family="sans-serif" font-size="18" font-weight="bold">HEALTHY</text>
+  <text x="650" y="400" fill="#a1a1aa" font-family="sans-serif" font-size="11">All 4 Nodes Active</text>
+</svg>

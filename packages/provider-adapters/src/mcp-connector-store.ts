@@ -142,7 +142,11 @@ export async function readMcpConnectorsStore(
     connectors: BUILTIN_MCP_CONNECTORS_CATALOG.map((c) => ({ ...c })),
   };
 
-  await writeMcpConnectorsStore(initialStore, customPath);
+  try {
+    await writeMcpConnectorsStore(initialStore, customPath);
+  } catch {
+    // Abaikan kegagalan penulisan di lingkungan serverless/read-only
+  }
   return initialStore;
 }
 
@@ -156,16 +160,21 @@ export async function writeMcpConnectorsStore(
   const filePath = resolveMcpConnectorsConfigPath(customPath);
   const dirPath = path.dirname(filePath);
 
-  await fs.mkdir(dirPath, { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(store, null, 2), {
-    encoding: "utf-8",
-    mode: 0o600,
-  });
-
   try {
-    await fs.chmod(filePath, 0o600);
-  } catch {
-    // Abaikan jika OS tidak mendukung chmod (Windows)
+    await fs.mkdir(dirPath, { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(store, null, 2), {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
+
+    try {
+      await fs.chmod(filePath, 0o600);
+    } catch {
+      // Abaikan jika OS tidak mendukung chmod (Windows)
+    }
+  } catch (error: any) {
+    // Di lingkungan serverless (Vercel) di mana filesystem adalah read-only
+    console.warn(`[MCP-Store] Izin tulis terbatas pada ${filePath}:`, error.message);
   }
 }
 

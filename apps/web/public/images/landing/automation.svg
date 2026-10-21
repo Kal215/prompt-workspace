@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" width="100%" height="100%">
+  <defs>
+    <pattern id="grid-auto" width="25" height="25" patternUnits="userSpaceOnUse">
+      <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#27272a" stroke-width="0.6" stroke-opacity="0.6"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="500" fill="#09090b" rx="12"/>
+  <rect width="600" height="500" fill="url(#grid-auto)" rx="12"/>
+  
+  <!-- Window Header -->
+  <rect x="20" y="16" width="560" height="38" rx="8" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <circle cx="40" cy="35" r="4.5" fill="#ef4444"/>
+  <circle cx="55" cy="35" r="4.5" fill="#f59e0b"/>
+  <circle cx="70" cy="35" r="4.5" fill="#10b981"/>
+  <text x="95" y="39" fill="#a1a1aa" font-family="monospace" font-size="11" font-weight="600">github.com/MuhammadRiskalFadhilla/HTR_Project</text>
+
+  <!-- PR Card -->
+  <rect x="20" y="64" width="560" height="415" rx="8" fill="#121316" stroke="#27272a" stroke-width="1"/>
+
+  <rect x="40" y="84" width="65" height="24" rx="12" fill="#15803d"/>
+  <text x="72" y="100" fill="#ffffff" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">Open</text>
+  <text x="115" y="101" fill="#ffffff" font-family="sans-serif" font-size="15" font-weight="bold">#70 feat(providers): enterprise MCP catalog</text>
+
+  <text x="40" y="132" fill="#71717a" font-family="sans-serif" font-size="11">MuhammadRiskalFadhilla wants to merge 3 commits into <tspan fill="#60a5fa">main</tspan> from <tspan fill="#60a5fa">feat/mcp-catalog</tspan></text>
+
+  <!-- Checks Box -->
+  <rect x="40" y="154" width="520" height="200" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <rect x="40" y="154" width="520" height="36" rx="6" fill="#22252c"/>
+  <circle cx="58" cy="172" r="7" fill="#10b981"/>
+  <path d="M 54 172 L 57 175 L 62 169" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <text x="75" y="176" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">All checks have passed</text>
+  <text x="545" y="176" fill="#71717a" font-family="monospace" font-size="10" text-anchor="end">5 successful checks</text>
+
+  <!-- Check Item 1 -->
+  <line x1="40" y1="190" x2="560" y2="190" stroke="#27272a" stroke-width="1"/>
+  <circle cx="58" cy="210" r="5" fill="#10b981"/>
+  <text x="75" y="214" fill="#ffffff" font-family="monospace" font-size="11">test:mcp-hub (5/5 connectors)</text>
+  <text x="545" y="214" fill="#10b981" font-family="monospace" font-size="10" text-anchor="end">Pass in 1.4s</text>
+
+  <!-- Check Item 2 -->
+  <line x1="40" y1="230" x2="560" y2="230" stroke="#27272a" stroke-width="1"/>
+  <circle cx="58" cy="250" r="5" fill="#10b981"/>
+  <text x="75" y="254" fill="#ffffff" font-family="monospace" font-size="11">test:spider-matrix (adversarial)</text>
+  <text x="545" y="250" fill="#10b981" font-family="monospace" font-size="10" text-anchor="end">Pass in 2.8s</text>
+
+  <!-- Check Item 3 -->
+  <line x1="40" y1="270" x2="560" y2="270" stroke="#27272a" stroke-width="1"/>
+  <circle cx="58" cy="290" r="5" fill="#10b981"/>
+  <text x="75" y="294" fill="#ffffff" font-family="monospace" font-size="11">workspace:typecheck</text>
+  <text x="545" y="290" fill="#10b981" font-family="monospace" font-size="10" text-anchor="end">Pass in 3.1s</text>
+
+  <!-- Check Item 4 -->
+  <line x1="40" y1="310" x2="560" y2="310" stroke="#27272a" stroke-width="1"/>
+  <circle cx="58" cy="330" r="5" fill="#10b981"/>
+  <text x="75" y="334" fill="#ffffff" font-family="monospace" font-size="11">release-readiness-check (59/59)</text>
+  <text x="545" y="330" fill="#10b981" font-family="monospace" font-size="10" text-anchor="end">Pass in 4.2s</text>
+
+  <!-- Bot Approval Banner -->
+  <rect x="40" y="368" width="520" height="85" rx="6" fill="#18181b" stroke="#27272a"/>
+  <text x="60" y="396" fill="#38bdf8" font-family="monospace" font-size="11" font-weight="bold">PIEW-AGENT // AUTOMATED REVIEW VERDICT</text>
+  <text x="60" y="418" fill="#a1a1aa" font-family="sans-serif" font-size="11">• Strict-priority fill-first failover verified</text>
+  <text x="60" y="438" fill="#34d399" font-family="sans-serif" font-size="11" font-weight="600">✓ Changes approved automatically by CI/CD Quality Gate</text>
+</svg>

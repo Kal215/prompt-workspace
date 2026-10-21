@@ -92,10 +92,12 @@ export async function GET(request: Request) {
     logSanitizedError("GET", error);
     return NextResponse.json(
       {
-        success: false,
-        error: "Gagal memuat riwayat prompt dari database.",
+        success: true,
+        data: [],
+        count: 0,
+        warning: "Database riwayat sedang tidak aktif pada runtime serverless ini.",
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

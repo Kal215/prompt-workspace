@@ -10,3 +10,6 @@ dist/
 *.db-journal
 dev.db
 
+# IDE Local Settings
+.cursor/
+

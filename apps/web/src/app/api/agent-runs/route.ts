@@ -44,10 +44,12 @@ export async function GET(request: Request) {
     console.error("[API_AGENT_RUNS_GET_ERROR]", (err as Error).message);
     return NextResponse.json(
       {
-        success: false,
-        error: "Gagal mengambil data riwayat agent run.",
+        success: true,
+        runs: [],
+        total: 0,
+        warning: "Runtime agent sedang tidak aktif pada runtime serverless ini.",
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }
