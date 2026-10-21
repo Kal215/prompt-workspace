@@ -64,8 +64,20 @@ export class AgentMemoryStore {
   }
 
   private ensureDirectory(): void {
-    if (!fs.existsSync(this.baseDir)) {
-      fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
+    try {
+      if (!fs.existsSync(this.baseDir)) {
+        fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
+      }
+    } catch {
+      // Fallback ke os.tmpdir() jika direktori home tidak memiliki izin tulis (seperti di serverless/Vercel)
+      try {
+        this.baseDir = path.join(os.tmpdir(), ".piew", "agent-memory");
+        if (!fs.existsSync(this.baseDir)) {
+          fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
+        }
+      } catch {
+        // Lingkungan read-only / in-memory fallback
+      }
     }
   }
 
@@ -76,20 +88,22 @@ export class AgentMemoryStore {
   private loadAllToCache(): void {
     this.memoryCache.clear();
     try {
-      const files = fs.readdirSync(this.baseDir);
-      for (const file of files) {
-        if (!file.endsWith(".json")) continue;
-        try {
-          const raw = fs.readFileSync(path.join(this.baseDir, file), "utf-8");
-          const parsed = JSON.parse(raw);
-          const validated = MemoryRecordSchema.parse(parsed);
-          this.memoryCache.set(validated.id, validated);
-        } catch {
-          // Lewati file corrupt/tidak valid
+      if (fs.existsSync(this.baseDir)) {
+        const files = fs.readdirSync(this.baseDir);
+        for (const file of files) {
+          if (!file.endsWith(".json")) continue;
+          try {
+            const raw = fs.readFileSync(path.join(this.baseDir, file), "utf-8");
+            const parsed = JSON.parse(raw);
+            const validated = MemoryRecordSchema.parse(parsed);
+            this.memoryCache.set(validated.id, validated);
+          } catch {
+            // Lewati file corrupt/tidak valid
+          }
         }
       }
     } catch {
-      // Direktori mungkin belum terisi
+      // Direktori mungkin belum terisi atau filesystem tidak dapat dibaca
     }
   }
 
@@ -149,9 +163,13 @@ export class AgentMemoryStore {
     };
 
     const validated = MemoryRecordSchema.parse(record);
-    fs.writeFileSync(this.getFilePath(id), JSON.stringify(validated, null, 2), {
-      mode: 0o600,
-    });
+    try {
+      fs.writeFileSync(this.getFilePath(id), JSON.stringify(validated, null, 2), {
+        mode: 0o600,
+      });
+    } catch {
+      // Fallback in-memory jika filesystem read-only
+    }
     this.memoryCache.set(id, validated);
 
     return validated;
@@ -193,9 +211,13 @@ export class AgentMemoryStore {
       }
     }
 
-    fs.writeFileSync(this.getFilePath(id), JSON.stringify(existing, null, 2), {
-      mode: 0o600,
-    });
+    try {
+      fs.writeFileSync(this.getFilePath(id), JSON.stringify(existing, null, 2), {
+        mode: 0o600,
+      });
+    } catch {
+      // Fallback in-memory
+    }
     this.memoryCache.set(id, existing);
     return existing;
   }
@@ -226,9 +248,13 @@ export class AgentMemoryStore {
     existing.contentHash = crypto.createHash("sha256").update(sanitized).digest("hex");
     existing.status = "proposed"; // Wajib re-validasi setelah koreksi konten!
 
-    fs.writeFileSync(this.getFilePath(id), JSON.stringify(existing, null, 2), {
-      mode: 0o600,
-    });
+    try {
+      fs.writeFileSync(this.getFilePath(id), JSON.stringify(existing, null, 2), {
+        mode: 0o600,
+      });
+    } catch {
+      // Fallback in-memory
+    }
     this.memoryCache.set(id, existing);
     return { success: true, record: existing };
   }
@@ -242,9 +268,13 @@ export class AgentMemoryStore {
     if (existing.ownerId !== ownerId && existing.scope !== "global") return false;
 
     existing.status = "stale";
-    fs.writeFileSync(this.getFilePath(id), JSON.stringify(existing, null, 2), {
-      mode: 0o600,
-    });
+    try {
+      fs.writeFileSync(this.getFilePath(id), JSON.stringify(existing, null, 2), {
+        mode: 0o600,
+      });
+    } catch {
+      // Fallback in-memory
+    }
     this.memoryCache.set(id, existing);
     return true;
   }
@@ -261,8 +291,12 @@ export class AgentMemoryStore {
 
     this.memoryCache.delete(id);
     const filePath = this.getFilePath(id);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch {
+      // Fallback in-memory
     }
     return true;
   }

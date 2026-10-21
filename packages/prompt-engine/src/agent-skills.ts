@@ -47,8 +47,20 @@ export class AgentSkillRegistry {
   }
 
   private ensureDirectory(): void {
-    if (!fs.existsSync(this.baseDir)) {
-      fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
+    try {
+      if (!fs.existsSync(this.baseDir)) {
+        fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
+      }
+    } catch {
+      // Fallback ke os.tmpdir() jika direktori home tidak memiliki izin tulis (seperti di serverless/Vercel)
+      try {
+        this.baseDir = path.join(os.tmpdir(), ".piew", "agent-skills");
+        if (!fs.existsSync(this.baseDir)) {
+          fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
+        }
+      } catch {
+        // Lingkungan read-only / in-memory
+      }
     }
   }
 
@@ -59,19 +71,21 @@ export class AgentSkillRegistry {
   private loadAllSkills(): void {
     this.skillsMap.clear();
     try {
-      const files = fs.readdirSync(this.baseDir);
-      for (const file of files) {
-        if (!file.endsWith(".json")) continue;
-        try {
-          const raw = fs.readFileSync(path.join(this.baseDir, file), "utf-8");
-          const parsed = JSON.parse(raw);
-          this.skillsMap.set(parsed.manifest.name, parsed);
-        } catch {
-          // Abaikan berkas corrupt
+      if (fs.existsSync(this.baseDir)) {
+        const files = fs.readdirSync(this.baseDir);
+        for (const file of files) {
+          if (!file.endsWith(".json")) continue;
+          try {
+            const raw = fs.readFileSync(path.join(this.baseDir, file), "utf-8");
+            const parsed = JSON.parse(raw);
+            this.skillsMap.set(parsed.manifest.name, parsed);
+          } catch {
+            // Abaikan berkas corrupt
+          }
         }
       }
     } catch {
-      // Belum ada file
+      // Belum ada file atau filesystem tidak dapat dibaca
     }
   }
 
@@ -189,9 +203,13 @@ export class AgentSkillRegistry {
         manifest,
       });
       existing.updatedAt = now;
-      fs.writeFileSync(this.getSkillFilePath(manifest.name), JSON.stringify(existing, null, 2), {
-        mode: 0o600,
-      });
+      try {
+        fs.writeFileSync(this.getSkillFilePath(manifest.name), JSON.stringify(existing, null, 2), {
+          mode: 0o600,
+        });
+      } catch {
+        // Fallback in-memory jika filesystem bersifat read-only
+      }
       return { success: true, entry: existing, validation };
     }
 
@@ -211,9 +229,13 @@ export class AgentSkillRegistry {
       updatedAt: now,
     };
 
-    fs.writeFileSync(this.getSkillFilePath(manifest.name), JSON.stringify(entry, null, 2), {
-      mode: 0o600,
-    });
+    try {
+      fs.writeFileSync(this.getSkillFilePath(manifest.name), JSON.stringify(entry, null, 2), {
+        mode: 0o600,
+      });
+    } catch {
+      // Fallback in-memory jika filesystem bersifat read-only
+    }
     this.skillsMap.set(manifest.name, entry);
 
     return { success: true, entry, validation };
@@ -236,9 +258,13 @@ export class AgentSkillRegistry {
         historyItem.status = "ACTIVE";
         entry.manifest = historyItem.manifest;
       }
-      fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
-        mode: 0o600,
-      });
+      try {
+        fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
+          mode: 0o600,
+        });
+      } catch {
+        // Fallback in-memory
+      }
       return true;
     }
     return false;
@@ -258,9 +284,13 @@ export class AgentSkillRegistry {
 
     if (!holdoutReport.passed || holdoutReport.score < 80) {
       entry.status = "DISABLED";
-      fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
-        mode: 0o600,
-      });
+      try {
+        fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
+          mode: 0o600,
+        });
+      } catch {
+        // Fallback in-memory
+      }
       return {
         success: false,
         status: "DISABLED",
@@ -271,9 +301,13 @@ export class AgentSkillRegistry {
     // Lulus Holdout -> Aktifkan
     entry.status = "ACTIVE";
     entry.updatedAt = new Date().toISOString();
-    fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
-      mode: 0o600,
-    });
+    try {
+      fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
+        mode: 0o600,
+      });
+    } catch {
+      // Fallback in-memory
+    }
     return {
       success: true,
       status: "ACTIVE",
@@ -308,9 +342,13 @@ export class AgentSkillRegistry {
     entry.status = "ROLLED_BACK";
     entry.updatedAt = new Date().toISOString();
 
-    fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
-      mode: 0o600,
-    });
+    try {
+      fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
+        mode: 0o600,
+      });
+    } catch {
+      // Fallback in-memory
+    }
 
     return {
       success: true,
@@ -339,9 +377,13 @@ export class AgentSkillRegistry {
     }
     entry.status = status;
     entry.updatedAt = new Date().toISOString();
-    fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
-      mode: 0o600,
-    });
+    try {
+      fs.writeFileSync(this.getSkillFilePath(skillName), JSON.stringify(entry, null, 2), {
+        mode: 0o600,
+      });
+    } catch {
+      // Fallback in-memory
+    }
     return { success: true, message: `Skill ${skillName} status diubah ke ${status}.` };
   }
 
@@ -447,9 +489,13 @@ export class AgentSkillRegistry {
         const entry = this.skillsMap.get(parsed.name);
         if (entry) {
           entry.status = "ACTIVE";
-          fs.writeFileSync(this.getSkillFilePath(parsed.name), JSON.stringify(entry, null, 2), {
-            mode: 0o600,
-          });
+          try {
+            fs.writeFileSync(this.getSkillFilePath(parsed.name), JSON.stringify(entry, null, 2), {
+              mode: 0o600,
+            });
+          } catch {
+            // Fallback in-memory
+          }
         }
       }
     }

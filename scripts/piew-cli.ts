@@ -8,6 +8,11 @@
  *   npx tsx scripts/piew-cli.ts "Fitur auth Next.js" --url=https://nextjs.org/docs --json
  */
 
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { fileURLToPath } from "node:url";
+
 import {
   runAutoPilotMasterPipeline,
   loadPiewConfig,
@@ -48,6 +53,7 @@ Opsi:
   --budget=<mode>     Mode budget token: balanced (default), eco, deep_audit
   --url=<url>         URL dokumentasi/GitHub referensi (maks 2, pisahkan koma atau ulang flag)
   --context=<teks>    Konteks tambahan / spesifikasi arsitektur
+  --setup             Pasang otomatis konfigurasi MCP Server ke Cursor, Claude Desktop, & Windsurf
   --supervise         Inisialisasi sesi supervisi otonom (Closed-Loop MCP Supervisor)
   --audit             Jalankan audit fisik empiris mandiri pada fase aktif
   --session=<id>      ID sesi supervisi untuk audit atau inspeksi status
@@ -102,13 +108,16 @@ async function main() {
   let skillsMode = false;
   let experimentMode = false;
   let auditMode = false;
+  let setupMode = false;
   let sessionTarget: string | undefined;
   let phaseTarget: number | undefined;
   let buildCmdTarget: string | undefined;
   let testCmdTarget: string | undefined;
 
   for (const arg of args) {
-    if (arg === "--providers" || arg === "--list-providers") {
+    if (arg === "--setup" || arg === "setup") {
+      setupMode = true;
+    } else if (arg === "--providers" || arg === "--list-providers") {
       listProvidersMode = true;
     } else if (arg.startsWith("--test-provider=")) {
       testProviderTarget = arg.slice("--test-provider=".length).trim();
@@ -164,6 +173,11 @@ async function main() {
   // Smart Auto-Detection: Aktifkan mode blueprint secara default kecuali diminta --prompt-only
   if (showBlueprint === undefined) {
     showBlueprint = !promptOnly;
+  }
+
+  if (setupMode) {
+    await handleIdeSetup({ json: jsonOutput });
+    process.exit(0);
   }
 
   if (listProvidersMode) {
@@ -578,6 +592,167 @@ async function main() {
     console.error(`❌ Gagal mengeksekusi PIEW Auto-Pilot: ${err.message}`);
     process.exit(1);
   }
+}
+
+async function handleIdeSetup(options: { json?: boolean } = {}) {
+  const currentFile = fileURLToPath(import.meta.url);
+  const currentDir = path.dirname(currentFile);
+  const workspaceRoot = path.resolve(currentDir, "..");
+  const mcpServerPath = path.resolve(workspaceRoot, "scripts", "piew-mcp-server.ts");
+
+  const homedir = os.homedir();
+  const isWin = process.platform === "win32";
+
+  const targets: Array<{
+    ideName: string;
+    configPath: string;
+    description: string;
+  }> = [];
+
+  // 1. Cursor Global Config
+  targets.push({
+    ideName: "Cursor (Global User Config)",
+    configPath: path.join(homedir, ".cursor", "mcp.json"),
+    description: "Pengaturan MCP global Cursor di direktori profil pengguna",
+  });
+
+  // 2. Cursor Workspace Config (jika di dalam root workspace aktif)
+  targets.push({
+    ideName: "Cursor (Workspace Config)",
+    configPath: path.join(process.cwd(), ".cursor", "mcp.json"),
+    description: "Pengaturan MCP lokal direktori workspace aktif",
+  });
+
+  // 3. Claude Desktop
+  if (isWin) {
+    const appdata = process.env.APPDATA || path.join(homedir, "AppData", "Roaming");
+    targets.push({
+      ideName: "Claude Desktop (Windows)",
+      configPath: path.join(appdata, "Claude", "claude_desktop_config.json"),
+      description: "Pengaturan resmi Claude Desktop untuk Windows",
+    });
+  } else if (process.platform === "darwin") {
+    targets.push({
+      ideName: "Claude Desktop (macOS)",
+      configPath: path.join(homedir, "Library", "Application Support", "Claude", "claude_desktop_config.json"),
+      description: "Pengaturan resmi Claude Desktop untuk macOS",
+    });
+  } else {
+    targets.push({
+      ideName: "Claude Desktop (Linux)",
+      configPath: path.join(homedir, ".config", "Claude", "claude_desktop_config.json"),
+      description: "Pengaturan resmi Claude Desktop untuk Linux",
+    });
+  }
+
+  // 4. Windsurf
+  targets.push({
+    ideName: "Windsurf",
+    configPath: path.join(homedir, ".codeium", "windsurf", "mcp_config.json"),
+    description: "Pengaturan MCP resmi Codeium Windsurf",
+  });
+
+  const piewServerConfig = {
+    command: "npx",
+    args: ["-y", "tsx", mcpServerPath],
+  };
+
+  const results: Array<{
+    ideName: string;
+    configPath: string;
+    status: "TERPASANG" | "DIPERBARUI" | "GAGAL";
+    error?: string;
+  }> = [];
+
+  for (const target of targets) {
+    try {
+      const dir = path.dirname(target.configPath);
+
+      // Lewati workspace jika direktori .cursor tidak ada dan cwd bukan git repo
+      if (
+        target.ideName.includes("Workspace") &&
+        !fs.existsSync(dir) &&
+        !fs.existsSync(path.join(process.cwd(), ".git"))
+      ) {
+        continue;
+      }
+
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      let currentConfig: any = { mcpServers: {} };
+      let existed = false;
+
+      if (fs.existsSync(target.configPath)) {
+        try {
+          const raw = fs.readFileSync(target.configPath, "utf-8");
+          currentConfig = JSON.parse(raw);
+          existed = true;
+        } catch {
+          currentConfig = { mcpServers: {} };
+        }
+      }
+
+      if (!currentConfig || typeof currentConfig !== "object") {
+        currentConfig = { mcpServers: {} };
+      }
+      if (!currentConfig.mcpServers || typeof currentConfig.mcpServers !== "object") {
+        currentConfig.mcpServers = {};
+      }
+
+      currentConfig.mcpServers["piew"] = piewServerConfig;
+
+      fs.writeFileSync(target.configPath, JSON.stringify(currentConfig, null, 2), "utf-8");
+      results.push({
+        ideName: target.ideName,
+        configPath: target.configPath,
+        status: existed ? "DIPERBARUI" : "TERPASANG",
+      });
+    } catch (err: any) {
+      results.push({
+        ideName: target.ideName,
+        configPath: target.configPath,
+        status: "GAGAL",
+        error: err.message,
+      });
+    }
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify({ success: true, results, mcpServerPath }, null, 2));
+    return;
+  }
+
+  console.log("\n" + "═".repeat(68));
+  console.log("⚡ PIEW 1-CLICK MCP IDE CONNECTOR SETUP");
+  console.log("═".repeat(68) + "\n");
+  console.log(`Path Eksekusi MCP Server: ${mcpServerPath}\n`);
+
+  for (const res of results) {
+    const badge =
+      res.status === "TERPASANG"
+        ? "✅ TERPASANG"
+        : res.status === "DIPERBARUI"
+        ? "🔄 DIPERBARUI"
+        : "❌ GAGAL";
+    console.log(` • [${badge}] ${res.ideName}`);
+    console.log(`   File : ${res.configPath}`);
+    if (res.error) console.log(`   Error: ${res.error}`);
+    console.log("");
+  }
+
+  console.log("─".repeat(68));
+  console.log("🛠️ Tools yang Otomatis Terhubung ke AI Agent:");
+  console.log(" 1. piew_autopilot             - Orkestrator penuh: Crawl -> Spec -> Synthesize -> Spider");
+  console.log(" 2. piew_synthesize_master_prompt - Sintesis prompt terstruktur tingkat tinggi");
+  console.log(" 3. piew_crawl_grounding_context  - Ekstraksi referensi dokumentasi resmi");
+  console.log(" 4. piew_verify_prompt_spider     - Uji ketahanan adversarial prompt 5-cabang");
+  console.log(" 5. piew_init_project_supervision - Inisialisasi pengawasan otonom closed-loop");
+  console.log(" 6. piew_submit_phase_work        - Validasi empiris git diff & build status");
+  console.log("─".repeat(68));
+  console.log("💡 Langkah Selanjutnya: Buka atau restart Cursor/Claude Desktop Anda.");
+  console.log("   AI Agent Anda sekarang dapat langsung memanggil perkakas PIEW secara mandiri.\n");
 }
 
 main();
