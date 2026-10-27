@@ -430,7 +430,8 @@ def build_demo_document():
     t_run.font.color.rgb = RGBColor(6, 95, 70)
 
     # Save
-    out_docx = "/home/riskal/prompt-workspace/CONTOH_OUTPUT_PROMPT_WEBSITE_PIEW.docx"
+    workspace_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out_docx = os.path.join(workspace_dir, "CONTOH_OUTPUT_PROMPT_WEBSITE_PIEW.docx")
     doc.save(out_docx)
     print(f"Demo DOCX saved to {out_docx}")
 

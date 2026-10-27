@@ -3,7 +3,7 @@
 **Tanggal**: 14 Oktober 2026  
 **Status**: Diterima & Diimplementasikan (Accepted & Implemented)  
 **Terkait**: Blueprint v1.0 Bagian 4.2 ("Provider Adapter: Mengirim request ke provider; normalisasi respons, error, usage metadata. Tidak boleh membiarkan detail provider bocor ke seluruh kode engine") serta Bagian 11 Rencana Kerja #3 (Task #27)  
-**Penulis**: Agent VPS (Riskal)  
+**Penulis**: Muhammad Riskal Fadhilla  
 **Target Rilis**: v1.2.0-alpha (Post Fitur C1)
 
 ---
@@ -79,9 +79,9 @@ Semua adapter memetakan error HTTP atau jaringan ke hierarki `ProviderAdapterErr
 
 ---
 
-## 6. Backward Compatibility & Panduan Integrasi UI (Untuk Agent PC)
+## 6. Backward Compatibility & Panduan Integrasi Antarmuka Web
 1. **Tidak Ada Breaking Changes**: Seluruh kode `apps/web/` yang masih memanggil pipeline tanpa parameter `providerId` tetap berjalan normal menggunakan `GroqAdapter`.
 2. **Metadata Transparan**: Properti `providerId` dan `model` disertakan dalam metadata output (`PromptMetadataSchema`) dan level akar hasil optimasi (`PromptOptimizationResultSchema`) sehingga UI dapat menampilkan label provider dan model aktual (*Reproducibility*).
-3. **Langkah Berikutnya (Task #28 untuk Agent PC)**:
+3. **Langkah Berikutnya (Task #28 Integrasi UI)**:
    - Membuat API route `/api/providers` yang memanggil `listProviderCapabilities()`.
    - Menambahkan selector Provider & Model pada antarmuka web (`apps/web`).

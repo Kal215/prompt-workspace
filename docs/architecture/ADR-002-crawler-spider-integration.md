@@ -242,4 +242,4 @@ Untuk mencegah file SQLite `dev.db` membengkak tanpa batas:
 ---
 
 ## 7. Status Tinjauan & Kesepakatan
-Dokumen ini disetujui sebagai **Single Source of Truth** untuk seluruh pengerjaan PIEW v2.0. Seluruh agen pengembang (Agent VPS dan Agent PC) terikat pada batasan teknis di atas.
+Dokumen ini disetujui sebagai **Single Source of Truth** untuk seluruh pengerjaan PIEW v2.0. Seluruh tim pengembang dan kontributor terikat pada batasan teknis di atas.

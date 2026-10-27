@@ -3,7 +3,7 @@
 **Tanggal**: 14 Oktober 2026  
 **Status**: Diterima & Diimplementasikan (Accepted & Implemented)  
 **Terkait**: Blueprint v1.0 Bagian 3, 4.2, 11 (Rencana Kerja #4), dan Task #25  
-**Penulis**: Agent VPS (Riskal)  
+**Penulis**: Muhammad Riskal Fadhilla  
 **Target Rilis**: v1.1.0-alpha (Post v1.0.0-mvp)
 
 ---
@@ -59,7 +59,7 @@ Untuk memastikan bahwa aplikasi web, script API, maupun database lama tidak meng
 
 ---
 
-## 4. Rencana Tindak Lanjut & Integrasi UI (Untuk Agent PC)
+## 4. Rencana Tindak Lanjut & Integrasi Antarmuka Web
 Setelah PR #19 di-merge ke branch `main`:
-1. Agent PC dapat memanfaatkan helper `listDomainPacks()` atau mapping domain ID pada komponen UI (`apps/web`) untuk menampilkan dropdown / selector domain pada form input prompt.
+1. Pengembang antarmuka web dapat memanfaatkan helper `listDomainPacks()` atau mapping domain ID pada komponen UI (`apps/web`) untuk menampilkan dropdown / selector domain pada form input prompt.
 2. Kartu hasil optimasi dapat menampilkan badge domain pack aktif (`appliedDomainRule.name`) untuk transparansi sistem kepada pengguna (*Explainability*).

@@ -223,8 +223,6 @@ prompt-workspace/
 │   ├── piew-cli.ts                  # Command line runner (CLI)
 │   └── piew-mcp-server.ts           # MCP server for Cursor and Claude
 │
-├── SUPERVISOR_EXECUTION_STATE.md    # Local log of supervision runs
-├── RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.pdf  # 8-page architecture reference document
 └── package.json                     # Monorepo configuration
 ```
 

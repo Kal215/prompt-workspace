@@ -14,7 +14,7 @@ Pada rilis v1.1.0, repositori mengadopsi pola **Modular Monolith** dengan 6 pack
    - Pipeline optimasi prompt (`analyzer` -> `optimizer` -> `evaluator`) berjalan secara in-process melalui fungsi TypeScript native.
    - Tidak ada overhead serialisasi jaringan (HTTP/gRPC) antar-lapisan, menghasilkan latensi komputasi minimal.
 2. **Kesesuaian dengan Skala Tim & Operasional**:
-   - Tim pengembang saat ini beranggotakan 2 agen otonom (Agent PC & Agent VPS).
+   - Arsitektur saat ini sangat cocok untuk tim teknik yang mengutamakan kecepatan iterasi dan siklus rilis mandiri.
    - Mengadopsi arsitektur microservices saat ini akan menambah kompleksitas operasional yang tidak perlu (*premature optimization*): orchestration Kubernetes, service discovery, distributed tracing, dan konsistensi data eventual.
 3. **Integritas Transaksional & Kontrak Terpusat**:
    - Paket `@prompt-workspace/prompt-contracts` berfungsi sebagai *Single Source of Truth*. Seluruh perubahan tipe data terverifikasi saat kompilasi (`tsc --noEmit`), mengeliminasi risiko kegagalan integrasi runtime.

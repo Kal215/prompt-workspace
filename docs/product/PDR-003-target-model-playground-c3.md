@@ -3,7 +3,7 @@
 **Tanggal**: 14 Oktober 2026  
 **Status**: Diterima & Diimplementasikan (Accepted & Implemented)  
 **Terkait**: Blueprint v1.0 Bagian 5.6 ("Evaluasi hasil eksekusi: prompt dijalankan pada model tujuan, lalu output dibandingkan... memerlukan desain eksperimen yang hati-hati"), Bagian 11 Rencana Kerja #2 (Task #29), dan Gate 3 (Evaluasi Kualitas)  
-**Penulis**: Agent VPS (Riskal)  
+**Penulis**: Muhammad Riskal Fadhilla  
 **Target Rilis**: v1.3.0-alpha (Penutup Tahap 5 — Fitur Lanjutan)
 
 ---
@@ -91,9 +91,9 @@ LLM pada dasarnya bersifat probabilistik. Dua eksekusi berturut-turut pada model
 
 ---
 
-## 6. Rencana Tindak Lanjut & Integrasi UI (Untuk Agent PC di Task #30)
+## 6. Rencana Tindak Lanjut & Integrasi Antarmuka Web (Task #30)
 Setelah PR #23 di-merge ke branch `main`:
-1. **Komponen Playground**: Agent PC dapat membuat tab atau drawer "Test / Run Playground" di antarmuka web.
+1. **Komponen Playground**: Pengembang antarmuka web dapat membuat tab atau drawer "Test / Run Playground" di antarmuka web.
 2. **Deteksi Otomatis Variabel**: Menggunakan `extractPromptPlaceholders(optimizedPrompt)` untuk me-render input form dinamis bagi masing-masing placeholder yang terdeteksi.
 3. **Drawer Input Uji**: Area input opsional untuk `testInput` (data contoh kasus uji).
 4. **Panel Eksekusi & Hasil**: Memanggil endpoint backend baru (misal `/api/playground/execute`) untuk mengeksekusi model dan menampilkan respons, latency, token usage, serta badge provider/model.

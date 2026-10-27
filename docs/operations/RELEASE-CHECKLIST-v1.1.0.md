@@ -104,7 +104,7 @@ Jika salah satu kondisi pemicu (*rollback triggers*) berikut terpenuhi dalam 60 
 
 ## 👥 5. Tanda Tangan & Persetujuan Kesiapan Rilis
 
-- **Lead Engineer (VPS Agent)**: Muhammad Riskal Fadhilla (`Agent VPS`) ✅ **APPROVED**
-- **Quality & Security Reviewer**: Autonomous SDLC Gate Auditor (`Agent PC`) ✅ **APPROVED**
+- **Lead Engineer**: Muhammad Riskal Fadhilla ✅ **APPROVED**
+- **Quality & Security Reviewer**: Automated SDLC Gate Auditor ✅ **APPROVED**
 - **Product Owner**: Project Leader ✅ **ACCEPTED FOR RELEASE**
 - **Keputusan**: **RELEASE READY FOR PRODUCTION (v1.1.0)**

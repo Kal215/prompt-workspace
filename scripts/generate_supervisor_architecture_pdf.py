@@ -565,9 +565,9 @@ Penerapan rancang bangun ini tidak memerlukan perubahan merusak pada monorepo da
 """
 
 def generate_pdf():
-    workspace_dir = "/home/riskal/prompt-workspace"
+    workspace_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     html_path = os.path.join(workspace_dir, "RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.html")
-    pdf_path = os.path.join(workspace_dir, "RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.pdf")
+    pdf_path = os.path.join(workspace_dir, "docs", "architecture", "RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.pdf")
 
     print(f"[*] Menulis berkas HTML spesifikasi ke: {html_path}")
     with open(html_path, "w", encoding="utf-8") as f:

@@ -5,7 +5,7 @@
 
 ## Konteks & Latar Belakang
 Prompt Intelligence Engineering Workspace (PIEW) dirancang untuk memproses dan mengoptimalkan prompt pengguna dengan keandalan tinggi, kecepatan instan, dan jaminan keamanan data. Dalam proses pengembangannya, tim menghadapi tantangan teknis mendasar:
-1. **Keterikatan Kode (Coupling)**: Menempatkan logika prompt analysis/optimization langsung di dalam komponen UI atau Next.js route handler akan menyulitkan pengujian otomatis independen, benchmark regresi, dan pembagian tugas antar-agen (Agent VPS dan Agent PC).
+1. **Keterikatan Kode (Coupling)**: Menempatkan logika prompt analysis/optimization langsung di dalam komponen UI atau Next.js route handler akan menyulitkan pengujian otomatis independen, benchmark regresi, dan modularitas kode.
 2. **Keterbatasan Kuota Provider LLM**: Panggilan optimasi model berdaya komputasi tinggi (seperti Llama 3.3 70B di Groq) rawan terkena rate limit (HTTP 429) jika hanya mengandalkan satu kunci API tunggal.
 3. **Portabilitas & Integritas Data**: Aplikasi harus dapat berjalan lancar di lingkungan Windows (pengembang lokal) dan Linux (VPS produksi). Pengujian otomatis database tidak boleh merusak database lokal aktif (`dev.db`).
 4. **Ancaman Keamanan Web**: Aplikasi membutuhkan perlindungan terhadap Insecure Direct Object Reference (IDOR), pemalsuan permintaan lintas situs (CSRF), eksploitasi brute-force/DoS, tabrakan data akibat race condition, serta kebocoran data sensitif (API key & prompt pengguna).

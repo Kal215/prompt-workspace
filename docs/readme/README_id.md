@@ -224,8 +224,6 @@ prompt-workspace/
 │   ├── piew-cli.ts                  # Perintah terminal (CLI)
 │   └── piew-mcp-server.ts           # Server MCP untuk Cursor / Claude
 │
-├── SUPERVISOR_EXECUTION_STATE.md    # Catatan riwayat pemeriksaan yang tersimpan di disk
-├── RANCANG_BANGUN_PIEW_AUTONOMOUS_SUPERVISOR.pdf  # Dokumen penjelasan teknis 8 halaman
 └── package.json                     # Pengaturan utama proyek
 ```
 

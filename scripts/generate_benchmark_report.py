@@ -486,7 +486,8 @@ def build_report():
     crun_t.font.color.rgb = RGBColor(6, 95, 70)
 
     # Save docx
-    docx_path = "/home/riskal/prompt-workspace/LAPORAN_HASIL_BENCHMARK_DAN_BLIND_TEST_TAHAP_A.docx"
+    workspace_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    docx_path = os.path.join(workspace_dir, "LAPORAN_HASIL_BENCHMARK_DAN_BLIND_TEST_TAHAP_A.docx")
     doc.save(docx_path)
     print(f"DOCX saved successfully to {docx_path}")
 

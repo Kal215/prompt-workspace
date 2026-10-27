@@ -13,3 +13,9 @@ dev.db
 # IDE Local Settings
 .cursor/
 
+# Agent Guidelines & Generated Local Reports
+AGENTS.md
+apps/web/AGENTS.md
+*.docx
+*.html
+
