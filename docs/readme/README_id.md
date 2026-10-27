@@ -6,6 +6,7 @@
 
 **Membantu memeriksa hasil koding AI (seperti Cursor, Claude Code, dan Windsurf) lewat git diff, tes kompilasi, dan unit test agar kodenya benar-benar jalan dan tidak berputar-putar.**
 
+[![Website](https://img.shields.io/badge/Website-piew.rskl.tech-2563eb?style=flat-square&logo=vercel&logoColor=white)](https://piew.rskl.tech/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP-Standard%202.0-5c4ee5?style=flat-square)](https://modelcontextprotocol.io/)
@@ -14,7 +15,7 @@
 
 ---
 
-**[Mulai Cepat](#mulai-cepat)** · **[Kenapa Perlu PIEW](#kenapa-perlu-piew)** · **[Fitur Utama](#fitur-utama)** · **[Cara Kerja](#cara-kerja)** · **[Integrasi IDE (MCP)](#integrasi-ke-ide-ai-mcp)** · **[Penggunaan CLI](#penggunaan-lewat-terminal-cli)** · **[Struktur Folder](#arsitektur-monorepo)**
+**[Demo Aplikasi](https://piew.rskl.tech/)** · **[Mulai Cepat](#mulai-cepat)** · **[Kenapa Perlu PIEW](#kenapa-perlu-piew)** · **[Fitur Utama](#fitur-utama)** · **[Cara Kerja](#cara-kerja)** · **[Integrasi IDE (MCP)](#integrasi-ke-ide-ai-mcp)** · **[Penggunaan CLI](#penggunaan-lewat-terminal-cli)** · **[Struktur Folder](#arsitektur-monorepo)**
 
 ```bash
 npm run piew -- --help
@@ -72,6 +73,8 @@ npm run piew -- "Buat sistem stok toko roti. DILARANG membuat modul POS fisik." 
 ```
 
 ### 3. Menjalankan Tampilan Web (Next.js 15)
+
+Anda dapat langsung mencoba aplikasi web yang sudah aktif di **[https://piew.rskl.tech/](https://piew.rskl.tech/)**, atau menjalankannya secara lokal:
 
 ```bash
 # Pasang dependensi

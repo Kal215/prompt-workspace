@@ -6,6 +6,7 @@
 
 **Check AI-generated code (Cursor, Claude Code, Windsurf) using git diffs, build checks, and test suites so tasks finish accurately without infinite loops or broken code.**
 
+[![Website](https://img.shields.io/badge/Website-piew.rskl.tech-2563eb?style=flat-square&logo=vercel&logoColor=white)](https://piew.rskl.tech/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP-Standard%202.0-5c4ee5?style=flat-square)](https://modelcontextprotocol.io/)
@@ -14,7 +15,7 @@
 
 ---
 
-**[Quick Start](#quick-start)** · **[Why PIEW](#why-piew)** · **[Key Features](#key-features)** · **[How It Works](#how-it-works)** · **[IDE Integration (MCP)](#ide-integration-mcp-server)** · **[CLI Reference](#cli-reference)** · **[Monorepo Structure](#monorepo-architecture)**
+**[Live Demo](https://piew.rskl.tech/)** · **[Quick Start](#quick-start)** · **[Why PIEW](#why-piew)** · **[Key Features](#key-features)** · **[How It Works](#how-it-works)** · **[IDE Integration (MCP)](#ide-integration-mcp-server)** · **[CLI Reference](#cli-reference)** · **[Monorepo Structure](#monorepo-architecture)**
 
 ```bash
 npm run piew -- --help
@@ -72,6 +73,8 @@ npm run piew -- "Build a bakery inventory management system. DO NOT use physical
 ```
 
 ### 3. Start Web Dashboard (Next.js 15)
+
+You can explore the hosted web app directly at **[https://piew.rskl.tech/](https://piew.rskl.tech/)**, or run it locally:
 
 ```bash
 # Install dependencies
